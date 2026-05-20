@@ -200,7 +200,6 @@ export function Navbar() {
                         : "text-muted-foreground hover:text-foreground hover:bg-muted"
                     }`}
                   >
-                    {Icon && <Icon className="w-3.5 h-3.5 shrink-0" />}
                     <span>{cat.name}</span>
                   </button>
                 );
