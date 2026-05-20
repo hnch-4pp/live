@@ -10,6 +10,7 @@ export const categoriesTable = pgTable("categories", {
   color: text("color").notNull(),
   hunchCount: integer("hunch_count").notNull().default(0),
   enabled: boolean("enabled").notNull().default(true),
+  sortOrder: integer("sort_order").notNull().default(0),
 });
 
 export const insertCategorySchema = createInsertSchema(categoriesTable).omit({ id: true });

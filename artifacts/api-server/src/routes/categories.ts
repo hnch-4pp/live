@@ -10,7 +10,7 @@ router.get("/categories", async (_req, res): Promise<void> => {
     .select()
     .from(categoriesTable)
     .where(eq(categoriesTable.enabled, true))
-    .orderBy(categoriesTable.name);
+    .orderBy(categoriesTable.sortOrder, categoriesTable.id);
 
   const result = await Promise.all(
     cats.map(async (cat) => {

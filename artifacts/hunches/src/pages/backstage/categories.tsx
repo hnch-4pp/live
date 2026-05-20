@@ -1,7 +1,22 @@
 import { useEffect, useState } from "react";
 import { AdminLayout } from "@/components/admin-layout";
 import { useAdminAuth, adminFetch } from "./dashboard";
-import { Plus, Pencil, Trash2, X, Check, ToggleLeft, ToggleRight } from "lucide-react";
+import { Plus, Pencil, Trash2, X, Check, ToggleLeft, ToggleRight, GripVertical } from "lucide-react";
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  verticalListSortingStrategy,
+  useSortable,
+  arrayMove,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 interface AdminCategory {
   id: number;
@@ -11,31 +26,121 @@ interface AdminCategory {
   color: string;
   hunchCount: number;
   enabled: boolean;
+  sortOrder: number;
 }
 
-const ICON_OPTIONS = [
-  { value: "trophy",        label: "Trophy" },
-  { value: "music",         label: "Music" },
-  { value: "film",          label: "Entertainment" },
-  { value: "trending-up",   label: "Finance" },
-  { value: "star",          label: "Star" },
-  { value: "zap",           label: "Zap" },
-  { value: "globe",         label: "Globe" },
-  { value: "heart",         label: "Heart" },
-];
-
-const COLOR_OPTIONS = [
-  { value: "violet", label: "Violet",  cls: "bg-violet-500" },
-  { value: "blue",   label: "Blue",    cls: "bg-blue-500" },
-  { value: "green",  label: "Green",   cls: "bg-green-500" },
-  { value: "yellow", label: "Yellow",  cls: "bg-yellow-400" },
-  { value: "red",    label: "Red",     cls: "bg-red-500" },
-  { value: "pink",   label: "Pink",    cls: "bg-pink-500" },
-  { value: "orange", label: "Orange",  cls: "bg-orange-500" },
-  { value: "teal",   label: "Teal",    cls: "bg-teal-500" },
-];
-
 const EMPTY = { slug: "", name: "", icon: "trophy", color: "violet", enabled: true };
+
+interface SortableRowProps {
+  cat: AdminCategory;
+  confirmDeleteId: number | null;
+  togglingId: number | null;
+  onEdit: (cat: AdminCategory) => void;
+  onToggle: (cat: AdminCategory) => void;
+  onDeleteClick: (id: number) => void;
+  onDeleteConfirm: (id: number) => void;
+  onDeleteCancel: () => void;
+}
+
+function SortableRow({
+  cat,
+  confirmDeleteId,
+  togglingId,
+  onEdit,
+  onToggle,
+  onDeleteClick,
+  onDeleteConfirm,
+  onDeleteCancel,
+}: SortableRowProps) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
+    useSortable({ id: cat.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    zIndex: isDragging ? 10 : undefined,
+  };
+
+  return (
+    <tr
+      ref={setNodeRef}
+      style={style}
+      className="hover:bg-gray-50 transition-colors"
+    >
+      <td className="px-3 py-3 w-8">
+        <button
+          {...attributes}
+          {...listeners}
+          className="text-gray-300 hover:text-gray-500 cursor-grab active:cursor-grabbing transition-colors"
+          title="Drag to reorder"
+        >
+          <GripVertical className="w-4 h-4" />
+        </button>
+      </td>
+      <td className="px-4 py-3">
+        <span className="font-medium text-gray-900">{cat.name}</span>
+      </td>
+      <td className="px-4 py-3 font-mono text-xs text-gray-500">{cat.slug}</td>
+      <td className="px-4 py-3 text-gray-600">{cat.hunchCount}</td>
+      <td className="px-4 py-3">
+        <button
+          onClick={() => onToggle(cat)}
+          disabled={togglingId === cat.id}
+          title={cat.enabled ? "Click to hide from nav" : "Click to show in nav"}
+          className="flex items-center gap-1.5 transition-opacity disabled:opacity-50"
+        >
+          {cat.enabled ? (
+            <>
+              <ToggleRight className="w-5 h-5 text-violet-600" />
+              <span className="text-xs font-medium text-violet-700">Enabled</span>
+            </>
+          ) : (
+            <>
+              <ToggleLeft className="w-5 h-5 text-gray-400" />
+              <span className="text-xs font-medium text-gray-400">Disabled</span>
+            </>
+          )}
+        </button>
+      </td>
+      <td className="px-4 py-3 text-right">
+        {confirmDeleteId === cat.id ? (
+          <div className="inline-flex items-center gap-2">
+            <span className="text-xs text-gray-500">Delete?</span>
+            <button
+              onClick={() => onDeleteConfirm(cat.id)}
+              className="inline-flex items-center gap-1 text-xs font-semibold text-white bg-red-500 hover:bg-red-600 px-2.5 py-1.5 rounded-lg transition-colors"
+            >
+              <Check className="w-3 h-3" /> Yes
+            </button>
+            <button
+              onClick={onDeleteCancel}
+              className="inline-flex items-center gap-1 text-xs font-medium text-gray-600 hover:text-gray-900 px-2.5 py-1.5 rounded-lg hover:bg-gray-100 transition-colors"
+            >
+              <X className="w-3 h-3" /> No
+            </button>
+          </div>
+        ) : (
+          <div className="inline-flex items-center gap-1">
+            <button
+              onClick={() => onEdit(cat)}
+              className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-600 hover:text-violet-700 px-2.5 py-1.5 rounded-lg hover:bg-violet-50 transition-colors"
+            >
+              <Pencil className="w-3.5 h-3.5" />
+              Edit
+            </button>
+            <button
+              onClick={() => onDeleteClick(cat.id)}
+              className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-400 hover:text-red-600 px-2.5 py-1.5 rounded-lg hover:bg-red-50 transition-colors"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        )}
+      </td>
+    </tr>
+  );
+}
 
 export default function AdminCategories() {
   const [categories, setCategories] = useState<AdminCategory[]>([]);
@@ -47,6 +152,8 @@ export default function AdminCategories() {
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
 
   useAdminAuth();
+
+  const sensors = useSensors(useSensor(PointerSensor));
 
   const load = () =>
     adminFetch("/admin/categories")
@@ -106,8 +213,20 @@ export default function AdminCategories() {
     }
   };
 
-  const colorCls = (color: string) =>
-    COLOR_OPTIONS.find((c) => c.value === color)?.cls ?? "bg-gray-400";
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    const oldIndex = categories.findIndex((c) => c.id === active.id);
+    const newIndex = categories.findIndex((c) => c.id === over.id);
+    const reordered = arrayMove(categories, oldIndex, newIndex);
+    setCategories(reordered);
+
+    await adminFetch("/admin/categories/reorder", {
+      method: "POST",
+      body: JSON.stringify({ order: reordered.map((c) => c.id) }),
+    });
+  };
 
   return (
     <AdminLayout>
@@ -115,7 +234,7 @@ export default function AdminCategories() {
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Categories</h1>
-            <p className="text-sm text-gray-500 mt-0.5">Control which categories appear in the top navigation bar</p>
+            <p className="text-sm text-gray-500 mt-0.5">Drag rows to reorder — order here matches the top navigation bar</p>
           </div>
           <button
             onClick={openCreate}
@@ -130,91 +249,40 @@ export default function AdminCategories() {
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-gray-50 text-gray-500 text-xs uppercase tracking-wide border-b border-gray-100">
-                <th className="px-6 py-3 text-left font-semibold">Category</th>
-                <th className="px-6 py-3 text-left font-semibold">Slug</th>
-                <th className="px-6 py-3 text-left font-semibold">Color</th>
-                <th className="px-6 py-3 text-left font-semibold">Hunches</th>
-                <th className="px-6 py-3 text-left font-semibold">Visible in nav</th>
-                <th className="px-6 py-3 text-right font-semibold">Actions</th>
+                <th className="px-3 py-3 w-8" />
+                <th className="px-4 py-3 text-left font-semibold">Category</th>
+                <th className="px-4 py-3 text-left font-semibold">Slug</th>
+                <th className="px-4 py-3 text-left font-semibold">Hunches</th>
+                <th className="px-4 py-3 text-left font-semibold">Visible in nav</th>
+                <th className="px-4 py-3 text-right font-semibold">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
-              {categories.map((cat) => (
-                <tr key={cat.id} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-6 py-3">
-                    <div className="flex items-center gap-2.5">
-                      <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${colorCls(cat.color)}`} />
-                      <span className="font-medium text-gray-900">{cat.name}</span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-3 font-mono text-xs text-gray-500">{cat.slug}</td>
-                  <td className="px-6 py-3 text-gray-600 capitalize">{cat.color}</td>
-                  <td className="px-6 py-3 text-gray-600">{cat.hunchCount}</td>
-                  <td className="px-6 py-3">
-                    <button
-                      onClick={() => toggleEnabled(cat)}
-                      disabled={togglingId === cat.id}
-                      title={cat.enabled ? "Click to hide from nav" : "Click to show in nav"}
-                      className="flex items-center gap-1.5 transition-opacity disabled:opacity-50"
-                    >
-                      {cat.enabled ? (
-                        <>
-                          <ToggleRight className="w-5 h-5 text-violet-600" />
-                          <span className="text-xs font-medium text-violet-700">Enabled</span>
-                        </>
-                      ) : (
-                        <>
-                          <ToggleLeft className="w-5 h-5 text-gray-400" />
-                          <span className="text-xs font-medium text-gray-400">Disabled</span>
-                        </>
-                      )}
-                    </button>
-                  </td>
-                  <td className="px-6 py-3 text-right">
-                    {confirmDeleteId === cat.id ? (
-                      <div className="inline-flex items-center gap-2">
-                        <span className="text-xs text-gray-500">Delete?</span>
-                        <button
-                          onClick={() => handleDelete(cat.id)}
-                          className="inline-flex items-center gap-1 text-xs font-semibold text-white bg-red-500 hover:bg-red-600 px-2.5 py-1.5 rounded-lg transition-colors"
-                        >
-                          <Check className="w-3 h-3" /> Yes
-                        </button>
-                        <button
-                          onClick={() => setConfirmDeleteId(null)}
-                          className="inline-flex items-center gap-1 text-xs font-medium text-gray-600 hover:text-gray-900 px-2.5 py-1.5 rounded-lg hover:bg-gray-100 transition-colors"
-                        >
-                          <X className="w-3 h-3" /> No
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="inline-flex items-center gap-1">
-                        <button
-                          onClick={() => openEdit(cat)}
-                          className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-600 hover:text-violet-700 px-2.5 py-1.5 rounded-lg hover:bg-violet-50 transition-colors"
-                        >
-                          <Pencil className="w-3.5 h-3.5" />
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => setConfirmDeleteId(cat.id)}
-                          className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-400 hover:text-red-600 px-2.5 py-1.5 rounded-lg hover:bg-red-50 transition-colors"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    )}
-                  </td>
-                </tr>
-              ))}
-              {categories.length === 0 && (
-                <tr>
-                  <td colSpan={6} className="px-6 py-10 text-center text-gray-400 text-sm">
-                    No categories yet
-                  </td>
-                </tr>
-              )}
-            </tbody>
+            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+              <SortableContext items={categories.map((c) => c.id)} strategy={verticalListSortingStrategy}>
+                <tbody className="divide-y divide-gray-100">
+                  {categories.map((cat) => (
+                    <SortableRow
+                      key={cat.id}
+                      cat={cat}
+                      confirmDeleteId={confirmDeleteId}
+                      togglingId={togglingId}
+                      onEdit={openEdit}
+                      onToggle={toggleEnabled}
+                      onDeleteClick={setConfirmDeleteId}
+                      onDeleteConfirm={handleDelete}
+                      onDeleteCancel={() => setConfirmDeleteId(null)}
+                    />
+                  ))}
+                  {categories.length === 0 && (
+                    <tr>
+                      <td colSpan={6} className="px-6 py-10 text-center text-gray-400 text-sm">
+                        No categories yet
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </SortableContext>
+            </DndContext>
           </table>
         </div>
       </div>

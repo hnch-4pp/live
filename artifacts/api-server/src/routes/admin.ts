@@ -256,8 +256,27 @@ router.get(
   requireAdmin,
   requireAdminHeader,
   async (_req, res): Promise<void> => {
-    const cats = await db.select().from(categoriesTable).orderBy(categoriesTable.id);
+    const cats = await db.select().from(categoriesTable).orderBy(categoriesTable.sortOrder, categoriesTable.id);
     res.json(cats);
+  },
+);
+
+router.post(
+  "/admin/categories/reorder",
+  requireAdmin,
+  requireAdminHeader,
+  async (req, res): Promise<void> => {
+    const { order } = req.body as { order?: number[] };
+    if (!Array.isArray(order) || order.length === 0) {
+      res.status(400).json({ error: "order must be a non-empty array of ids" });
+      return;
+    }
+    await Promise.all(
+      order.map((id, index) =>
+        db.update(categoriesTable).set({ sortOrder: index }).where(eq(categoriesTable.id, id)),
+      ),
+    );
+    res.json({ ok: true });
   },
 );
 
