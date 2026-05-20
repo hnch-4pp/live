@@ -173,7 +173,7 @@ export default function Home() {
                       >
                         <span className="flex items-center gap-2">
                           <span className="text-base">{cat.icon}</span>
-                          {cat.name}
+                          {t(`cat_${cat.slug}`, { defaultValue: cat.name })}
                         </span>
                         <span className="text-xs bg-muted px-1.5 py-0.5 rounded-md font-mono">{cat.hunchCount}</span>
                       </button>

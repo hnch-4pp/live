@@ -132,7 +132,7 @@ export function HunchCard({ hunch, featured = false }: HunchCardProps) {
           {/* Category — bottom left */}
           <div className="absolute bottom-3 left-3">
             <span className="text-[10px] font-semibold uppercase tracking-widest text-white/80">
-              {hunch.categoryName}
+              {t(`cat_${categorySlug}`, { defaultValue: hunch.categoryName })}
             </span>
           </div>
         </div>

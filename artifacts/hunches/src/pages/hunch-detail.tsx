@@ -108,10 +108,10 @@ export default function HunchDetail() {
                   hunch.status === 'open' ? 'bg-accent/10 text-accent' : 'bg-muted text-muted-foreground'
                 }`}>
                   <span className={`w-1.5 h-1.5 rounded-full ${hunch.status === 'open' ? 'bg-accent' : 'bg-muted-foreground'}`} />
-                  {hunch.status.toUpperCase()}
+                  {t(`status_${hunch.status}`)}
                 </span>
                 <span className="px-3 py-1 rounded-full text-xs font-medium bg-muted text-muted-foreground border border-border">
-                  {hunch.categoryName}
+                  {t(`cat_${hunch.categoryName?.toLowerCase()}`, { defaultValue: hunch.categoryName })}
                 </span>
               </div>
 
