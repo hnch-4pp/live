@@ -20,10 +20,11 @@ const router = Router();
 
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  limit: 5,
+  limit: 15,
+  skipSuccessfulRequests: true,
   standardHeaders: true,
   legacyHeaders: false,
-  message: { error: "Too many login attempts. Please try again in 15 minutes." },
+  message: { error: "Too many failed login attempts. Please try again in 15 minutes." },
 });
 
 function timingSafeCompare(a: string, b: string): boolean {
