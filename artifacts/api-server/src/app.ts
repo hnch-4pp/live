@@ -6,6 +6,7 @@ import router from "./routes";
 import { logger } from "./lib/logger";
 
 const app: Express = express();
+app.set("trust proxy", 1);
 
 const sessionSecret = process.env["SESSION_SECRET"];
 if (!sessionSecret) throw new Error("SESSION_SECRET env var is required");
@@ -18,8 +19,8 @@ app.use(
     saveUninitialized: false,
     cookie: {
       httpOnly: true,
-      sameSite: "strict",
-      secure: process.env["NODE_ENV"] === "production",
+      sameSite: "none",
+      secure: true,
       maxAge: 8 * 60 * 60 * 1000,
     },
   }),
