@@ -2,6 +2,8 @@ import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { useEffect, useRef, useState } from "react";
 import { Globe, ChevronUp } from "lucide-react";
+import { useTranslation } from "react-i18next";
+import i18n from "@/i18n";
 
 const LANGUAGES = [
   { code: "en", label: "English", flag: "🇺🇸" },
@@ -34,6 +36,12 @@ function LanguageSelector() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  const handleSelect = (lang: typeof LANGUAGES[0]) => {
+    setSelected(lang);
+    i18n.changeLanguage(lang.code);
+    setOpen(false);
+  };
+
   return (
     <div ref={ref} className="relative">
       <button
@@ -51,14 +59,11 @@ function LanguageSelector() {
 
       {open && (
         <div className="absolute top-full mt-2 left-1/2 -translate-x-1/2 w-56 rounded-xl border border-border/60 bg-[hsl(240_10%_8%)] shadow-2xl shadow-black/60 overflow-hidden z-50">
-          <div className="max-h-80 overflow-y-auto py-1 scrollbar-thin">
+          <div className="max-h-80 overflow-y-auto py-1">
             {LANGUAGES.map((lang) => (
               <button
                 key={lang.code}
-                onClick={() => {
-                  setSelected(lang);
-                  setOpen(false);
-                }}
+                onClick={() => handleSelect(lang)}
                 className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-left hover:bg-white/5 transition-colors group"
               >
                 <span className="text-lg leading-none">{lang.flag}</span>
@@ -84,6 +89,8 @@ function LanguageSelector() {
 }
 
 export function Navbar() {
+  const { t } = useTranslation();
+
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container mx-auto px-4 h-16 flex items-center justify-between">
@@ -95,21 +102,21 @@ export function Navbar() {
             <span className="font-display font-bold text-xl tracking-tight text-foreground">Hunches</span>
           </Link>
           <nav className="hidden md:flex items-center gap-4 text-sm font-medium text-muted-foreground">
-            <Link href="/?category=sports" className="hover:text-primary transition-colors">Sports</Link>
-            <Link href="/?category=crypto" className="hover:text-primary transition-colors">Crypto</Link>
-            <Link href="/?category=politics" className="hover:text-primary transition-colors">Politics</Link>
-            <Link href="/?category=entertainment" className="hover:text-primary transition-colors">Entertainment</Link>
+            <Link href="/?category=sports" className="hover:text-primary transition-colors">{t("nav_sports")}</Link>
+            <Link href="/?category=crypto" className="hover:text-primary transition-colors">{t("nav_crypto")}</Link>
+            <Link href="/?category=politics" className="hover:text-primary transition-colors">{t("nav_politics")}</Link>
+            <Link href="/?category=entertainment" className="hover:text-primary transition-colors">{t("nav_entertainment")}</Link>
           </nav>
         </div>
 
         <div className="flex items-center gap-3">
           <LanguageSelector />
           <Link href="/login" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors hidden sm:block">
-            Log in
+            {t("nav_login")}
           </Link>
           <Link href="/signup">
             <Button size="sm" className="bg-primary text-primary-foreground hover:bg-primary/90 font-semibold rounded-full px-5">
-              Sign up
+              {t("nav_signup")}
             </Button>
           </Link>
         </div>

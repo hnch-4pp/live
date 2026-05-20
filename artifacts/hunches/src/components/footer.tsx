@@ -1,6 +1,9 @@
 import { Link } from "wouter";
+import { useTranslation } from "react-i18next";
 
 export function Footer() {
+  const { t } = useTranslation();
+
   return (
     <footer className="border-t border-border mt-auto py-12 bg-card">
       <div className="container mx-auto px-4">
@@ -13,32 +16,32 @@ export function Footer() {
               <span className="font-display font-bold text-lg text-foreground">Hunches</span>
             </div>
             <p className="text-muted-foreground text-sm max-w-md leading-relaxed">
-              No money wagered. No house edge. Just your prediction against the community. Win real rewards by making the right call on real-world events.
+              {t("footer_tagline")}
             </p>
           </div>
-          
+
           <div className="space-y-4">
-            <h4 className="font-display font-semibold text-foreground">Legal</h4>
+            <h4 className="font-display font-semibold text-foreground">{t("footer_legal")}</h4>
             <ul className="space-y-2 text-sm text-muted-foreground">
-              <li><Link href="/terms" className="hover:text-primary transition-colors">Terms & Conditions</Link></li>
-              <li><Link href="/privacy" className="hover:text-primary transition-colors">Privacy Policy</Link></li>
+              <li><Link href="/terms" className="hover:text-primary transition-colors">{t("footer_terms")}</Link></li>
+              <li><Link href="/privacy" className="hover:text-primary transition-colors">{t("footer_privacy")}</Link></li>
             </ul>
           </div>
-          
+
           <div className="space-y-4">
-            <h4 className="font-display font-semibold text-foreground">Platform</h4>
+            <h4 className="font-display font-semibold text-foreground">{t("footer_platform")}</h4>
             <ul className="space-y-2 text-sm text-muted-foreground">
-              <li><Link href="/responsible" className="hover:text-primary transition-colors">Responsible Play</Link></li>
-              <li><a href="#" className="hover:text-primary transition-colors">How it Works</a></li>
-              <li><a href="#" className="hover:text-primary transition-colors">Support</a></li>
+              <li><Link href="/responsible" className="hover:text-primary transition-colors">{t("footer_responsible")}</Link></li>
+              <li><a href="#" className="hover:text-primary transition-colors">{t("footer_how")}</a></li>
+              <li><a href="#" className="hover:text-primary transition-colors">{t("footer_support")}</a></li>
             </ul>
           </div>
         </div>
-        
+
         <div className="pt-8 border-t border-border/50 text-sm text-muted-foreground flex flex-col sm:flex-row items-center justify-between gap-4">
-          <p>&copy; {new Date().getFullYear()} Hunches Inc. All rights reserved.</p>
+          <p>{t("footer_rights", { year: new Date().getFullYear() })}</p>
           <div className="flex items-center gap-4">
-            <span className="text-xs uppercase tracking-wider font-semibold text-muted-foreground/60">Skill-based prediction platform</span>
+            <span className="text-xs uppercase tracking-wider font-semibold text-muted-foreground/60">{t("footer_type")}</span>
           </div>
         </div>
       </div>

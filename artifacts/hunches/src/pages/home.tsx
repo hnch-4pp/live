@@ -5,18 +5,20 @@ import { HunchCard } from "@/components/hunch-card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useListHunches, useGetFeaturedHunches, useGetHunchStats, useListCategories } from "@workspace/api-client-react";
-import { TrendingUp, Users, Gift, Filter, ArrowRight, Zap } from "lucide-react";
+import { TrendingUp, Users, Gift, Filter, Zap } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 export default function Home() {
-  const [location, setLocation] = useLocation();
+  const { t } = useTranslation();
+  const [_location, setLocation] = useLocation();
   const searchParams = new URLSearchParams(window.location.search);
   const categoryParam = searchParams.get("category");
   const statusParam = searchParams.get("status");
-  
+
   const { data: stats, isLoading: statsLoading } = useGetHunchStats();
   const { data: featuredHunches, isLoading: featuredLoading } = useGetFeaturedHunches();
   const { data: categories, isLoading: categoriesLoading } = useListCategories();
-  
+
   const { data: hunchesData, isLoading: hunchesLoading } = useListHunches({
     category: categoryParam || undefined,
     status: statusParam as any || undefined,
@@ -49,19 +51,19 @@ export default function Home() {
       {!categoryParam && !statusParam && (
         <section className="relative pt-12 pb-20 overflow-hidden">
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-primary/10 rounded-full blur-[120px] pointer-events-none" />
-          
+
           <div className="container mx-auto px-4 relative z-10">
             <div className="max-w-3xl mb-12">
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-accent/10 border border-accent/20 text-accent font-medium text-sm mb-6">
                 <Zap className="w-4 h-4 fill-accent" />
-                <span>Make the right call. Win real rewards.</span>
+                <span>{t("hero_badge")}</span>
               </div>
               <h1 className="text-5xl md:text-7xl font-display font-bold text-foreground tracking-tight mb-6 leading-[1.1]">
-                Your prediction against <br/>
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-accent">the community.</span>
+                {t("hero_headline_1")} <br/>
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-accent">{t("hero_headline_2")}</span>
               </h1>
               <p className="text-xl text-muted-foreground max-w-2xl">
-                Hunches is the premier skill-based prediction platform. Call the outcomes of sports, culture, and crypto to win gift cards and exclusive merch. No money wagered.
+                {t("hero_sub")}
               </p>
             </div>
 
@@ -71,10 +73,10 @@ export default function Home() {
                 Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-24 bg-card border border-border rounded-xl" />)
               ) : stats ? (
                 <>
-                  <StatBox icon={TrendingUp} label="Active Hunches" value={stats.activeHunches.toLocaleString()} />
-                  <StatBox icon={Users} label="Total Participants" value={stats.totalParticipants.toLocaleString()} />
-                  <StatBox icon={Gift} label="Prizes Awarded" value={`$${stats.totalPrizesAwarded.toLocaleString()}`} />
-                  <StatBox icon={Zap} label="Total Hunches" value={stats.totalHunches.toLocaleString()} />
+                  <StatBox icon={TrendingUp} label={t("stat_active")} value={stats.activeHunches.toLocaleString()} />
+                  <StatBox icon={Users} label={t("stat_participants")} value={stats.totalParticipants.toLocaleString()} />
+                  <StatBox icon={Gift} label={t("stat_prizes")} value={`$${stats.totalPrizesAwarded.toLocaleString()}`} />
+                  <StatBox icon={Zap} label={t("stat_total")} value={stats.totalHunches.toLocaleString()} />
                 </>
               ) : null}
             </div>
@@ -89,7 +91,7 @@ export default function Home() {
               <div className="mb-8">
                 <div className="flex items-center justify-between mb-6">
                   <h2 className="text-2xl font-display font-bold flex items-center gap-2">
-                    <TrendingUp className="text-primary w-6 h-6" /> Trending Now
+                    <TrendingUp className="text-primary w-6 h-6" /> {t("trending_now")}
                   </h2>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -108,35 +110,35 @@ export default function Home() {
         <div className="container mx-auto px-4">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
             <div>
-              <h2 className="text-3xl font-display font-bold">All Hunches</h2>
-              <p className="text-muted-foreground mt-1">Browse and predict active competitions.</p>
+              <h2 className="text-3xl font-display font-bold">{t("all_hunches")}</h2>
+              <p className="text-muted-foreground mt-1">{t("all_hunches_sub")}</p>
             </div>
-            
+
             <div className="flex flex-wrap items-center gap-3">
               <div className="flex items-center gap-2 bg-card border border-border rounded-lg p-1">
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
+                <Button
+                  variant="ghost"
+                  size="sm"
                   onClick={() => handleStatusFilter(null)}
                   className={!statusParam ? "bg-muted text-foreground" : "text-muted-foreground"}
                 >
-                  All
+                  {t("filter_all")}
                 </Button>
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
+                <Button
+                  variant="ghost"
+                  size="sm"
                   onClick={() => handleStatusFilter("open")}
                   className={statusParam === "open" ? "bg-muted text-foreground" : "text-muted-foreground"}
                 >
-                  Open
+                  {t("filter_open")}
                 </Button>
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
+                <Button
+                  variant="ghost"
+                  size="sm"
                   onClick={() => handleStatusFilter("resolved")}
                   className={statusParam === "resolved" ? "bg-muted text-foreground" : "text-muted-foreground"}
                 >
-                  Resolved
+                  {t("filter_resolved")}
                 </Button>
               </div>
             </div>
@@ -147,7 +149,7 @@ export default function Home() {
             <aside className="w-full md:w-64 shrink-0 space-y-8">
               <div>
                 <h3 className="font-display font-semibold mb-4 flex items-center gap-2 text-foreground">
-                  <Filter className="w-4 h-4" /> Categories
+                  <Filter className="w-4 h-4" /> {t("categories")}
                 </h3>
                 {categoriesLoading ? (
                   <div className="space-y-2">
@@ -158,20 +160,20 @@ export default function Home() {
                     <button
                       onClick={() => handleCategoryFilter(null)}
                       className={`flex items-center justify-between px-3 py-2 rounded-md text-sm transition-colors ${
-                        !categoryParam 
-                          ? "bg-primary/10 text-primary font-medium" 
+                        !categoryParam
+                          ? "bg-primary/10 text-primary font-medium"
                           : "text-muted-foreground hover:bg-muted hover:text-foreground"
                       }`}
                     >
-                      <span>All Categories</span>
+                      <span>{t("all_categories")}</span>
                     </button>
                     {categories.map((cat) => (
                       <button
                         key={cat.id}
                         onClick={() => handleCategoryFilter(cat.slug)}
                         className={`flex items-center justify-between px-3 py-2 rounded-md text-sm transition-colors ${
-                          categoryParam === cat.slug 
-                            ? "bg-primary/10 text-primary font-medium" 
+                          categoryParam === cat.slug
+                            ? "bg-primary/10 text-primary font-medium"
                             : "text-muted-foreground hover:bg-muted hover:text-foreground"
                         }`}
                       >
@@ -208,12 +210,12 @@ export default function Home() {
                   <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
                     <Filter className="w-8 h-8 text-muted-foreground" />
                   </div>
-                  <h3 className="text-xl font-display font-semibold text-foreground mb-2">No hunches found</h3>
+                  <h3 className="text-xl font-display font-semibold text-foreground mb-2">{t("no_hunches")}</h3>
                   <p className="text-muted-foreground mb-6 max-w-md mx-auto">
-                    There are no active competitions matching your current filters. Check back later or clear your filters to see more.
+                    {t("no_hunches_desc")}
                   </p>
                   <Button onClick={() => { handleCategoryFilter(null); handleStatusFilter(null); }} variant="outline">
-                    Clear all filters
+                    {t("clear_filters")}
                   </Button>
                 </div>
               )}
