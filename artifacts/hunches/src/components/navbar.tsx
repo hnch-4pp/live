@@ -50,7 +50,7 @@ function LanguageSelector() {
       </button>
 
       {open && (
-        <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 w-56 rounded-xl border border-border/60 bg-[hsl(240_10%_8%)] shadow-2xl shadow-black/60 overflow-hidden z-50">
+        <div className="absolute top-full mt-2 left-1/2 -translate-x-1/2 w-56 rounded-xl border border-border/60 bg-[hsl(240_10%_8%)] shadow-2xl shadow-black/60 overflow-hidden z-50">
           <div className="max-h-80 overflow-y-auto py-1 scrollbar-thin">
             {LANGUAGES.map((lang) => (
               <button
