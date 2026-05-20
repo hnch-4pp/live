@@ -85,9 +85,6 @@ export default function AdminLogin() {
           </button>
         </form>
 
-        <p className="text-center text-xs text-gray-400 mt-6">
-          Restricted access. This page is not indexed.
-        </p>
       </div>
     </div>
   );
