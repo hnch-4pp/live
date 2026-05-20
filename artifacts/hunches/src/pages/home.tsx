@@ -1,4 +1,4 @@
-import { useLocation } from "wouter";
+import { useLocation, useSearch } from "wouter";
 import { Layout } from "@/components/layout";
 import { HunchCard } from "@/components/hunch-card";
 import { Button } from "@/components/ui/button";
@@ -11,7 +11,8 @@ export default function Home() {
   const { t, i18n } = useTranslation();
   const lang = i18n.language !== "en" ? i18n.language : undefined;
   const [_location, setLocation] = useLocation();
-  const searchParams = new URLSearchParams(window.location.search);
+  const search = useSearch();
+  const searchParams = new URLSearchParams(search);
   const categoryParam = searchParams.get("category");
   const statusParam = searchParams.get("status");
   const qParam = searchParams.get("q") || undefined;
@@ -28,20 +29,20 @@ export default function Home() {
   });
 
   const handleCategoryFilter = (slug: string | null) => {
-    const params = new URLSearchParams(window.location.search);
+    const params = new URLSearchParams(search);
     if (slug) params.set("category", slug);
     else params.delete("category");
     setLocation(`/?${params.toString()}`);
   };
 
   const handleStatusFilter = (status: string | null) => {
-    const params = new URLSearchParams(window.location.search);
+    const params = new URLSearchParams(search);
     if (status) params.set("status", status);
     else params.delete("status");
     setLocation(`/?${params.toString()}`);
   };
 
-  const isFiltered = !!(categoryParam || statusParam);
+  const isFiltered = !!(categoryParam || statusParam || qParam);
 
   return (
     <Layout>

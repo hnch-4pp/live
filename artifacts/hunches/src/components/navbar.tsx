@@ -1,4 +1,4 @@
-import { Link, useLocation } from "wouter";
+import { Link, useLocation, useSearch } from "wouter";
 import { Button } from "@/components/ui/button";
 import { useEffect, useRef, useState } from "react";
 import { Globe, ChevronDown, Heart, Search, X } from "lucide-react";
@@ -103,9 +103,8 @@ export function Navbar() {
   const { t } = useTranslation();
   const [, setLocation] = useLocation();
 
-  const searchParams = new URLSearchParams(
-    typeof window !== "undefined" ? window.location.search : ""
-  );
+  const search = useSearch();
+  const searchParams = new URLSearchParams(search);
   const activeCategory = searchParams.get("category");
   const activeQ = searchParams.get("q") ?? "";
 
@@ -118,7 +117,7 @@ export function Navbar() {
   }, [searchOpen]);
 
   const handleCategory = (slug: string) => {
-    const params = new URLSearchParams(window.location.search);
+    const params = new URLSearchParams(search);
     if (params.get("category") === slug) {
       params.delete("category");
     } else {
@@ -128,7 +127,7 @@ export function Navbar() {
   };
 
   const commitSearch = (value: string) => {
-    const params = new URLSearchParams(window.location.search);
+    const params = new URLSearchParams(search);
     if (value.trim()) {
       params.set("q", value.trim());
     } else {
@@ -139,8 +138,7 @@ export function Navbar() {
 
   const clearSearch = () => {
     setSearchValue("");
-    setSearchOpen(false);
-    const params = new URLSearchParams(window.location.search);
+    const params = new URLSearchParams(search);
     params.delete("q");
     setLocation(`/?${params.toString()}`);
   };
