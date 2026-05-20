@@ -1,9 +1,20 @@
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { useEffect, useRef, useState } from "react";
 import { Globe, ChevronDown, Heart } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import i18n from "@/i18n";
+
+const CATEGORIES = [
+  { label: "Sports",                emoji: "🏆", slug: "sports" },
+  { label: "Music & Entertainment", emoji: "🎵", slug: "music" },
+  { label: "Internet & Creators",   emoji: "📱", slug: "creators" },
+  { label: "Tech & Science",        emoji: "🤖", slug: "tech" },
+  { label: "Finance & Crypto",      emoji: "💰", slug: "finance" },
+  { label: "Gaming & Esports",      emoji: "🎮", slug: "gaming" },
+  { label: "World Events",          emoji: "🌎", slug: "world" },
+  { label: "Pop Culture",           emoji: "🍿", slug: "pop-culture" },
+] as const;
 
 const LANGUAGES = [
   { code: "en", label: "English", flag: "🇺🇸" },
@@ -90,24 +101,33 @@ function LanguageSelector() {
 
 export function Navbar() {
   const { t } = useTranslation();
+  const [, setLocation] = useLocation();
+
+  const searchParams = new URLSearchParams(
+    typeof window !== "undefined" ? window.location.search : ""
+  );
+  const activeCategory = searchParams.get("category");
+
+  const handleCategory = (slug: string) => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("category") === slug) {
+      params.delete("category");
+    } else {
+      params.set("category", slug);
+    }
+    setLocation(`/?${params.toString()}`);
+  };
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-border bg-white/90 backdrop-blur-md">
+    <header className="sticky top-0 z-50 w-full bg-white/90 backdrop-blur-md border-b border-border">
+      {/* Top row */}
       <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-        <div className="flex items-center gap-8">
-          <Link href="/" className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center shadow-sm">
-              <Heart className="w-4 h-4 text-white fill-white" />
-            </div>
-            <span className="font-display font-bold text-xl tracking-tight text-foreground">Hunch</span>
-          </Link>
-          <nav className="hidden md:flex items-center gap-1 text-sm font-medium">
-            <Link href="/?category=sports" className="px-3 py-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">{t("nav_sports")}</Link>
-            <Link href="/?category=crypto" className="px-3 py-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">{t("nav_crypto")}</Link>
-            <Link href="/?category=politics" className="px-3 py-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">{t("nav_politics")}</Link>
-            <Link href="/?category=entertainment" className="px-3 py-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">{t("nav_entertainment")}</Link>
-          </nav>
-        </div>
+        <Link href="/" className="flex items-center gap-2.5 shrink-0">
+          <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center shadow-sm">
+            <Heart className="w-4 h-4 text-white fill-white" />
+          </div>
+          <span className="font-display font-bold text-xl tracking-tight text-foreground">Hunch</span>
+        </Link>
 
         <div className="flex items-center gap-2">
           <LanguageSelector />
@@ -121,6 +141,31 @@ export function Navbar() {
               {t("nav_signup")}
             </Button>
           </Link>
+        </div>
+      </div>
+
+      {/* Category bar */}
+      <div className="border-t border-border bg-white">
+        <div className="container mx-auto px-4">
+          <div className="flex items-center gap-1 overflow-x-auto scrollbar-none py-2.5">
+            {CATEGORIES.map(({ label, emoji, slug }) => {
+              const isActive = activeCategory === slug;
+              return (
+                <button
+                  key={slug}
+                  onClick={() => handleCategory(slug)}
+                  className={`inline-flex items-center gap-1.5 whitespace-nowrap px-3.5 py-1.5 rounded-full text-sm font-medium transition-all duration-150 shrink-0 ${
+                    isActive
+                      ? "bg-primary text-white shadow-sm"
+                      : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                  }`}
+                >
+                  <span className="text-[15px] leading-none">{emoji}</span>
+                  <span>{label}</span>
+                </button>
+              );
+            })}
+          </div>
         </div>
       </div>
     </header>
