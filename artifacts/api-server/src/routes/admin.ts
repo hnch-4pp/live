@@ -316,6 +316,18 @@ router.patch(
   },
 );
 
+router.delete(
+  "/admin/categories/:id",
+  requireAdmin,
+  requireAdminHeader,
+  async (req, res): Promise<void> => {
+    const id = parseInt(req.params["id"] ?? "0", 10);
+    if (!id) { res.status(400).json({ error: "Invalid ID" }); return; }
+    await db.delete(categoriesTable).where(eq(categoriesTable.id, id));
+    res.json({ ok: true });
+  },
+);
+
 router.get(
   "/admin/prizes",
   requireAdmin,

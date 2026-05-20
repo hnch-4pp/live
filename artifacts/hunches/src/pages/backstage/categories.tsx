@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { AdminLayout } from "@/components/admin-layout";
 import { useAdminAuth, adminFetch } from "./dashboard";
-import { Plus, Pencil, X, Check, ToggleLeft, ToggleRight } from "lucide-react";
+import { Plus, Pencil, Trash2, X, Check, ToggleLeft, ToggleRight } from "lucide-react";
 
 interface AdminCategory {
   id: number;
@@ -44,6 +44,7 @@ export default function AdminCategories() {
   const [form, setForm]             = useState({ ...EMPTY });
   const [saving, setSaving]         = useState(false);
   const [togglingId, setTogglingId] = useState<number | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
 
   useAdminAuth();
 
@@ -84,6 +85,12 @@ export default function AdminCategories() {
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleDelete = async (id: number) => {
+    await adminFetch(`/admin/categories/${id}`, { method: "DELETE" });
+    setConfirmDeleteId(null);
+    load();
   };
 
   const toggleEnabled = async (cat: AdminCategory) => {
@@ -164,13 +171,39 @@ export default function AdminCategories() {
                     </button>
                   </td>
                   <td className="px-6 py-3 text-right">
-                    <button
-                      onClick={() => openEdit(cat)}
-                      className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-600 hover:text-violet-700 px-2.5 py-1.5 rounded-lg hover:bg-violet-50 transition-colors"
-                    >
-                      <Pencil className="w-3.5 h-3.5" />
-                      Edit
-                    </button>
+                    {confirmDeleteId === cat.id ? (
+                      <div className="inline-flex items-center gap-2">
+                        <span className="text-xs text-gray-500">Delete?</span>
+                        <button
+                          onClick={() => handleDelete(cat.id)}
+                          className="inline-flex items-center gap-1 text-xs font-semibold text-white bg-red-500 hover:bg-red-600 px-2.5 py-1.5 rounded-lg transition-colors"
+                        >
+                          <Check className="w-3 h-3" /> Yes
+                        </button>
+                        <button
+                          onClick={() => setConfirmDeleteId(null)}
+                          className="inline-flex items-center gap-1 text-xs font-medium text-gray-600 hover:text-gray-900 px-2.5 py-1.5 rounded-lg hover:bg-gray-100 transition-colors"
+                        >
+                          <X className="w-3 h-3" /> No
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="inline-flex items-center gap-1">
+                        <button
+                          onClick={() => openEdit(cat)}
+                          className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-600 hover:text-violet-700 px-2.5 py-1.5 rounded-lg hover:bg-violet-50 transition-colors"
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => setConfirmDeleteId(cat.id)}
+                          className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-400 hover:text-red-600 px-2.5 py-1.5 rounded-lg hover:bg-red-50 transition-colors"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    )}
                   </td>
                 </tr>
               ))}
