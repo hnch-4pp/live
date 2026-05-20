@@ -1,7 +1,7 @@
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { useEffect, useRef, useState } from "react";
-import { Globe, ChevronDown, Heart } from "lucide-react";
+import { Globe, ChevronDown, Heart, Search, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import i18n from "@/i18n";
 
@@ -107,6 +107,15 @@ export function Navbar() {
     typeof window !== "undefined" ? window.location.search : ""
   );
   const activeCategory = searchParams.get("category");
+  const activeQ = searchParams.get("q") ?? "";
+
+  const [searchValue, setSearchValue] = useState(activeQ);
+  const [searchOpen, setSearchOpen] = useState(!!activeQ);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (searchOpen) inputRef.current?.focus();
+  }, [searchOpen]);
 
   const handleCategory = (slug: string) => {
     const params = new URLSearchParams(window.location.search);
@@ -115,6 +124,24 @@ export function Navbar() {
     } else {
       params.set("category", slug);
     }
+    setLocation(`/?${params.toString()}`);
+  };
+
+  const commitSearch = (value: string) => {
+    const params = new URLSearchParams(window.location.search);
+    if (value.trim()) {
+      params.set("q", value.trim());
+    } else {
+      params.delete("q");
+    }
+    setLocation(`/?${params.toString()}`);
+  };
+
+  const clearSearch = () => {
+    setSearchValue("");
+    setSearchOpen(false);
+    const params = new URLSearchParams(window.location.search);
+    params.delete("q");
     setLocation(`/?${params.toString()}`);
   };
 
@@ -147,24 +174,62 @@ export function Navbar() {
       {/* Category bar */}
       <div className="border-t border-border bg-white">
         <div className="container mx-auto px-4">
-          <div className="flex items-center gap-1 overflow-x-auto scrollbar-none py-2.5">
-            {CATEGORIES.map(({ label, emoji, slug }) => {
-              const isActive = activeCategory === slug;
-              return (
+          <div className="flex items-center gap-2 py-2.5">
+            {/* Scrollable pills */}
+            <div className="flex items-center gap-1 overflow-x-auto scrollbar-none flex-1 min-w-0">
+              {CATEGORIES.map(({ label, emoji, slug }) => {
+                const isActive = activeCategory === slug;
+                return (
+                  <button
+                    key={slug}
+                    onClick={() => handleCategory(slug)}
+                    className={`inline-flex items-center gap-1.5 whitespace-nowrap px-3.5 py-1.5 rounded-full text-sm font-medium transition-all duration-150 shrink-0 ${
+                      isActive
+                        ? "bg-primary text-white shadow-sm"
+                        : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                    }`}
+                  >
+                    <span className="text-[15px] leading-none">{emoji}</span>
+                    <span>{label}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Search */}
+            <div className="flex items-center gap-1 shrink-0">
+              {searchOpen ? (
+                <div className="flex items-center gap-1 bg-muted rounded-full pl-3 pr-1 py-1 border border-border focus-within:border-primary/50 focus-within:ring-2 focus-within:ring-primary/15 transition-all">
+                  <Search className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                  <input
+                    ref={inputRef}
+                    type="text"
+                    value={searchValue}
+                    onChange={(e) => setSearchValue(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") commitSearch(searchValue);
+                      if (e.key === "Escape") clearSearch();
+                    }}
+                    placeholder="Search hunches..."
+                    className="bg-transparent text-sm font-medium text-foreground placeholder:text-muted-foreground outline-none w-44"
+                  />
+                  <button
+                    onClick={clearSearch}
+                    className="p-1 rounded-full hover:bg-border transition-colors"
+                  >
+                    <X className="w-3.5 h-3.5 text-muted-foreground" />
+                  </button>
+                </div>
+              ) : (
                 <button
-                  key={slug}
-                  onClick={() => handleCategory(slug)}
-                  className={`inline-flex items-center gap-1.5 whitespace-nowrap px-3.5 py-1.5 rounded-full text-sm font-medium transition-all duration-150 shrink-0 ${
-                    isActive
-                      ? "bg-primary text-white shadow-sm"
-                      : "text-muted-foreground hover:text-foreground hover:bg-muted"
-                  }`}
+                  onClick={() => setSearchOpen(true)}
+                  className="p-2 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                  aria-label="Search"
                 >
-                  <span className="text-[15px] leading-none">{emoji}</span>
-                  <span>{label}</span>
+                  <Search className="w-4 h-4" />
                 </button>
-              );
-            })}
+              )}
+            </div>
           </div>
         </div>
       </div>

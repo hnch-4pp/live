@@ -23,6 +23,10 @@ featured?: boolean;
 limit?: number;
 offset?: number;
 /**
+ * Full-text search query on hunch titles
+ */
+q?: string;
+/**
  * Language code for content translation (e.g. es, fr, de)
  */
 lang?: string;

@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, and, count, sql, inArray } from "drizzle-orm";
+import { eq, and, count, sql, inArray, ilike } from "drizzle-orm";
 import { db } from "@workspace/db";
 import {
   hunchesTable,
@@ -131,9 +131,13 @@ router.get("/hunches", async (req, res): Promise<void> => {
     return;
   }
 
-  const { category, status, featured, limit = 20, offset = 0, lang } = parsed.data;
+  const { category, status, featured, limit = 20, offset = 0, lang, q } = parsed.data;
 
   const conditions = [];
+
+  if (q) {
+    conditions.push(ilike(hunchesTable.title, `%${q}%`));
+  }
 
   if (status) {
     conditions.push(eq(hunchesTable.status, status));

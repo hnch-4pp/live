@@ -29,6 +29,7 @@ export const ListHunchesQueryParams = zod.object({
   "featured": zod.coerce.boolean().optional().describe('Filter featured hunches only'),
   "limit": zod.coerce.number().default(listHunchesQueryLimitDefault),
   "offset": zod.coerce.number().default(listHunchesQueryOffsetDefault),
+  "q": zod.coerce.string().optional().describe('Full-text search query on hunch titles'),
   "lang": zod.coerce.string().optional().describe('Language code for content translation (e.g. es, fr, de)')
 })
 

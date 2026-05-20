@@ -63,6 +63,11 @@ paths:
           schema:
             type: integer
             default: 0
+        - name: q
+          in: query
+          schema:
+            type: string
+          description: Full-text search query on hunch titles
         - name: lang
           in: query
           schema:

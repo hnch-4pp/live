@@ -14,6 +14,7 @@ export default function Home() {
   const searchParams = new URLSearchParams(window.location.search);
   const categoryParam = searchParams.get("category");
   const statusParam = searchParams.get("status");
+  const qParam = searchParams.get("q") || undefined;
 
   const { data: stats, isLoading: statsLoading } = useGetHunchStats();
   const { data: featuredHunches, isLoading: featuredLoading } = useGetFeaturedHunches({ lang });
@@ -21,6 +22,7 @@ export default function Home() {
   const { data: hunchesData, isLoading: hunchesLoading } = useListHunches({
     category: categoryParam || undefined,
     status: statusParam as any || undefined,
+    q: qParam,
     limit: 20,
     lang,
   });
