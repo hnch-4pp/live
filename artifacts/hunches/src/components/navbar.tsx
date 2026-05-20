@@ -1,20 +1,30 @@
 import { Link, useLocation, useSearch } from "wouter";
 import { Button } from "@/components/ui/button";
 import { useEffect, useRef, useState } from "react";
-import { Globe, ChevronDown, Heart, Search, X } from "lucide-react";
+import { Globe, ChevronDown, Heart, Search, X, Trophy, Music, Film, Clapperboard, TrendingUp, Star, Zap as ZapIcon, Globe2, Heart as HeartIcon } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import i18n from "@/i18n";
+import { useListCategories } from "@workspace/api-client-react";
 
-const CATEGORIES = [
-  { label: "Sports",                emoji: "🏆", slug: "sports" },
-  { label: "Music & Entertainment", emoji: "🎵", slug: "music" },
-  { label: "Internet & Creators",   emoji: "📱", slug: "creators" },
-  { label: "Tech & Science",        emoji: "🤖", slug: "tech" },
-  { label: "Finance & Crypto",      emoji: "💰", slug: "finance" },
-  { label: "Gaming & Esports",      emoji: "🎮", slug: "gaming" },
-  { label: "World Events",          emoji: "🌎", slug: "world" },
-  { label: "Pop Culture",           emoji: "🍿", slug: "pop-culture" },
-] as const;
+const ICON_MAP: Record<string, React.ElementType> = {
+  "Trophy":       Trophy,
+  "Music":        Music,
+  "Film":         Film,
+  "Clapperboard": Clapperboard,
+  "TrendingUp":   TrendingUp,
+  "Star":         Star,
+  "Zap":          ZapIcon,
+  "Globe":        Globe2,
+  "Heart":        HeartIcon,
+  "trophy":       Trophy,
+  "music":        Music,
+  "film":         Film,
+  "trending-up":  TrendingUp,
+  "star":         Star,
+  "zap":          ZapIcon,
+  "globe":        Globe2,
+  "heart":        HeartIcon,
+};
 
 const LANGUAGES = [
   { code: "en", label: "English", flag: "🇺🇸" },
@@ -103,6 +113,8 @@ export function Navbar() {
   const { t } = useTranslation();
   const [, setLocation] = useLocation();
 
+  const { data: categories = [] } = useListCategories();
+
   const search = useSearch();
   const searchParams = new URLSearchParams(search);
   const activeCategory = searchParams.get("category");
@@ -175,20 +187,21 @@ export function Navbar() {
           <div className="flex items-center gap-2 py-2.5">
             {/* Scrollable pills */}
             <div className="flex items-center gap-1 overflow-x-auto scrollbar-none flex-1 min-w-0">
-              {CATEGORIES.map(({ label, emoji, slug }) => {
-                const isActive = activeCategory === slug;
+              {categories.map((cat) => {
+                const isActive = activeCategory === cat.slug;
+                const Icon = ICON_MAP[cat.icon];
                 return (
                   <button
-                    key={slug}
-                    onClick={() => handleCategory(slug)}
+                    key={cat.slug}
+                    onClick={() => handleCategory(cat.slug)}
                     className={`inline-flex items-center gap-1.5 whitespace-nowrap px-3.5 py-1.5 rounded-full text-sm font-medium transition-all duration-150 shrink-0 ${
                       isActive
                         ? "bg-primary text-white shadow-sm"
                         : "text-muted-foreground hover:text-foreground hover:bg-muted"
                     }`}
                   >
-                    <span className="text-[15px] leading-none">{emoji}</span>
-                    <span>{label}</span>
+                    {Icon && <Icon className="w-3.5 h-3.5 shrink-0" />}
+                    <span>{cat.name}</span>
                   </button>
                 );
               })}

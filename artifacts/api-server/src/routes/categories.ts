@@ -6,7 +6,11 @@ import { eq, count } from "drizzle-orm";
 const router: IRouter = Router();
 
 router.get("/categories", async (_req, res): Promise<void> => {
-  const cats = await db.select().from(categoriesTable).orderBy(categoriesTable.name);
+  const cats = await db
+    .select()
+    .from(categoriesTable)
+    .where(eq(categoriesTable.enabled, true))
+    .orderBy(categoriesTable.name);
 
   const result = await Promise.all(
     cats.map(async (cat) => {
