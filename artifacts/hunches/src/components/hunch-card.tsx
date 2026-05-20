@@ -1,5 +1,8 @@
 import { Link } from "wouter";
 import { formatDistanceToNow, isPast } from "date-fns";
+import {
+  enUS, es, de, fr, pt, it, ja, ko, zhCN, id, tr,
+} from "date-fns/locale";
 import { Users, Clock, Trophy, Award, Gift, DollarSign } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { Hunch } from "@workspace/api-client-react";
@@ -8,6 +11,21 @@ interface HunchCardProps {
   hunch: Hunch;
   featured?: boolean;
 }
+
+const DATE_FNS_LOCALES: Record<string, Locale> = {
+  en: enUS,
+  es,
+  de,
+  fr,
+  pt,
+  it,
+  ja,
+  ko,
+  zh: zhCN,
+  id,
+  tr,
+  /* hi and bn don't have date-fns locales — fallback to enUS */
+};
 
 const CATEGORY_GRADIENTS: Record<string, string> = {
   sports:        "from-blue-900/80 to-blue-700/60",
@@ -27,32 +45,47 @@ const CATEGORY_PLACEHOLDER: Record<string, string> = {
   politics:      "https://images.unsplash.com/photo-1541872703-74c5e44368f9?w=800&h=480&fit=crop&auto=format&q=80",
 };
 
-const STATUS_CONFIG = {
-  open:     { label: "Open",     dot: "bg-emerald-400", badge: "bg-white/90 text-emerald-700" },
-  closed:   { label: "Closed",   dot: "bg-gray-400",    badge: "bg-white/90 text-gray-600" },
-  resolved: { label: "Resolved", dot: "bg-primary",     badge: "bg-white/90 text-primary" },
-  ending:   { label: "Ending",   dot: "bg-orange-400",  badge: "bg-white/90 text-orange-600" },
+const STATUS_DOT: Record<string, string> = {
+  open:     "bg-emerald-400",
+  closed:   "bg-gray-400",
+  resolved: "bg-primary",
+  ending:   "bg-orange-400",
+};
+
+const STATUS_BADGE: Record<string, string> = {
+  open:     "bg-white/90 text-emerald-700",
+  closed:   "bg-white/90 text-gray-600",
+  resolved: "bg-white/90 text-primary",
+  ending:   "bg-white/90 text-orange-600",
 };
 
 const getPrizeIcon = (type: string) => {
   switch (type) {
-    case "gift_card": return <Gift className="w-3 h-3" />;
-    case "merch":     return <Award className="w-3 h-3" />;
+    case "gift_card":       return <Gift className="w-3 h-3" />;
+    case "merch":           return <Award className="w-3 h-3" />;
     case "cash_equivalent": return <DollarSign className="w-3 h-3" />;
-    default:          return <Trophy className="w-3 h-3" />;
+    default:                return <Trophy className="w-3 h-3" />;
   }
 };
 
 export function HunchCard({ hunch, featured = false }: HunchCardProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+
+  const dateFnsLocale = DATE_FNS_LOCALES[i18n.language] ?? enUS;
 
   const categorySlug = hunch.categoryName?.toLowerCase() || "sports";
   const gradient = CATEGORY_GRADIENTS[categorySlug] ?? "from-slate-900/80 to-slate-700/60";
   const imgSrc = hunch.imageUrl || CATEGORY_PLACEHOLDER[categorySlug] || CATEGORY_PLACEHOLDER.sports;
 
   const isEnding = hunch.status === "open" && isPast(new Date(hunch.endsAt));
-  const statusKey = hunch.status === "open" && isEnding ? "ending" : (hunch.status as keyof typeof STATUS_CONFIG);
-  const status = STATUS_CONFIG[statusKey] ?? STATUS_CONFIG.open;
+  const statusKey = isEnding ? "ending" : hunch.status;
+
+  const statusLabel = (() => {
+    if (isEnding)                   return t("status_ending");
+    if (hunch.status === "closed")  return t("status_closed");
+    if (hunch.status === "resolved") return t("status_resolved");
+    return t("status_open");
+  })();
 
   const topOption = hunch.options.length > 0
     ? hunch.options.reduce((a, b) => a.percentage > b.percentage ? a : b)
@@ -60,11 +93,17 @@ export function HunchCard({ hunch, featured = false }: HunchCardProps) {
 
   const imgHeight = featured ? "h-56" : "h-44";
 
+  const timeLeft = hunch.status === "open" && !isEnding
+    ? t("time_left", {
+        time: formatDistanceToNow(new Date(hunch.endsAt), { locale: dateFnsLocale }),
+      })
+    : t("ended");
+
   return (
     <Link href={`/hunch/${hunch.id}`}>
       <article className={`group bg-card rounded-2xl border border-border overflow-hidden cursor-pointer hover-elevate card-shadow flex flex-col h-full ${featured ? "ring-2 ring-primary/20" : ""}`}>
 
-        {/* ── Photo area ── */}
+        {/* ── Photo ── */}
         <div className={`relative ${imgHeight} overflow-hidden bg-muted flex-shrink-0`}>
           <img
             src={imgSrc}
@@ -72,18 +111,17 @@ export function HunchCard({ hunch, featured = false }: HunchCardProps) {
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
             loading="lazy"
           />
-          {/* gradient overlay so text is always legible */}
           <div className={`absolute inset-0 bg-gradient-to-t ${gradient}`} />
 
-          {/* Status pill — top left */}
+          {/* Status — top left */}
           <div className="absolute top-3 left-3">
-            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold backdrop-blur-sm ${status.badge}`}>
-              <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${status.dot}`} />
-              {status.label.toUpperCase()}
+            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold backdrop-blur-sm ${STATUS_BADGE[statusKey] ?? STATUS_BADGE.open}`}>
+              <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${STATUS_DOT[statusKey] ?? STATUS_DOT.open}`} />
+              {statusLabel}
             </span>
           </div>
 
-          {/* Prize pill — top right */}
+          {/* Prize — top right */}
           <div className="absolute top-3 right-3">
             <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-white/90 backdrop-blur-sm text-foreground">
               {getPrizeIcon(hunch.prize.type)}
@@ -91,7 +129,7 @@ export function HunchCard({ hunch, featured = false }: HunchCardProps) {
             </span>
           </div>
 
-          {/* Category label — bottom left */}
+          {/* Category — bottom left */}
           <div className="absolute bottom-3 left-3">
             <span className="text-[10px] font-semibold uppercase tracking-widest text-white/80">
               {hunch.categoryName}
@@ -105,7 +143,7 @@ export function HunchCard({ hunch, featured = false }: HunchCardProps) {
             {hunch.title}
           </h3>
 
-          {/* Options / prediction bars */}
+          {/* Options */}
           <div className="space-y-2.5 mb-4 flex-1">
             {hunch.options.slice(0, 3).map((option) => {
               const isWinner  = hunch.status === "resolved" && hunch.winnerOption === option.label;
@@ -116,7 +154,7 @@ export function HunchCard({ hunch, featured = false }: HunchCardProps) {
                     <span className={`text-sm truncate pr-3 ${isWinner ? "text-primary font-semibold" : "text-foreground font-medium"}`}>
                       {option.label}
                     </span>
-                    <span className={`text-sm font-semibold font-mono tabular-nums flex-shrink-0 ${isLeading ? "text-primary" : isWinner ? "text-primary" : "text-muted-foreground"}`}>
+                    <span className={`text-sm font-semibold font-mono tabular-nums flex-shrink-0 ${isLeading || isWinner ? "text-primary" : "text-muted-foreground"}`}>
                       {Math.round(option.percentage)}%
                     </span>
                   </div>
@@ -131,7 +169,7 @@ export function HunchCard({ hunch, featured = false }: HunchCardProps) {
             })}
           </div>
 
-          {/* Footer meta */}
+          {/* Footer */}
           <div className="flex items-center justify-between pt-3.5 border-t border-border/60 text-xs text-muted-foreground">
             <div className="flex items-center gap-1.5">
               <Users className="w-3.5 h-3.5" />
@@ -139,11 +177,7 @@ export function HunchCard({ hunch, featured = false }: HunchCardProps) {
             </div>
             <div className="flex items-center gap-1.5">
               <Clock className="w-3.5 h-3.5" />
-              <span>
-                {hunch.status === "open" && !isEnding
-                  ? t("time_left", { time: formatDistanceToNow(new Date(hunch.endsAt)) })
-                  : t("ended")}
-              </span>
+              <span>{timeLeft}</span>
             </div>
           </div>
         </div>

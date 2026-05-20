@@ -1,6 +1,9 @@
 import { useState } from "react";
 import { useParams, Link } from "wouter";
 import { format, isPast } from "date-fns";
+import {
+  enUS, es, de, fr, pt, it, ja, ko, zhCN, id as idLocale, tr,
+} from "date-fns/locale";
 import { ArrowLeft, Users, Clock, Share2, AlertCircle, Info, Trophy, CheckCircle2, Gift, Award, DollarSign } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Layout } from "@/components/layout";
@@ -9,6 +12,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { useGetHunch, useSubmitPrediction, getGetHunchQueryKey } from "@workspace/api-client-react";
 import { useTranslation } from "react-i18next";
+
+const DATE_FNS_LOCALES: Record<string, Locale> = {
+  en: enUS, es, de, fr, pt, it, ja, ko, zh: zhCN, id: idLocale, tr,
+};
 
 const getPrizeIcon = (type: string) => {
   switch (type) {
@@ -20,7 +27,8 @@ const getPrizeIcon = (type: string) => {
 };
 
 export default function HunchDetail() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const dateFnsLocale = DATE_FNS_LOCALES[i18n.language] ?? enUS;
   const { id } = useParams<{ id: string }>();
   const hunchId = parseInt(id || "0", 10);
   const { toast } = useToast();
@@ -119,8 +127,8 @@ export default function HunchDetail() {
                 <div className="flex items-center gap-1.5">
                   <Clock className="w-4 h-4" />
                   {isOpen
-                    ? <span>{t("ends_on", { date: format(new Date(hunch.endsAt), "MMM d, yyyy 'at' h:mm a") })}</span>
-                    : <span>{t("ended_on", { date: format(new Date(hunch.endsAt), "MMM d, yyyy") })}</span>
+                    ? <span>{t("ends_on", { date: format(new Date(hunch.endsAt), "PPPp", { locale: dateFnsLocale }) })}</span>
+                    : <span>{t("ended_on", { date: format(new Date(hunch.endsAt), "PPP", { locale: dateFnsLocale }) })}</span>
                   }
                 </div>
               </div>
