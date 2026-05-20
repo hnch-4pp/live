@@ -1,10 +1,29 @@
 import express, { type Express } from "express";
 import cors from "cors";
 import pinoHttp from "pino-http";
+import session from "express-session";
 import router from "./routes";
 import { logger } from "./lib/logger";
 
 const app: Express = express();
+
+const sessionSecret = process.env["SESSION_SECRET"];
+if (!sessionSecret) throw new Error("SESSION_SECRET env var is required");
+
+app.use(
+  session({
+    name: "hunch.sid",
+    secret: sessionSecret,
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+      httpOnly: true,
+      sameSite: "strict",
+      secure: process.env["NODE_ENV"] === "production",
+      maxAge: 8 * 60 * 60 * 1000,
+    },
+  }),
+);
 
 app.use(
   pinoHttp({

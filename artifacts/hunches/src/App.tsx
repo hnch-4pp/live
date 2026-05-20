@@ -11,6 +11,9 @@ import Terms from "@/pages/terms";
 import Privacy from "@/pages/privacy";
 import Responsible from "@/pages/responsible";
 import NotFound from "@/pages/not-found";
+import AdminLogin from "@/pages/backstage/login";
+import AdminDashboard from "@/pages/backstage/dashboard";
+import AdminHunches from "@/pages/backstage/hunches";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -31,6 +34,9 @@ function Router() {
       <Route path="/terms" component={Terms} />
       <Route path="/privacy" component={Privacy} />
       <Route path="/responsible" component={Responsible} />
+      <Route path="/backstage/login" component={AdminLogin} />
+      <Route path="/backstage/dashboard" component={AdminDashboard} />
+      <Route path="/backstage/hunches" component={AdminHunches} />
       <Route component={NotFound} />
     </Switch>
   );

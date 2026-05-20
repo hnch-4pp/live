@@ -30,16 +30,18 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
           {NAV.map(({ href, label, icon: Icon }) => {
             const active = location === href || location.startsWith(href + "/");
             return (
-              <Link key={href} href={href}>
-                <a className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+              <Link
+                key={href}
+                href={href}
+                className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                   active
                     ? "bg-violet-50 text-violet-700"
                     : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
-                }`}>
-                  <Icon className="w-4 h-4 shrink-0" />
-                  {label}
-                  {active && <ChevronRight className="w-3.5 h-3.5 ml-auto" />}
-                </a>
+                }`}
+              >
+                <Icon className="w-4 h-4 shrink-0" />
+                {label}
+                {active && <ChevronRight className="w-3.5 h-3.5 ml-auto" />}
               </Link>
             );
           })}
