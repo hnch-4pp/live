@@ -1,11 +1,10 @@
-import { useState } from "react";
 import { useLocation } from "wouter";
 import { Layout } from "@/components/layout";
 import { HunchCard } from "@/components/hunch-card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useListHunches, useGetFeaturedHunches, useGetHunchStats, useListCategories } from "@workspace/api-client-react";
-import { TrendingUp, Users, Gift, Filter, Zap } from "lucide-react";
+import { TrendingUp, Users, Gift, SlidersHorizontal, Zap, ArrowRight } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 export default function Home() {
@@ -18,7 +17,6 @@ export default function Home() {
   const { data: stats, isLoading: statsLoading } = useGetHunchStats();
   const { data: featuredHunches, isLoading: featuredLoading } = useGetFeaturedHunches();
   const { data: categories, isLoading: categoriesLoading } = useListCategories();
-
   const { data: hunchesData, isLoading: hunchesLoading } = useListHunches({
     category: categoryParam || undefined,
     status: statusParam as any || undefined,
@@ -27,71 +25,84 @@ export default function Home() {
 
   const handleCategoryFilter = (slug: string | null) => {
     const params = new URLSearchParams(window.location.search);
-    if (slug) {
-      params.set("category", slug);
-    } else {
-      params.delete("category");
-    }
+    if (slug) params.set("category", slug);
+    else params.delete("category");
     setLocation(`/?${params.toString()}`);
   };
 
   const handleStatusFilter = (status: string | null) => {
     const params = new URLSearchParams(window.location.search);
-    if (status) {
-      params.set("status", status);
-    } else {
-      params.delete("status");
-    }
+    if (status) params.set("status", status);
+    else params.delete("status");
     setLocation(`/?${params.toString()}`);
   };
 
+  const isFiltered = !!(categoryParam || statusParam);
+
   return (
     <Layout>
-      {/* Hero Section */}
-      {!categoryParam && !statusParam && (
-        <section className="relative pt-12 pb-20 overflow-hidden">
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-primary/10 rounded-full blur-[120px] pointer-events-none" />
-
-          <div className="container mx-auto px-4 relative z-10">
-            <div className="max-w-3xl mb-12">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-accent/10 border border-accent/20 text-accent font-medium text-sm mb-6">
-                <Zap className="w-4 h-4 fill-accent" />
+      {/* Hero */}
+      {!isFiltered && (
+        <section className="bg-white border-b border-border">
+          <div className="container mx-auto px-4 py-16 md:py-24">
+            <div className="max-w-2xl">
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/8 border border-primary/15 text-primary font-semibold text-xs mb-6 tracking-wide uppercase">
+                <Zap className="w-3.5 h-3.5" />
                 <span>{t("hero_badge")}</span>
               </div>
-              <h1 className="text-5xl md:text-7xl font-display font-bold text-foreground tracking-tight mb-6 leading-[1.1]">
-                {t("hero_headline_1")} <br/>
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-accent">{t("hero_headline_2")}</span>
+              <h1 className="text-5xl md:text-6xl font-display font-bold text-foreground leading-[1.08] tracking-tight mb-5">
+                {t("hero_headline_1")}<br />
+                <span className="text-primary">{t("hero_headline_2")}</span>
               </h1>
-              <p className="text-xl text-muted-foreground max-w-2xl">
+              <p className="text-lg text-muted-foreground leading-relaxed mb-8 max-w-xl">
                 {t("hero_sub")}
               </p>
+              <div className="flex items-center gap-3">
+                <Button size="lg" className="bg-primary text-white font-semibold rounded-xl px-7 shadow-sm hover:bg-primary/90">
+                  {t("nav_signup")} <ArrowRight className="w-4 h-4 ml-1.5" />
+                </Button>
+                <Button size="lg" variant="outline" className="rounded-xl px-7 font-semibold border-border text-foreground hover:bg-muted">
+                  {t("all_hunches")}
+                </Button>
+              </div>
             </div>
+          </div>
 
-            {/* Stats Bar */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-16">
+          {/* Stats strip */}
+          <div className="border-t border-border bg-muted/30">
+            <div className="container mx-auto px-4 py-5">
               {statsLoading ? (
-                Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-24 bg-card border border-border rounded-xl" />)
-              ) : stats ? (
-                <>
-                  <StatBox icon={TrendingUp} label={t("stat_active")} value={stats.activeHunches.toLocaleString()} />
-                  <StatBox icon={Users} label={t("stat_participants")} value={stats.totalParticipants.toLocaleString()} />
-                  <StatBox icon={Gift} label={t("stat_prizes")} value={`$${stats.totalPrizesAwarded.toLocaleString()}`} />
-                  <StatBox icon={Zap} label={t("stat_total")} value={stats.totalHunches.toLocaleString()} />
-                </>
-              ) : null}
+                <div className="flex gap-8">
+                  {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-10 w-32" />)}
+                </div>
+              ) : stats && (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-6 divide-x divide-border">
+                  <StatItem icon={TrendingUp} label={t("stat_active")} value={stats.activeHunches.toLocaleString()} />
+                  <StatItem icon={Users} label={t("stat_participants")} value={stats.totalParticipants.toLocaleString()} />
+                  <StatItem icon={Gift} label={t("stat_prizes")} value={`$${stats.totalPrizesAwarded.toLocaleString()}`} />
+                  <StatItem icon={Zap} label={t("stat_total")} value={stats.totalHunches.toLocaleString()} />
+                </div>
+              )}
             </div>
+          </div>
+        </section>
+      )}
 
-            {/* Featured */}
+      {/* Featured */}
+      {!isFiltered && (
+        <section className="py-12 bg-white border-b border-border">
+          <div className="container mx-auto px-4">
             {featuredLoading ? (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <Skeleton className="h-[400px] bg-card border border-border rounded-xl" />
-                <Skeleton className="h-[400px] bg-card border border-border rounded-xl" />
+                <Skeleton className="h-[360px] rounded-2xl" />
+                <Skeleton className="h-[360px] rounded-2xl" />
               </div>
             ) : featuredHunches && featuredHunches.length > 0 && (
-              <div className="mb-8">
-                <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-2xl font-display font-bold flex items-center gap-2">
-                    <TrendingUp className="text-primary w-6 h-6" /> {t("trending_now")}
+              <>
+                <div className="flex items-center justify-between mb-7">
+                  <h2 className="text-xl font-display font-bold text-foreground flex items-center gap-2">
+                    <TrendingUp className="w-5 h-5 text-primary" />
+                    {t("trending_now")}
                   </h2>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -99,70 +110,55 @@ export default function Home() {
                     <HunchCard key={hunch.id} hunch={hunch} featured />
                   ))}
                 </div>
-              </div>
+              </>
             )}
           </div>
         </section>
       )}
 
-      {/* Main List Section */}
-      <section className="py-12 bg-background border-t border-border/40 flex-1">
+      {/* Main List */}
+      <section className="py-12 flex-1">
         <div className="container mx-auto px-4">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
-            <div>
-              <h2 className="text-3xl font-display font-bold">{t("all_hunches")}</h2>
-              <p className="text-muted-foreground mt-1">{t("all_hunches_sub")}</p>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-3">
-              <div className="flex items-center gap-2 bg-card border border-border rounded-lg p-1">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => handleStatusFilter(null)}
-                  className={!statusParam ? "bg-muted text-foreground" : "text-muted-foreground"}
-                >
-                  {t("filter_all")}
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => handleStatusFilter("open")}
-                  className={statusParam === "open" ? "bg-muted text-foreground" : "text-muted-foreground"}
-                >
-                  {t("filter_open")}
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => handleStatusFilter("resolved")}
-                  className={statusParam === "resolved" ? "bg-muted text-foreground" : "text-muted-foreground"}
-                >
-                  {t("filter_resolved")}
-                </Button>
-              </div>
-            </div>
-          </div>
-
           <div className="flex flex-col md:flex-row gap-8">
-            {/* Sidebar Filters */}
-            <aside className="w-full md:w-64 shrink-0 space-y-8">
-              <div>
-                <h3 className="font-display font-semibold mb-4 flex items-center gap-2 text-foreground">
-                  <Filter className="w-4 h-4" /> {t("categories")}
+            {/* Sidebar */}
+            <aside className="w-full md:w-56 shrink-0">
+              <div className="bg-card border border-border rounded-2xl p-4 card-shadow sticky top-24">
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-1.5">
+                  <SlidersHorizontal className="w-3.5 h-3.5" /> {t("filter_all")}
+                </h3>
+                <div className="space-y-1 mb-5">
+                  {[
+                    { label: t("filter_all"), value: null },
+                    { label: t("filter_open"), value: "open" },
+                    { label: t("filter_resolved"), value: "resolved" },
+                  ].map(({ label, value }) => (
+                    <button
+                      key={label}
+                      onClick={() => handleStatusFilter(value)}
+                      className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors font-medium ${
+                        statusParam === value || (!statusParam && value === null)
+                          ? "bg-primary/10 text-primary"
+                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">
+                  {t("categories")}
                 </h3>
                 {categoriesLoading ? (
                   <div className="space-y-2">
-                    {Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}
+                    {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-9 w-full rounded-lg" />)}
                   </div>
                 ) : categories && (
-                  <div className="flex flex-col gap-1">
+                  <div className="space-y-1">
                     <button
                       onClick={() => handleCategoryFilter(null)}
-                      className={`flex items-center justify-between px-3 py-2 rounded-md text-sm transition-colors ${
-                        !categoryParam
-                          ? "bg-primary/10 text-primary font-medium"
-                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                      className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-colors font-medium ${
+                        !categoryParam ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground"
                       }`}
                     >
                       <span>{t("all_categories")}</span>
@@ -171,19 +167,15 @@ export default function Home() {
                       <button
                         key={cat.id}
                         onClick={() => handleCategoryFilter(cat.slug)}
-                        className={`flex items-center justify-between px-3 py-2 rounded-md text-sm transition-colors ${
-                          categoryParam === cat.slug
-                            ? "bg-primary/10 text-primary font-medium"
-                            : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                        className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-colors font-medium ${
+                          categoryParam === cat.slug ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground"
                         }`}
                       >
                         <span className="flex items-center gap-2">
                           <span className="text-base">{cat.icon}</span>
                           {cat.name}
                         </span>
-                        <span className="bg-card border border-border text-xs px-2 py-0.5 rounded-full">
-                          {cat.hunchCount}
-                        </span>
+                        <span className="text-xs bg-muted px-1.5 py-0.5 rounded-md font-mono">{cat.hunchCount}</span>
                       </button>
                     ))}
                   </div>
@@ -191,30 +183,35 @@ export default function Home() {
               </div>
             </aside>
 
-            {/* List */}
-            <div className="flex-1">
+            {/* Grid */}
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h2 className="text-2xl font-display font-bold text-foreground">{t("all_hunches")}</h2>
+                  <p className="text-sm text-muted-foreground mt-0.5">{t("all_hunches_sub")}</p>
+                </div>
+              </div>
+
               {hunchesLoading ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
                   {Array.from({ length: 6 }).map((_, i) => (
-                    <Skeleton key={i} className="h-[300px] bg-card border border-border rounded-xl" />
+                    <Skeleton key={i} className="h-[320px] rounded-2xl" />
                   ))}
                 </div>
               ) : hunchesData?.hunches && hunchesData.hunches.length > 0 ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
                   {hunchesData.hunches.map(hunch => (
                     <HunchCard key={hunch.id} hunch={hunch} />
                   ))}
                 </div>
               ) : (
-                <div className="text-center py-24 bg-card border border-border border-dashed rounded-xl">
-                  <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
-                    <Filter className="w-8 h-8 text-muted-foreground" />
+                <div className="text-center py-20 bg-card border border-border border-dashed rounded-2xl">
+                  <div className="w-14 h-14 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
+                    <SlidersHorizontal className="w-7 h-7 text-muted-foreground" />
                   </div>
-                  <h3 className="text-xl font-display font-semibold text-foreground mb-2">{t("no_hunches")}</h3>
-                  <p className="text-muted-foreground mb-6 max-w-md mx-auto">
-                    {t("no_hunches_desc")}
-                  </p>
-                  <Button onClick={() => { handleCategoryFilter(null); handleStatusFilter(null); }} variant="outline">
+                  <h3 className="text-lg font-display font-semibold text-foreground mb-2">{t("no_hunches")}</h3>
+                  <p className="text-sm text-muted-foreground mb-6 max-w-sm mx-auto">{t("no_hunches_desc")}</p>
+                  <Button onClick={() => { handleCategoryFilter(null); handleStatusFilter(null); }} variant="outline" className="rounded-lg">
                     {t("clear_filters")}
                   </Button>
                 </div>
@@ -227,14 +224,14 @@ export default function Home() {
   );
 }
 
-function StatBox({ icon: Icon, label, value }: { icon: any, label: string, value: string | number }) {
+function StatItem({ icon: Icon, label, value }: { icon: any; label: string; value: string }) {
   return (
-    <div className="bg-card border border-border p-5 rounded-xl flex flex-col items-start hover:border-primary/50 transition-colors">
-      <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center mb-3">
-        <Icon className="w-5 h-5 text-primary" />
+    <div className="pl-6 first:pl-0">
+      <div className="flex items-center gap-2 mb-0.5">
+        <Icon className="w-4 h-4 text-primary" />
+        <span className="text-xl font-display font-bold text-foreground">{value}</span>
       </div>
-      <span className="text-2xl font-display font-bold text-foreground mb-1">{value}</span>
-      <span className="text-sm text-muted-foreground font-medium">{label}</span>
+      <p className="text-xs text-muted-foreground font-medium">{label}</p>
     </div>
   );
 }

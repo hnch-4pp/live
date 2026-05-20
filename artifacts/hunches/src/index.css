@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sora:wght@600;700;800&display=swap');
 @import "tailwindcss";
 @import "tw-animate-css";
 @plugin "@tailwindcss/typography";
@@ -57,68 +57,61 @@
   --radius-xl: calc(var(--radius) + 4px);
 }
 
-:root, .dark {
-  /* Enforce dark mode as the default/only mode */
-  --button-outline: rgba(255,255,255, .10);
-  --badge-outline: rgba(255,255,255, .05);
-  --opaque-button-border-intensity: 9;
-  --elevate-1: rgba(255,255,255, .04);
-  --elevate-2: rgba(255,255,255, .09);
+:root {
+  /* Light professional theme */
+  --background: 220 20% 98%;
+  --foreground: 222 47% 8%;
+  --border: 220 13% 88%;
 
-  /* Deep darks */
-  --background: 240 10% 4%;
-  --foreground: 0 0% 98%;
-  --border: 240 10% 12%;
-  
-  --card: 240 10% 6%;
-  --card-foreground: 0 0% 98%;
-  --card-border: 240 10% 12%;
+  --card: 0 0% 100%;
+  --card-foreground: 222 47% 8%;
+  --card-border: 220 13% 90%;
 
-  --sidebar: 240 10% 6%;
-  --sidebar-foreground: 0 0% 98%;
-  --sidebar-border: 240 10% 12%;
-  --sidebar-primary: 154 100% 50%;
-  --sidebar-primary-foreground: 240 10% 4%;
-  --sidebar-accent: 240 10% 12%;
-  --sidebar-accent-foreground: 0 0% 98%;
-  --sidebar-ring: 154 100% 50%;
+  --sidebar: 0 0% 100%;
+  --sidebar-foreground: 222 47% 8%;
+  --sidebar-border: 220 13% 90%;
+  --sidebar-primary: 243 75% 59%;
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-accent: 220 14% 96%;
+  --sidebar-accent-foreground: 222 47% 8%;
+  --sidebar-ring: 243 75% 59%;
 
-  --popover: 240 10% 6%;
-  --popover-foreground: 0 0% 98%;
-  --popover-border: 240 10% 12%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 222 47% 8%;
+  --popover-border: 220 13% 90%;
 
-  /* Electric cyan */
-  --primary: 186 100% 50%; 
-  --primary-foreground: 240 10% 4%;
+  /* Deep indigo */
+  --primary: 243 75% 59%;
+  --primary-foreground: 0 0% 100%;
 
-  --secondary: 240 10% 12%;
-  --secondary-foreground: 0 0% 98%;
+  --secondary: 220 14% 94%;
+  --secondary-foreground: 222 47% 8%;
 
-  --muted: 240 10% 12%;
-  --muted-foreground: 240 5% 65%;
+  --muted: 220 14% 95%;
+  --muted-foreground: 215 16% 47%;
 
-  /* Vibrant Accent Pop (Neon Green) */
-  --accent: 154 100% 50%;
-  --accent-foreground: 240 10% 4%;
+  /* Teal accent */
+  --accent: 175 77% 36%;
+  --accent-foreground: 0 0% 100%;
 
   --destructive: 0 84% 60%;
-  --destructive-foreground: 0 0% 98%;
+  --destructive-foreground: 0 0% 100%;
 
-  --input: 240 10% 16%;
-  --ring: 186 100% 50%;
+  --input: 220 13% 90%;
+  --ring: 243 75% 59%;
 
-  --chart-1: 186 100% 50%;
-  --chart-2: 154 100% 50%;
-  --chart-3: 280 100% 60%;
-  --chart-4: 30 100% 60%;
-  --chart-5: 0 100% 60%;
+  --chart-1: 243 75% 59%;
+  --chart-2: 175 77% 36%;
+  --chart-3: 280 80% 55%;
+  --chart-4: 28 93% 55%;
+  --chart-5: 0 84% 60%;
 
-  --app-font-sans: 'Plus Jakarta Sans', sans-serif;
-  --app-font-display: 'Space Grotesk', sans-serif;
+  --app-font-sans: 'Inter', sans-serif;
+  --app-font-display: 'Sora', sans-serif;
   --app-font-serif: Georgia, serif;
   --app-font-mono: Menlo, monospace;
-  
-  --radius: 0.5rem;
+
+  --radius: 0.75rem;
 }
 
 @layer base {
@@ -132,5 +125,21 @@
 
   h1, h2, h3, h4, h5, h6 {
     font-family: var(--app-font-display);
+  }
+}
+
+@layer utilities {
+  .hover-elevate {
+    transition: box-shadow 0.2s ease, transform 0.2s ease;
+  }
+  .hover-elevate:hover {
+    box-shadow: 0 12px 32px -8px rgba(0,0,0,0.12), 0 4px 12px -4px rgba(0,0,0,0.06);
+    transform: translateY(-2px);
+  }
+  .card-shadow {
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04);
+  }
+  .card-shadow-lg {
+    box-shadow: 0 4px 24px rgba(0,0,0,0.08), 0 1px 4px rgba(0,0,0,0.04);
   }
 }
