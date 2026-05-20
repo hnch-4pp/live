@@ -196,37 +196,27 @@ export function Navbar() {
               })}
             </div>
 
-            {/* Search */}
-            <div className="flex items-center gap-1 shrink-0">
-              {searchOpen ? (
-                <div className="flex items-center gap-1 bg-muted rounded-full pl-3 pr-1 py-1 border border-border focus-within:border-primary/50 focus-within:ring-2 focus-within:ring-primary/15 transition-all">
-                  <Search className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-                  <input
-                    ref={inputRef}
-                    type="text"
-                    value={searchValue}
-                    onChange={(e) => setSearchValue(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") commitSearch(searchValue);
-                      if (e.key === "Escape") clearSearch();
-                    }}
-                    placeholder="Search hunches..."
-                    className="bg-transparent text-sm font-medium text-foreground placeholder:text-muted-foreground outline-none w-44"
-                  />
-                  <button
-                    onClick={clearSearch}
-                    className="p-1 rounded-full hover:bg-border transition-colors"
-                  >
-                    <X className="w-3.5 h-3.5 text-muted-foreground" />
-                  </button>
-                </div>
-              ) : (
+            {/* Search — always visible */}
+            <div className="flex items-center gap-1 bg-muted rounded-full pl-3 pr-1 py-1 border border-border focus-within:border-primary/50 focus-within:ring-2 focus-within:ring-primary/15 transition-all shrink-0">
+              <Search className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+              <input
+                ref={inputRef}
+                type="text"
+                value={searchValue}
+                onChange={(e) => setSearchValue(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") commitSearch(searchValue);
+                  if (e.key === "Escape") clearSearch();
+                }}
+                placeholder="Search hunches..."
+                className="bg-transparent text-sm font-medium text-foreground placeholder:text-muted-foreground outline-none w-44"
+              />
+              {searchValue && (
                 <button
-                  onClick={() => setSearchOpen(true)}
-                  className="p-2 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-                  aria-label="Search"
+                  onClick={clearSearch}
+                  className="p-1 rounded-full hover:bg-border transition-colors"
                 >
-                  <Search className="w-4 h-4" />
+                  <X className="w-3.5 h-3.5 text-muted-foreground" />
                 </button>
               )}
             </div>
