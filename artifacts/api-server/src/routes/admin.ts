@@ -134,11 +134,25 @@ router.get(
         prizeId: hunchesTable.prizeId,
         participantCount: hunchesTable.participantCount,
         winnerOption: hunchesTable.winnerOption,
+        answerType: hunchesTable.answerType,
         createdAt: hunchesTable.createdAt,
       })
       .from(hunchesTable)
       .orderBy(hunchesTable.createdAt);
     res.json(hunches);
+  },
+);
+
+router.get(
+  "/admin/hunches/:id",
+  requireAdmin,
+  requireAdminHeader,
+  async (req, res): Promise<void> => {
+    const id = parseInt(req.params["id"] ?? "0", 10);
+    if (!id) { res.status(400).json({ error: "Invalid ID" }); return; }
+    const [hunch] = await db.select().from(hunchesTable).where(eq(hunchesTable.id, id));
+    if (!hunch) { res.status(404).json({ error: "Not found" }); return; }
+    res.json(hunch);
   },
 );
 
@@ -156,6 +170,7 @@ router.post(
       featured,
       endsAt,
       status,
+      answerType,
     } = req.body as Record<string, string | boolean | number | undefined>;
 
     if (!title || !description || !categoryId || !prizeId || !endsAt) {
@@ -174,6 +189,7 @@ router.post(
         featured: featured === true || featured === "true",
         endsAt: new Date(String(endsAt)),
         status: (status as "open" | "closed" | "resolved") ?? "open",
+        answerType: (answerType as string) ?? "integer",
       })
       .returning();
 
@@ -202,6 +218,7 @@ router.patch(
       endsAt,
       status,
       winnerOption,
+      answerType,
     } = req.body as Record<string, string | boolean | number | undefined>;
 
     const updates: Record<string, unknown> = {};
@@ -217,6 +234,7 @@ router.patch(
     if (status !== undefined) updates["status"] = status;
     if (winnerOption !== undefined)
       updates["winnerOption"] = winnerOption ? String(winnerOption) : null;
+    if (answerType !== undefined) updates["answerType"] = String(answerType);
 
     const [hunch] = await db
       .update(hunchesTable)
