@@ -223,36 +223,6 @@ export default function AdminCategories() {
                 />
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">Icon</label>
-                <select
-                  value={form.icon}
-                  onChange={(e) => setForm((f) => ({ ...f, icon: e.target.value }))}
-                  className="w-full border border-gray-300 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-500 transition-all bg-white"
-                >
-                  {ICON_OPTIONS.map((o) => (
-                    <option key={o.value} value={o.value}>{o.label} ({o.value})</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Color</label>
-                <div className="flex flex-wrap gap-2">
-                  {COLOR_OPTIONS.map((c) => (
-                    <button
-                      key={c.value}
-                      type="button"
-                      title={c.label}
-                      onClick={() => setForm((f) => ({ ...f, color: c.value }))}
-                      className={`w-7 h-7 rounded-full ${c.cls} transition-all ${
-                        form.color === c.value ? "ring-2 ring-offset-2 ring-gray-400 scale-110" : "hover:scale-105"
-                      }`}
-                    />
-                  ))}
-                </div>
-              </div>
-
               <div className="flex items-center gap-3">
                 <label className="text-sm font-medium text-gray-700">Visible in top nav</label>
                 <button
