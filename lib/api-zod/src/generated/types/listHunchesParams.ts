@@ -22,4 +22,8 @@ status?: ListHunchesStatus;
 featured?: boolean;
 limit?: number;
 offset?: number;
+/**
+ * Language code for content translation (e.g. es, fr, de)
+ */
+lang?: string;
 };

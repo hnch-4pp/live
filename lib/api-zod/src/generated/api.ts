@@ -28,7 +28,8 @@ export const ListHunchesQueryParams = zod.object({
   "status": zod.enum(['open', 'closed', 'resolved']).optional().describe('Filter by status'),
   "featured": zod.coerce.boolean().optional().describe('Filter featured hunches only'),
   "limit": zod.coerce.number().default(listHunchesQueryLimitDefault),
-  "offset": zod.coerce.number().default(listHunchesQueryOffsetDefault)
+  "offset": zod.coerce.number().default(listHunchesQueryOffsetDefault),
+  "lang": zod.coerce.string().optional().describe('Language code for content translation (e.g. es, fr, de)')
 })
 
 export const ListHunchesResponse = zod.object({
@@ -66,6 +67,10 @@ export const ListHunchesResponse = zod.object({
 /**
  * @summary Get featured hunches for hero section
  */
+export const GetFeaturedHunchesQueryParams = zod.object({
+  "lang": zod.coerce.string().optional().describe('Language code for content translation')
+})
+
 export const GetFeaturedHunchesResponseItem = zod.object({
   "id": zod.number(),
   "title": zod.string(),
@@ -112,6 +117,10 @@ export const GetHunchStatsResponse = zod.object({
  */
 export const GetHunchParams = zod.object({
   "id": zod.coerce.number()
+})
+
+export const GetHunchQueryParams = zod.object({
+  "lang": zod.coerce.string().optional().describe('Language code for content translation')
 })
 
 export const GetHunchResponse = zod.object({

@@ -29,13 +29,14 @@ const getPrizeIcon = (type: string) => {
 export default function HunchDetail() {
   const { t, i18n } = useTranslation();
   const dateFnsLocale = DATE_FNS_LOCALES[i18n.language] ?? enUS;
+  const lang = i18n.language !== "en" ? i18n.language : undefined;
   const { id } = useParams<{ id: string }>();
   const hunchId = parseInt(id || "0", 10);
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [selectedOption, setSelectedOption] = useState<number | null>(null);
 
-  const { data: hunch, isLoading, error } = useGetHunch(hunchId, {
+  const { data: hunch, isLoading, error } = useGetHunch(hunchId, { lang }, {
     query: { enabled: !!hunchId }
   });
 

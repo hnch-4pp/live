@@ -115,6 +115,10 @@ status?: ListHunchesStatus;
 featured?: boolean;
 limit?: number;
 offset?: number;
+/**
+ * Language code for content translation (e.g. es, fr, de)
+ */
+lang?: string;
 };
 
 export type ListHunchesStatus = typeof ListHunchesStatus[keyof typeof ListHunchesStatus];
@@ -125,4 +129,18 @@ export const ListHunchesStatus = {
   closed: 'closed',
   resolved: 'resolved',
 } as const;
+
+export type GetFeaturedHunchesParams = {
+/**
+ * Language code for content translation
+ */
+lang?: string;
+};
+
+export type GetHunchParams = {
+/**
+ * Language code for content translation
+ */
+lang?: string;
+};
 

@@ -63,6 +63,11 @@ paths:
           schema:
             type: integer
             default: 0
+        - name: lang
+          in: query
+          schema:
+            type: string
+          description: Language code for content translation (e.g. es, fr, de)
       responses:
         "200":
           description: List of hunches
@@ -76,6 +81,12 @@ paths:
       operationId: getFeaturedHunches
       tags: [hunches]
       summary: Get featured hunches for hero section
+      parameters:
+        - name: lang
+          in: query
+          schema:
+            type: string
+          description: Language code for content translation
       responses:
         "200":
           description: Featured hunches
@@ -110,6 +121,11 @@ paths:
           required: true
           schema:
             type: integer
+        - name: lang
+          in: query
+          schema:
+            type: string
+          description: Language code for content translation
       responses:
         "200":
           description: Hunch detail

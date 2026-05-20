@@ -8,19 +8,21 @@ import { TrendingUp, Users, Gift, SlidersHorizontal, Zap, ArrowRight } from "luc
 import { useTranslation } from "react-i18next";
 
 export default function Home() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const lang = i18n.language !== "en" ? i18n.language : undefined;
   const [_location, setLocation] = useLocation();
   const searchParams = new URLSearchParams(window.location.search);
   const categoryParam = searchParams.get("category");
   const statusParam = searchParams.get("status");
 
   const { data: stats, isLoading: statsLoading } = useGetHunchStats();
-  const { data: featuredHunches, isLoading: featuredLoading } = useGetFeaturedHunches();
+  const { data: featuredHunches, isLoading: featuredLoading } = useGetFeaturedHunches({ lang });
   const { data: categories, isLoading: categoriesLoading } = useListCategories();
   const { data: hunchesData, isLoading: hunchesLoading } = useListHunches({
     category: categoryParam || undefined,
     status: statusParam as any || undefined,
-    limit: 20
+    limit: 20,
+    lang,
   });
 
   const handleCategoryFilter = (slug: string | null) => {

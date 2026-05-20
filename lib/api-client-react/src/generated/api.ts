@@ -22,6 +22,8 @@ import type {
 import type {
   Category,
   ErrorResponse,
+  GetFeaturedHunchesParams,
+  GetHunchParams,
   HealthStatus,
   Hunch,
   HunchList,
@@ -205,20 +207,27 @@ export function useListHunches<TData = Awaited<ReturnType<typeof listHunches>>, 
 
 
 
-export const getGetFeaturedHunchesUrl = () => {
+export const getGetFeaturedHunchesUrl = (params?: GetFeaturedHunchesParams,) => {
+  const normalizedParams = new URLSearchParams();
 
+  Object.entries(params || {}).forEach(([key, value]) => {
 
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
 
+  const stringifiedParams = normalizedParams.toString();
 
-  return `/api/hunches/featured`
+  return stringifiedParams.length > 0 ? `/api/hunches/featured?${stringifiedParams}` : `/api/hunches/featured`
 }
 
 /**
  * @summary Get featured hunches for hero section
  */
-export const getFeaturedHunches = async ( options?: RequestInit): Promise<Hunch[]> => {
+export const getFeaturedHunches = async (params?: GetFeaturedHunchesParams, options?: RequestInit): Promise<Hunch[]> => {
 
-  return customFetch<Hunch[]>(getGetFeaturedHunchesUrl(),
+  return customFetch<Hunch[]>(getGetFeaturedHunchesUrl(params),
   {
     ...options,
     method: 'GET'
@@ -231,23 +240,23 @@ export const getFeaturedHunches = async ( options?: RequestInit): Promise<Hunch[
 
 
 
-export const getGetFeaturedHunchesQueryKey = () => {
+export const getGetFeaturedHunchesQueryKey = (params?: GetFeaturedHunchesParams,) => {
     return [
-    `/api/hunches/featured`
+    `/api/hunches/featured`, ...(params ? [params] : [])
     ] as const;
     }
 
 
-export const getGetFeaturedHunchesQueryOptions = <TData = Awaited<ReturnType<typeof getFeaturedHunches>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getFeaturedHunches>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export const getGetFeaturedHunchesQueryOptions = <TData = Awaited<ReturnType<typeof getFeaturedHunches>>, TError = ErrorType<unknown>>(params?: GetFeaturedHunchesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getFeaturedHunches>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
 
-  const queryKey =  queryOptions?.queryKey ?? getGetFeaturedHunchesQueryKey();
+  const queryKey =  queryOptions?.queryKey ?? getGetFeaturedHunchesQueryKey(params);
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof getFeaturedHunches>>> = ({ signal }) => getFeaturedHunches({ signal, ...requestOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getFeaturedHunches>>> = ({ signal }) => getFeaturedHunches(params, { signal, ...requestOptions });
 
 
 
@@ -265,11 +274,11 @@ export type GetFeaturedHunchesQueryError = ErrorType<unknown>
  */
 
 export function useGetFeaturedHunches<TData = Awaited<ReturnType<typeof getFeaturedHunches>>, TError = ErrorType<unknown>>(
-  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getFeaturedHunches>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+ params?: GetFeaturedHunchesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getFeaturedHunches>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
-  const queryOptions = getGetFeaturedHunchesQueryOptions(options)
+  const queryOptions = getGetFeaturedHunchesQueryOptions(params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 
@@ -359,20 +368,29 @@ export function useGetHunchStats<TData = Awaited<ReturnType<typeof getHunchStats
 
 
 
-export const getGetHunchUrl = (id: number,) => {
+export const getGetHunchUrl = (id: number,
+    params?: GetHunchParams,) => {
+  const normalizedParams = new URLSearchParams();
 
+  Object.entries(params || {}).forEach(([key, value]) => {
 
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
 
+  const stringifiedParams = normalizedParams.toString();
 
-  return `/api/hunches/${id}`
+  return stringifiedParams.length > 0 ? `/api/hunches/${id}?${stringifiedParams}` : `/api/hunches/${id}`
 }
 
 /**
  * @summary Get a single hunch
  */
-export const getHunch = async (id: number, options?: RequestInit): Promise<Hunch> => {
+export const getHunch = async (id: number,
+    params?: GetHunchParams, options?: RequestInit): Promise<Hunch> => {
 
-  return customFetch<Hunch>(getGetHunchUrl(id),
+  return customFetch<Hunch>(getGetHunchUrl(id,params),
   {
     ...options,
     method: 'GET'
@@ -385,23 +403,25 @@ export const getHunch = async (id: number, options?: RequestInit): Promise<Hunch
 
 
 
-export const getGetHunchQueryKey = (id: number,) => {
+export const getGetHunchQueryKey = (id: number,
+    params?: GetHunchParams,) => {
     return [
-    `/api/hunches/${id}`
+    `/api/hunches/${id}`, ...(params ? [params] : [])
     ] as const;
     }
 
 
-export const getGetHunchQueryOptions = <TData = Awaited<ReturnType<typeof getHunch>>, TError = ErrorType<ErrorResponse>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getHunch>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export const getGetHunchQueryOptions = <TData = Awaited<ReturnType<typeof getHunch>>, TError = ErrorType<ErrorResponse>>(id: number,
+    params?: GetHunchParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getHunch>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
 
-  const queryKey =  queryOptions?.queryKey ?? getGetHunchQueryKey(id);
+  const queryKey =  queryOptions?.queryKey ?? getGetHunchQueryKey(id,params);
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof getHunch>>> = ({ signal }) => getHunch(id, { signal, ...requestOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getHunch>>> = ({ signal }) => getHunch(id,params, { signal, ...requestOptions });
 
 
 
@@ -419,11 +439,12 @@ export type GetHunchQueryError = ErrorType<ErrorResponse>
  */
 
 export function useGetHunch<TData = Awaited<ReturnType<typeof getHunch>>, TError = ErrorType<ErrorResponse>>(
- id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getHunch>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+ id: number,
+    params?: GetHunchParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getHunch>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
-  const queryOptions = getGetHunchQueryOptions(id,options)
+  const queryOptions = getGetHunchQueryOptions(id,params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

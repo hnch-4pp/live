@@ -8,6 +8,8 @@
 
 export * from './category';
 export * from './errorResponse';
+export * from './getFeaturedHunchesParams';
+export * from './getHunchParams';
 export * from './healthStatus';
 export * from './hunch';
 export * from './hunchList';

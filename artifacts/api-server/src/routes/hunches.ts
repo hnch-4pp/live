@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, and, count, sql } from "drizzle-orm";
+import { eq, and, count, sql, inArray } from "drizzle-orm";
 import { db } from "@workspace/db";
 import {
   hunchesTable,
@@ -7,15 +7,20 @@ import {
   prizesTable,
   optionsTable,
   predictionsTable,
+  hunchTranslationsTable,
 } from "@workspace/db";
 import {
   ListHunchesQueryParams,
   GetHunchParams,
+  GetHunchQueryParams,
   SubmitPredictionParams,
   SubmitPredictionBody,
 } from "@workspace/api-zod";
+import { isTranslatableLanguage, translateOneHunch } from "../translate";
 
 const router: IRouter = Router();
+
+type HunchDetail = Awaited<ReturnType<typeof buildHunch>>;
 
 async function buildHunch(hunch: typeof hunchesTable.$inferSelect) {
   const category = await db
@@ -64,6 +69,61 @@ async function buildHunch(hunch: typeof hunchesTable.$inferSelect) {
   };
 }
 
+/**
+ * Apply cached or fresh translations to a list of hunches.
+ * Uses a single DB lookup + one batch MyMemory call for all uncached hunches.
+ */
+async function withTranslations(hunches: HunchDetail[], lang: string): Promise<HunchDetail[]> {
+  if (!lang || lang === "en" || !isTranslatableLanguage(lang)) return hunches;
+  if (hunches.length === 0) return hunches;
+
+  const ids = hunches.map((h) => h.id);
+
+  const cached = await db
+    .select()
+    .from(hunchTranslationsTable)
+    .where(and(inArray(hunchTranslationsTable.hunchId, ids), eq(hunchTranslationsTable.lang, lang)));
+
+  const cachedMap = new Map(cached.map((c) => [c.hunchId, c]));
+
+  const uncached = hunches.filter((h) => !cachedMap.has(h.id));
+
+  if (uncached.length > 0) {
+    const results = await Promise.all(
+      uncached.map((h) =>
+        translateOneHunch(h.id, h.title, h.description, h.options, lang).then((t) => ({
+          hunchId: h.id,
+          lang,
+          title: t.title,
+          description: t.description,
+          optionTranslations: t.optionTranslations,
+        }))
+      )
+    );
+
+    if (results.length > 0) {
+      await db
+        .insert(hunchTranslationsTable)
+        .values(results)
+        .onConflictDoNothing();
+
+      results.forEach((r) => cachedMap.set(r.hunchId, { ...r, id: 0, createdAt: new Date() }));
+    }
+  }
+
+  return hunches.map((h) => {
+    const t = cachedMap.get(h.id);
+    if (!t) return h;
+    const opts = t.optionTranslations as Record<number, string>;
+    return {
+      ...h,
+      title: t.title,
+      description: t.description,
+      options: h.options.map((o) => ({ ...o, label: opts[o.id] ?? o.label })),
+    };
+  });
+}
+
 router.get("/hunches", async (req, res): Promise<void> => {
   const parsed = ListHunchesQueryParams.safeParse(req.query);
   if (!parsed.success) {
@@ -71,7 +131,7 @@ router.get("/hunches", async (req, res): Promise<void> => {
     return;
   }
 
-  const { category, status, featured, limit = 20, offset = 0 } = parsed.data;
+  const { category, status, featured, limit = 20, offset = 0, lang } = parsed.data;
 
   const conditions = [];
 
@@ -114,11 +174,14 @@ router.get("/hunches", async (req, res): Promise<void> => {
     .where(whereClause);
 
   const hunches = await Promise.all(hunchRows.map(buildHunch));
+  const translated = await withTranslations(hunches, lang ?? "en");
 
-  res.json({ hunches, total });
+  res.json({ hunches: translated, total });
 });
 
-router.get("/hunches/featured", async (_req, res): Promise<void> => {
+router.get("/hunches/featured", async (req, res): Promise<void> => {
+  const lang = typeof req.query.lang === "string" ? req.query.lang : "en";
+
   const rows = await db
     .select()
     .from(hunchesTable)
@@ -126,7 +189,8 @@ router.get("/hunches/featured", async (_req, res): Promise<void> => {
     .limit(5);
 
   const hunches = await Promise.all(rows.map(buildHunch));
-  res.json(hunches);
+  const translated = await withTranslations(hunches, lang);
+  res.json(translated);
 });
 
 router.get("/hunches/stats", async (_req, res): Promise<void> => {
@@ -159,6 +223,9 @@ router.get("/hunches/:id", async (req, res): Promise<void> => {
     return;
   }
 
+  const queryParams = GetHunchQueryParams.safeParse(req.query);
+  const lang = queryParams.success ? (queryParams.data.lang ?? "en") : "en";
+
   const [hunch] = await db
     .select()
     .from(hunchesTable)
@@ -169,7 +236,10 @@ router.get("/hunches/:id", async (req, res): Promise<void> => {
     return;
   }
 
-  res.json(await buildHunch(hunch));
+  const built = await buildHunch(hunch);
+  const [translated] = await withTranslations([built], lang);
+
+  res.json(translated);
 });
 
 router.post("/hunches/:id/predict", async (req, res): Promise<void> => {
