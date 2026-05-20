@@ -134,6 +134,7 @@ router.get(
         prizeId: hunchesTable.prizeId,
         participantCount: hunchesTable.participantCount,
         winnerOption: hunchesTable.winnerOption,
+        rules: hunchesTable.rules,
         answerType: hunchesTable.answerType,
         createdAt: hunchesTable.createdAt,
       })
@@ -190,6 +191,7 @@ router.post(
         endsAt: new Date(String(endsAt)),
         status: (status as "open" | "closed" | "resolved") ?? "open",
         answerType: (answerType as string) ?? "integer",
+        rules: req.body.rules ? String(req.body.rules) : null,
       })
       .returning();
 
@@ -235,6 +237,7 @@ router.patch(
     if (winnerOption !== undefined)
       updates["winnerOption"] = winnerOption ? String(winnerOption) : null;
     if (answerType !== undefined) updates["answerType"] = String(answerType);
+    if ("rules" in req.body) updates["rules"] = req.body.rules ? String(req.body.rules) : null;
 
     const [hunch] = await db
       .update(hunchesTable)

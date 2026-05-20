@@ -18,6 +18,7 @@ const EMPTY = {
   title: "",
   description: "",
   imageUrl: "",
+  rules: "",
   status: "open",
   featured: false,
   endsAt: new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 16),
@@ -73,6 +74,7 @@ export default function HunchForm() {
           categoryId: h.categoryId ?? 0,
           prizeId: h.prizeId ?? 0,
           winnerOption: h.winnerOption ?? "",
+          rules: h.rules ?? "",
           answerType: h.answerType ?? "integer",
         });
       })
@@ -176,6 +178,16 @@ export default function HunchForm() {
                 onChange={(e) => setForm({ ...form, imageUrl: e.target.value })}
                 placeholder="https://..."
                 className={inputCls}
+              />
+            </Field>
+
+            <Field label="Rules" hint="Displayed on the hunch detail page where users can read how the prediction will be resolved">
+              <textarea
+                rows={5}
+                value={form.rules}
+                onChange={(e) => setForm({ ...form, rules: e.target.value })}
+                placeholder="Explain how this hunch will be resolved, what counts as a valid answer, and any special conditions..."
+                className={`${inputCls} resize-none`}
               />
             </Field>
           </section>

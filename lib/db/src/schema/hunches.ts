@@ -15,6 +15,7 @@ export const hunchesTable = pgTable("hunches", {
   featured: boolean("featured").notNull().default(false),
   imageUrl: text("image_url"),
   winnerOption: text("winner_option"),
+  rules: text("rules"),
   answerType: text("answer_type").notNull().default("integer"), // integer | decimal | date | time
   endsAt: timestamp("ends_at", { withTimezone: true }).notNull(),
   resolvedAt: timestamp("resolved_at", { withTimezone: true }),

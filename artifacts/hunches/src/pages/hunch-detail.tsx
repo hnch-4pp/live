@@ -151,14 +151,16 @@ export default function HunchDetail() {
               <p className="text-muted-foreground leading-relaxed">{hunch.description}</p>
             </div>
 
-            {/* Resolution note */}
-            <div className="flex items-start gap-3 bg-primary/5 border border-primary/15 rounded-2xl p-5">
-              <Info className="w-4 h-4 text-primary shrink-0 mt-0.5" />
-              <div className="text-sm">
-                <strong className="text-foreground block mb-1">{t("how_resolution")}</strong>
-                <span className="text-muted-foreground">{t("resolution_desc")}</span>
+            {/* Rules */}
+            {hunch.rules && (
+              <div className="flex items-start gap-3 bg-primary/5 border border-primary/15 rounded-2xl p-5">
+                <Info className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                <div className="text-sm">
+                  <strong className="text-foreground block mb-1">{t("how_resolution")}</strong>
+                  <span className="text-muted-foreground whitespace-pre-line">{hunch.rules}</span>
+                </div>
               </div>
-            </div>
+            )}
           </div>
 
           {/* Sidebar */}
