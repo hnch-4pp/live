@@ -256,8 +256,63 @@ router.get(
   requireAdmin,
   requireAdminHeader,
   async (_req, res): Promise<void> => {
-    const cats = await db.select().from(categoriesTable);
+    const cats = await db.select().from(categoriesTable).orderBy(categoriesTable.id);
     res.json(cats);
+  },
+);
+
+router.post(
+  "/admin/categories",
+  requireAdmin,
+  requireAdminHeader,
+  async (req, res): Promise<void> => {
+    const { slug, name, icon, color, enabled } = req.body as Record<string, string | boolean | undefined>;
+    if (!slug || !name || !icon || !color) {
+      res.status(400).json({ error: "slug, name, icon and color are required" });
+      return;
+    }
+    const [cat] = await db
+      .insert(categoriesTable)
+      .values({
+        slug: String(slug),
+        name: String(name),
+        icon: String(icon),
+        color: String(color),
+        enabled: enabled !== false && enabled !== "false",
+      })
+      .returning();
+    res.status(201).json(cat);
+  },
+);
+
+router.patch(
+  "/admin/categories/:id",
+  requireAdmin,
+  requireAdminHeader,
+  async (req, res): Promise<void> => {
+    const id = parseInt(req.params["id"] ?? "0", 10);
+    if (!id) { res.status(400).json({ error: "Invalid ID" }); return; }
+
+    const { name, icon, color, enabled } = req.body as Record<string, string | boolean | undefined>;
+    const updates: Record<string, unknown> = {};
+    if (name    !== undefined) updates["name"]    = String(name);
+    if (icon    !== undefined) updates["icon"]    = String(icon);
+    if (color   !== undefined) updates["color"]   = String(color);
+    if (enabled !== undefined) updates["enabled"] = enabled === true || enabled === "true";
+
+    if (Object.keys(updates).length === 0) {
+      res.status(400).json({ error: "Nothing to update" });
+      return;
+    }
+
+    const [cat] = await db
+      .update(categoriesTable)
+      .set(updates)
+      .where(eq(categoriesTable.id, id))
+      .returning();
+
+    if (!cat) { res.status(404).json({ error: "Category not found" }); return; }
+    res.json(cat);
   },
 );
 

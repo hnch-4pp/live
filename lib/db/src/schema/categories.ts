@@ -1,4 +1,4 @@
-import { pgTable, serial, text, integer } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, integer, boolean } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -9,6 +9,7 @@ export const categoriesTable = pgTable("categories", {
   icon: text("icon").notNull(),
   color: text("color").notNull(),
   hunchCount: integer("hunch_count").notNull().default(0),
+  enabled: boolean("enabled").notNull().default(true),
 });
 
 export const insertCategorySchema = createInsertSchema(categoriesTable).omit({ id: true });

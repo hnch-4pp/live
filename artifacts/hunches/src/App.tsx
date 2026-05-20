@@ -14,6 +14,7 @@ import NotFound from "@/pages/not-found";
 import AdminLogin from "@/pages/backstage/login";
 import AdminDashboard from "@/pages/backstage/dashboard";
 import AdminHunches from "@/pages/backstage/hunches";
+import AdminCategories from "@/pages/backstage/categories";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -37,6 +38,7 @@ function Router() {
       <Route path="/backstage/login" component={AdminLogin} />
       <Route path="/backstage/dashboard" component={AdminDashboard} />
       <Route path="/backstage/hunches" component={AdminHunches} />
+      <Route path="/backstage/categories" component={AdminCategories} />
       <Route component={NotFound} />
     </Switch>
   );
