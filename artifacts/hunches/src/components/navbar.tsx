@@ -1,7 +1,7 @@
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { useEffect, useRef, useState } from "react";
-import { Globe, ChevronDown } from "lucide-react";
+import { Globe, ChevronDown, Heart } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import i18n from "@/i18n";
 
@@ -97,9 +97,9 @@ export function Navbar() {
         <div className="flex items-center gap-8">
           <Link href="/" className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center shadow-sm">
-              <div className="w-3 h-3 bg-white rounded-full" />
+              <Heart className="w-4 h-4 text-white fill-white" />
             </div>
-            <span className="font-display font-bold text-xl tracking-tight text-foreground">Hunches</span>
+            <span className="font-display font-bold text-xl tracking-tight text-foreground">Hunch</span>
           </Link>
           <nav className="hidden md:flex items-center gap-1 text-sm font-medium">
             <Link href="/?category=sports" className="px-3 py-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">{t("nav_sports")}</Link>
