@@ -3,13 +3,19 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: Hunches - Prediction platform API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: hunches
+    description: Hunch prediction markets
+  - name: categories
+    description: Hunch categories
+  - name: auth
+    description: Authentication
 paths:
   /healthz:
     get:
@@ -24,6 +30,146 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /hunches:
+    get:
+      operationId: listHunches
+      tags: [hunches]
+      summary: List all hunches
+      parameters:
+        - name: category
+          in: query
+          schema:
+            type: string
+          description: Filter by category slug
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [open, closed, resolved]
+          description: Filter by status
+        - name: featured
+          in: query
+          schema:
+            type: boolean
+          description: Filter featured hunches only
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        "200":
+          description: List of hunches
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HunchList"
+
+  /hunches/featured:
+    get:
+      operationId: getFeaturedHunches
+      tags: [hunches]
+      summary: Get featured hunches for hero section
+      responses:
+        "200":
+          description: Featured hunches
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Hunch"
+
+  /hunches/stats:
+    get:
+      operationId: getHunchStats
+      tags: [hunches]
+      summary: Get platform-wide stats
+      responses:
+        "200":
+          description: Platform stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformStats"
+
+  /hunches/{id}:
+    get:
+      operationId: getHunch
+      tags: [hunches]
+      summary: Get a single hunch
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Hunch detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Hunch"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /hunches/{id}/predict:
+    post:
+      operationId: submitPrediction
+      tags: [hunches]
+      summary: Submit a prediction on a hunch
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PredictionInput"
+      responses:
+        "201":
+          description: Prediction submitted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Prediction"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /categories:
+    get:
+      operationId: listCategories
+      tags: [categories]
+      summary: List all hunch categories
+      responses:
+        "200":
+          description: List of categories
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Category"
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +180,140 @@ components:
       required:
         - status
 
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+      required:
+        - error
+
+    Category:
+      type: object
+      required: [id, slug, name, icon, hunchCount]
+      properties:
+        id:
+          type: integer
+        slug:
+          type: string
+        name:
+          type: string
+        icon:
+          type: string
+        hunchCount:
+          type: integer
+        color:
+          type: string
+
+    Prize:
+      type: object
+      required: [id, label, type, value]
+      properties:
+        id:
+          type: integer
+        label:
+          type: string
+        type:
+          type: string
+          enum: [gift_card, merch, cash_equivalent]
+        value:
+          type: string
+        imageUrl:
+          type: ["string", "null"]
+
+    Hunch:
+      type: object
+      required: [id, title, description, categorySlug, categoryName, status, participantCount, endsAt, prize, options]
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        description:
+          type: string
+        categorySlug:
+          type: string
+        categoryName:
+          type: string
+        categoryColor:
+          type: string
+        status:
+          type: string
+          enum: [open, closed, resolved]
+        participantCount:
+          type: integer
+        endsAt:
+          type: string
+          format: date-time
+        resolvedAt:
+          type: ["string", "null"]
+        prize:
+          $ref: "#/components/schemas/Prize"
+        options:
+          type: array
+          items:
+            $ref: "#/components/schemas/HunchOption"
+        featured:
+          type: boolean
+        imageUrl:
+          type: ["string", "null"]
+        winnerOption:
+          type: ["string", "null"]
+
+    HunchOption:
+      type: object
+      required: [id, label, percentage]
+      properties:
+        id:
+          type: integer
+        label:
+          type: string
+        percentage:
+          type: number
+
+    HunchList:
+      type: object
+      required: [hunches, total]
+      properties:
+        hunches:
+          type: array
+          items:
+            $ref: "#/components/schemas/Hunch"
+        total:
+          type: integer
+
+    PlatformStats:
+      type: object
+      required: [totalHunches, totalParticipants, totalPrizesAwarded, activeHunches]
+      properties:
+        totalHunches:
+          type: integer
+        totalParticipants:
+          type: integer
+        totalPrizesAwarded:
+          type: integer
+        activeHunches:
+          type: integer
+
+    PredictionInput:
+      type: object
+      required: [optionId]
+      properties:
+        optionId:
+          type: integer
+
+    Prediction:
+      type: object
+      required: [id, hunchId, optionId, optionLabel, createdAt]
+      properties:
+        id:
+          type: integer
+        hunchId:
+          type: integer
+        optionId:
+          type: integer
+        optionLabel:
+          type: string
+        createdAt:
+          type: string
+          format: date-time

@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "Hunches"
+version = "1.0.0"
+id = "artifacts/hunches"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 20921
+
+[services.development]
+run = "pnpm --filter @workspace/hunches run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/hunches", "run", "build" ]
+publicDir = "artifacts/hunches/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "20921"
+BASE_PATH = "/"
