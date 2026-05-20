@@ -34,7 +34,8 @@ export default function HunchDetail() {
   const hunchId = parseInt(id || "0", 10);
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [selectedOption, setSelectedOption] = useState<number | null>(null);
+  const [freeText, setFreeText] = useState("");
+  const [submitted, setSubmitted] = useState(false);
 
   const { data: hunch, isLoading, error } = useGetHunch(hunchId, { lang }, {
     query: { enabled: !!hunchId }
@@ -43,9 +44,11 @@ export default function HunchDetail() {
   const submitPrediction = useSubmitPrediction();
 
   const handlePredict = () => {
-    if (!selectedOption) return;
-    submitPrediction.mutate({ id: hunchId, data: { optionId: selectedOption } }, {
+    const trimmed = freeText.trim();
+    if (!trimmed) return;
+    submitPrediction.mutate({ id: hunchId, data: { freeText: trimmed } }, {
       onSuccess: () => {
+        setSubmitted(true);
         toast({ title: t("prediction_ok_title"), description: t("prediction_ok_desc") });
         queryClient.invalidateQueries({ queryKey: getGetHunchQueryKey(hunchId) });
       },
@@ -172,63 +175,86 @@ export default function HunchDetail() {
 
             {/* Prediction */}
             <div className="bg-card border border-border rounded-2xl p-5 card-shadow">
-              <h3 className="font-display font-bold text-lg text-foreground mb-5">
+              <h3 className="font-display font-bold text-lg text-foreground mb-4">
                 {isResolved ? t("final_results") : t("make_prediction")}
               </h3>
 
-              <div className="space-y-3 mb-6">
-                {hunch.options.map((option) => {
-                  const isWinner = isResolved && hunch.winnerOption === option.label;
-                  const isSelected = selectedOption === option.id;
+              {/* Free-text input — shown when open and not yet submitted */}
+              {isOpen && !submitted && (
+                <div className="mb-4">
+                  <input
+                    type="text"
+                    value={freeText}
+                    onChange={(e) => setFreeText(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter") handlePredict(); }}
+                    placeholder={t("type_your_answer")}
+                    maxLength={200}
+                    className="w-full rounded-xl border border-border bg-white px-4 py-3 text-sm font-medium text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
+                  />
+                </div>
+              )}
 
-                  return (
-                    <button
-                      key={option.id}
-                      disabled={!isOpen}
-                      onClick={() => setSelectedOption(option.id)}
-                      className={`w-full text-left rounded-xl border p-4 transition-all duration-150 relative overflow-hidden ${
-                        isWinner ? "border-primary bg-primary/5" :
-                        isSelected ? "border-primary bg-primary/5 ring-1 ring-primary/30" :
-                        "border-border bg-white hover:border-primary/40 hover:bg-muted/30"
-                      } ${!isOpen && !isWinner ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
-                    >
-                      {/* Progress bg */}
-                      <div
-                        className={`absolute left-0 top-0 bottom-0 opacity-[0.06] rounded-xl ${isWinner ? 'bg-primary' : 'bg-foreground'}`}
-                        style={{ width: `${option.percentage}%` }}
-                      />
-                      <div className="relative flex items-center justify-between gap-3">
-                        <div className="flex items-center gap-3">
-                          <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
-                            isWinner ? 'border-primary bg-primary text-white' :
-                            isSelected ? 'border-primary bg-primary' :
-                            'border-border'
-                          }`}>
-                            {isWinner && <CheckCircle2 className="w-3 h-3" />}
-                            {isSelected && !isWinner && <div className="w-2 h-2 rounded-full bg-white" />}
+              {/* Submitted confirmation */}
+              {submitted && (
+                <div className="flex items-center gap-2 mb-4 p-3 bg-primary/5 border border-primary/20 rounded-xl">
+                  <CheckCircle2 className="w-4 h-4 text-primary flex-shrink-0" />
+                  <span className="text-sm font-semibold text-primary">{freeText}</span>
+                </div>
+              )}
+
+              {/* Community answers */}
+              {hunch.options.length > 0 ? (
+                <div className="mb-5">
+                  <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground mb-3">
+                    {t("community_answers")}
+                  </p>
+                  <div className="space-y-2.5">
+                    {hunch.options
+                      .slice()
+                      .sort((a, b) => b.percentage - a.percentage)
+                      .slice(0, 5)
+                      .map((option) => {
+                        const isWinner = isResolved && hunch.winnerOption === option.label;
+                        const isUserAnswer = submitted && option.label.trim().toLowerCase() === freeText.trim().toLowerCase();
+                        return (
+                          <div key={option.id} className="relative">
+                            <div className="flex justify-between items-baseline mb-1">
+                              <span className={`text-sm truncate pr-3 font-medium ${isWinner ? "text-primary font-semibold" : isUserAnswer ? "text-primary font-semibold" : "text-foreground"}`}>
+                                {isWinner && <CheckCircle2 className="w-3 h-3 inline mr-1 mb-0.5" />}
+                                {option.label}
+                              </span>
+                              <span className={`text-sm font-mono font-semibold flex-shrink-0 tabular-nums ${isWinner || isUserAnswer ? "text-primary" : "text-muted-foreground"}`}>
+                                {Math.round(option.percentage)}%
+                              </span>
+                            </div>
+                            <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                              <div
+                                className={`h-full rounded-full transition-all duration-500 ${isWinner ? "bg-primary" : isUserAnswer ? "bg-primary/80" : "bg-primary/30"}`}
+                                style={{ width: `${option.percentage}%` }}
+                              />
+                            </div>
                           </div>
-                          <span className={`font-semibold text-sm ${isWinner ? 'text-primary' : 'text-foreground'}`}>{option.label}</span>
-                        </div>
-                        <span className="text-sm font-mono font-semibold text-muted-foreground tabular-nums">{Math.round(option.percentage)}%</span>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
+                        );
+                      })}
+                  </div>
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground mb-5">{t("be_first")}</p>
+              )}
 
-              {isOpen ? (
+              {isOpen && !submitted ? (
                 <Button
                   className="w-full font-bold text-base h-12 bg-primary text-white hover:bg-primary/90 rounded-xl shadow-sm transition-all hover:shadow-md disabled:opacity-50"
-                  disabled={!selectedOption || submitPrediction.isPending}
+                  disabled={!freeText.trim() || submitPrediction.isPending}
                   onClick={handlePredict}
                 >
                   {submitPrediction.isPending ? t("submitting") : t("lock_prediction")}
                 </Button>
-              ) : (
+              ) : !isOpen ? (
                 <div className="w-full text-center p-3.5 bg-muted rounded-xl text-muted-foreground text-sm font-medium border border-border">
                   {isResolved ? t("hunch_resolved") : t("predictions_closed")}
                 </div>
-              )}
+              ) : null}
             </div>
 
             <Button variant="outline" className="w-full rounded-xl border-border font-medium">

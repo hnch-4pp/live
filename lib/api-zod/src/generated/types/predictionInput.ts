@@ -7,5 +7,9 @@
  */
 
 export interface PredictionInput {
-  optionId: number;
+  /**
+     * @minLength 1
+     * @maxLength 200
+     */
+  freeText: string;
 }

@@ -159,8 +159,12 @@ export const SubmitPredictionParams = zod.object({
   "id": zod.coerce.number()
 })
 
+export const submitPredictionBodyFreeTextMax = 200;
+
+
+
 export const SubmitPredictionBody = zod.object({
-  "optionId": zod.number()
+  "freeText": zod.string().min(1).max(submitPredictionBodyFreeTextMax)
 })
 
 

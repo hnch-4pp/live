@@ -271,19 +271,32 @@ router.post("/hunches/:id/predict", async (req, res): Promise<void> => {
     return;
   }
 
-  const [option] = await db
+  const normalizedLabel = body.data.freeText.trim();
+
+  const existingOptions = await db
     .select()
     .from(optionsTable)
-    .where(and(eq(optionsTable.id, body.data.optionId), eq(optionsTable.hunchId, params.data.id)));
+    .where(eq(optionsTable.hunchId, params.data.id));
 
-  if (!option) {
-    res.status(400).json({ error: "Invalid option for this hunch" });
-    return;
+  const matchedOption = existingOptions.find(
+    (o) => o.label.trim().toLowerCase() === normalizedLabel.toLowerCase()
+  );
+
+  let optionId: number;
+
+  if (matchedOption) {
+    optionId = matchedOption.id;
+  } else {
+    const [newOption] = await db
+      .insert(optionsTable)
+      .values({ hunchId: params.data.id, label: normalizedLabel, percentage: 0 })
+      .returning();
+    optionId = newOption.id;
   }
 
   const [prediction] = await db
     .insert(predictionsTable)
-    .values({ hunchId: params.data.id, optionId: body.data.optionId })
+    .values({ hunchId: params.data.id, optionId })
     .returning();
 
   await db
@@ -291,11 +304,36 @@ router.post("/hunches/:id/predict", async (req, res): Promise<void> => {
     .set({ participantCount: hunch.participantCount + 1 })
     .where(eq(hunchesTable.id, params.data.id));
 
+  const predictionCounts = await db
+    .select({ optionId: predictionsTable.optionId, cnt: count() })
+    .from(predictionsTable)
+    .where(eq(predictionsTable.hunchId, params.data.id))
+    .groupBy(predictionsTable.optionId);
+
+  const total = predictionCounts.reduce((sum, r) => sum + Number(r.cnt), 0);
+
+  if (total > 0) {
+    const countMap = new Map(predictionCounts.map((r) => [r.optionId, Number(r.cnt)]));
+    const allOptions = matchedOption
+      ? existingOptions
+      : [...existingOptions, { id: optionId, label: normalizedLabel, percentage: 0, hunchId: params.data.id }];
+
+    await Promise.all(
+      allOptions.map((o) => {
+        const pct = ((countMap.get(o.id) ?? 0) / total) * 100;
+        return db
+          .update(optionsTable)
+          .set({ percentage: pct })
+          .where(eq(optionsTable.id, o.id));
+      })
+    );
+  }
+
   res.status(201).json({
     id: prediction.id,
     hunchId: prediction.hunchId,
-    optionId: prediction.optionId,
-    optionLabel: option.label,
+    optionId,
+    optionLabel: normalizedLabel,
     createdAt: prediction.createdAt.toISOString(),
   });
 });

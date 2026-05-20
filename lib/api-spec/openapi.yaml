@@ -313,10 +313,12 @@ components:
 
     PredictionInput:
       type: object
-      required: [optionId]
+      required: [freeText]
       properties:
-        optionId:
-          type: integer
+        freeText:
+          type: string
+          minLength: 1
+          maxLength: 200
 
     Prediction:
       type: object
