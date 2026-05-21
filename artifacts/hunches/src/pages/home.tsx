@@ -4,8 +4,18 @@ import { HunchCard } from "@/components/hunch-card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useListHunches, useGetFeaturedHunches, useGetHunchStats, useListCategories } from "@workspace/api-client-react";
-import { TrendingUp, Users, Gift, SlidersHorizontal, Zap, ArrowRight } from "lucide-react";
+import { TrendingUp, Users, Gift, SlidersHorizontal, Zap, ArrowRight, Trophy, Music, Clapperboard, Flame, Globe, Gamepad2, FlaskConical, type LucideIcon } from "lucide-react";
 import { useTranslation } from "react-i18next";
+
+const CATEGORY_ICON_MAP: Record<string, LucideIcon> = {
+  Trophy, Music, Clapperboard, TrendingUp, Flame, Globe, Gamepad2, FlaskConical,
+  trophy: Trophy, music: Music, clapperboard: Clapperboard, trendingup: TrendingUp,
+};
+
+function CategoryIcon({ slug }: { slug: string }) {
+  const Icon = CATEGORY_ICON_MAP[slug] ?? CATEGORY_ICON_MAP[slug.toLowerCase()] ?? Trophy;
+  return <Icon className="w-4 h-4" />;
+}
 
 export default function Home() {
   const { t, i18n } = useTranslation();
@@ -177,7 +187,7 @@ export default function Home() {
                         }`}
                       >
                         <span className="flex items-center gap-2">
-                          <span className="text-base">{cat.icon}</span>
+                          <CategoryIcon slug={cat.icon} />
                           {t(`cat_${cat.slug}`, { defaultValue: cat.name })}
                         </span>
                         <span className="text-xs bg-muted px-1.5 py-0.5 rounded-md font-mono">{cat.hunchCount}</span>
