@@ -27,6 +27,7 @@ const ANSWER_TYPES = [
 
 const EMPTY = {
   title: "",
+  slug: "",
   description: "",
   imageUrl: "",
   rules: "",
@@ -38,6 +39,17 @@ const EMPTY = {
   winnerOption: "",
   answerType: "integer",
 };
+
+function toSlug(title: string): string {
+  return title
+    .toLowerCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9\s-]/g, "")
+    .trim()
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+    .slice(0, 80);
+}
 
 function Field({ label, required, hint, children }: { label: string; required?: boolean; hint?: string; children: React.ReactNode }) {
   return (
@@ -78,6 +90,7 @@ export default function HunchForm() {
       .then((h) => {
         setForm({
           title: h.title ?? "",
+          slug: h.slug ?? "",
           description: h.description ?? "",
           imageUrl: h.imageUrl ?? "",
           status: h.status ?? "open",
@@ -175,10 +188,35 @@ export default function HunchForm() {
               <input
                 required
                 value={form.title}
-                onChange={(e) => setForm({ ...form, title: e.target.value })}
+                onChange={(e) => {
+                  const title = e.target.value;
+                  setForm((f) => ({
+                    ...f,
+                    title,
+                    slug: f.slug || toSlug(title),
+                  }));
+                }}
                 placeholder="e.g. Will the Warriors win their next home game?"
                 className={inputCls}
               />
+            </Field>
+
+            <Field label="URL slug" hint="Used in the public URL: /hunch/your-slug-here. Auto-generated from title — editable.">
+              <div className="flex gap-2">
+                <input
+                  value={form.slug}
+                  onChange={(e) => setForm({ ...form, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "-").replace(/-+/g, "-") })}
+                  placeholder="e.g. warriors-next-home-game"
+                  className={inputCls}
+                />
+                <button
+                  type="button"
+                  onClick={() => setForm({ ...form, slug: toSlug(form.title) })}
+                  className="px-3 py-2 text-xs font-medium text-violet-600 border border-violet-200 rounded-xl hover:bg-violet-50 transition-colors whitespace-nowrap"
+                >
+                  Auto-generate
+                </button>
+              </div>
             </Field>
 
             <Field label="Description" required>

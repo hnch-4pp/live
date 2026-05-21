@@ -119,13 +119,13 @@ paths:
     get:
       operationId: getHunch
       tags: [hunches]
-      summary: Get a single hunch
+      summary: Get a single hunch by numeric ID or slug
       parameters:
         - name: id
           in: path
           required: true
           schema:
-            type: integer
+            type: string
         - name: lang
           in: query
           schema:
@@ -253,10 +253,12 @@ components:
 
     Hunch:
       type: object
-      required: [id, title, description, categorySlug, categoryName, status, participantCount, endsAt, prize, options, prizeTiers]
+      required: [id, slug, title, description, categorySlug, categoryName, status, participantCount, endsAt, prize, options, prizeTiers]
       properties:
         id:
           type: integer
+        slug:
+          type: string
         title:
           type: string
         description:

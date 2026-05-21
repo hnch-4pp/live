@@ -6,6 +6,7 @@ import { prizesTable } from "./prizes";
 
 export const hunchesTable = pgTable("hunches", {
   id: serial("id").primaryKey(),
+  slug: text("slug").unique(),
   title: text("title").notNull(),
   description: text("description").notNull(),
   categoryId: integer("category_id").notNull().references(() => categoriesTable.id),

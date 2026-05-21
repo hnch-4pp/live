@@ -41,16 +41,15 @@ export default function HunchDetail() {
   const { t, i18n } = useTranslation();
   const dateFnsLocale = DATE_FNS_LOCALES[i18n.language] ?? enUS;
   const lang = i18n.language !== "en" ? i18n.language : undefined;
-  const { id } = useParams<{ id: string }>();
-  const hunchId = parseInt(id || "0", 10);
+  const { slug } = useParams<{ slug: string }>();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [freeText, setFreeText] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const [prizeOpen, setPrizeOpen] = useState(false);
 
-  const { data: hunch, isLoading, error } = useGetHunch(hunchId, { lang }, {
-    query: { queryKey: getGetHunchQueryKey(hunchId, { lang }), enabled: !!hunchId }
+  const { data: hunch, isLoading, error } = useGetHunch(slug ?? "", { lang }, {
+    query: { queryKey: getGetHunchQueryKey(slug ?? "", { lang }), enabled: !!slug }
   });
 
   const submitPrediction = useSubmitPrediction();
@@ -58,11 +57,11 @@ export default function HunchDetail() {
   const handlePredict = () => {
     const trimmed = freeText.trim();
     if (!trimmed) return;
-    submitPrediction.mutate({ id: hunchId, data: { freeText: trimmed } }, {
+    submitPrediction.mutate({ id: hunch?.id ?? 0, data: { freeText: trimmed } }, {
       onSuccess: () => {
         setSubmitted(true);
         toast({ title: t("prediction_ok_title"), description: t("prediction_ok_desc") });
-        queryClient.invalidateQueries({ queryKey: getGetHunchQueryKey(hunchId) });
+        queryClient.invalidateQueries({ queryKey: getGetHunchQueryKey(slug ?? "") });
       },
       onError: (err: any) => {
         toast({ title: t("error"), description: err.error || t("failed_submit"), variant: "destructive" });

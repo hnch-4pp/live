@@ -74,6 +74,7 @@ async function buildHunch(hunch: typeof hunchesTable.$inferSelect) {
 
   return {
     id: hunch.id,
+    slug: hunch.slug ?? String(hunch.id),
     title: hunch.title,
     description: hunch.description,
     categorySlug: category?.slug ?? "",
@@ -257,19 +258,15 @@ router.get("/hunches/stats", async (_req, res): Promise<void> => {
 
 router.get("/hunches/:id", async (req, res): Promise<void> => {
   const rawId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-  const params = GetHunchParams.safeParse({ id: parseInt(rawId, 10) });
-  if (!params.success) {
-    res.status(400).json({ error: params.error.message });
-    return;
-  }
 
   const queryParams = GetHunchQueryParams.safeParse(req.query);
   const lang = queryParams.success ? (queryParams.data.lang ?? "en") : "en";
 
+  const isNumeric = /^\d+$/.test(rawId);
   const [hunch] = await db
     .select()
     .from(hunchesTable)
-    .where(eq(hunchesTable.id, params.data.id));
+    .where(isNumeric ? eq(hunchesTable.id, parseInt(rawId, 10)) : eq(hunchesTable.slug, rawId));
 
   if (!hunch) {
     res.status(404).json({ error: "Hunch not found" });

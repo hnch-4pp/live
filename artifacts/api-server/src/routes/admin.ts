@@ -16,6 +16,17 @@ function parsePrizeAmount(value: string): number {
   return m ? parseFloat(m[1]) : 0;
 }
 
+function toSlug(title: string): string {
+  return title
+    .toLowerCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9\s-]/g, "")
+    .trim()
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+    .slice(0, 80);
+}
+
 declare module "express-session" {
   interface SessionData {
     admin: boolean;
@@ -190,6 +201,9 @@ router.post(
       return;
     }
 
+    const providedSlug = req.body.slug ? String(req.body.slug).trim() : null;
+    const generatedSlug = toSlug(String(title));
+
     const prizeTiers = Array.isArray(req.body.prizeTiers)
       ? (req.body.prizeTiers as { rank: number; prizeId: number }[])
       : [];
@@ -198,6 +212,7 @@ router.post(
     const [hunch] = await db
       .insert(hunchesTable)
       .values({
+        slug: providedSlug || generatedSlug,
         title: String(title),
         description: String(description),
         imageUrl: imageUrl ? String(imageUrl) : null,
@@ -247,6 +262,7 @@ router.patch(
 
     const updates: Record<string, unknown> = {};
     if (title !== undefined) updates["title"] = String(title);
+    if ("slug" in req.body) updates["slug"] = req.body.slug ? String(req.body.slug).trim() : (title ? toSlug(String(title)) : undefined);
     if (description !== undefined) updates["description"] = String(description);
     if (imageUrl !== undefined)
       updates["imageUrl"] = imageUrl ? String(imageUrl) : null;

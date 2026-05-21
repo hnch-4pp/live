@@ -12,6 +12,7 @@ import type { PrizeTier } from './prizeTier';
 
 export interface Hunch {
   id: number;
+  slug: string;
   title: string;
   description: string;
   categorySlug: string;

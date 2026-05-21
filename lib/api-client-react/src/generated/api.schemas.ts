@@ -62,6 +62,7 @@ export interface HunchOption {
 
 export interface Hunch {
   id: number;
+  slug: string;
   title: string;
   description: string;
   categorySlug: string;

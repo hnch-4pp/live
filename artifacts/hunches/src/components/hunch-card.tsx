@@ -100,7 +100,7 @@ export function HunchCard({ hunch, featured = false }: HunchCardProps) {
     : t("ended");
 
   return (
-    <Link href={`/hunch/${hunch.id}`}>
+    <Link href={`/hunch/${hunch.slug || hunch.id}`}>
       <article className={`group bg-card rounded-2xl border border-border overflow-hidden cursor-pointer hover-elevate card-shadow flex flex-col h-full ${featured ? "ring-2 ring-primary/20" : ""}`}>
 
         {/* ── Photo ── */}

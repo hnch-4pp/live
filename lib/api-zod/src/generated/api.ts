@@ -36,6 +36,7 @@ export const ListHunchesQueryParams = zod.object({
 export const ListHunchesResponse = zod.object({
   "hunches": zod.array(zod.object({
   "id": zod.number(),
+  "slug": zod.string(),
   "title": zod.string(),
   "description": zod.string(),
   "categorySlug": zod.string(),
@@ -87,6 +88,7 @@ export const GetFeaturedHunchesQueryParams = zod.object({
 
 export const GetFeaturedHunchesResponseItem = zod.object({
   "id": zod.number(),
+  "slug": zod.string(),
   "title": zod.string(),
   "description": zod.string(),
   "categorySlug": zod.string(),
@@ -140,10 +142,10 @@ export const GetHunchStatsResponse = zod.object({
 
 
 /**
- * @summary Get a single hunch
+ * @summary Get a single hunch by numeric ID or slug
  */
 export const GetHunchParams = zod.object({
-  "id": zod.coerce.number()
+  "id": zod.coerce.string()
 })
 
 export const GetHunchQueryParams = zod.object({
@@ -152,6 +154,7 @@ export const GetHunchQueryParams = zod.object({
 
 export const GetHunchResponse = zod.object({
   "id": zod.number(),
+  "slug": zod.string(),
   "title": zod.string(),
   "description": zod.string(),
   "categorySlug": zod.string(),
