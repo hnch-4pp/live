@@ -5,6 +5,9 @@ import {
   enUS, es, de, fr, pt, it, ja, ko, zhCN, id as idLocale, tr,
 } from "date-fns/locale";
 import { ArrowLeft, Users, Clock, Share2, AlertCircle, Info, Trophy, CheckCircle2, Gift, Award, DollarSign } from "lucide-react";
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell,
+} from "recharts";
 import { useQueryClient } from "@tanstack/react-query";
 import { Layout } from "@/components/layout";
 import { Button } from "@/components/ui/button";
@@ -150,6 +153,75 @@ export default function HunchDetail() {
               <h3 className="text-base font-display font-bold text-foreground mb-3">{t("the_context")}</h3>
               <p className="text-muted-foreground leading-relaxed">{hunch.description}</p>
             </div>
+
+            {/* Answer distribution histogram */}
+            {hunch.options.length > 0 && (
+              <div className="bg-card border border-border rounded-2xl p-6 card-shadow">
+                <h3 className="text-base font-display font-bold text-foreground mb-1">Answer distribution</h3>
+                <p className="text-xs text-muted-foreground mb-5">
+                  {hunch.participantCount.toLocaleString()} prediction{hunch.participantCount !== 1 ? "s" : ""} so far
+                </p>
+                <ResponsiveContainer width="100%" height={220}>
+                  <BarChart
+                    data={hunch.options
+                      .slice()
+                      .sort((a, b) => b.percentage - a.percentage)
+                      .slice(0, 12)
+                      .map((o) => ({
+                        label: o.label.length > 14 ? o.label.slice(0, 13) + "…" : o.label,
+                        fullLabel: o.label,
+                        pct: Math.round(o.percentage),
+                      }))}
+                    margin={{ top: 4, right: 8, left: -18, bottom: 40 }}
+                    barCategoryGap="28%"
+                  >
+                    <CartesianGrid vertical={false} stroke="hsl(var(--border))" strokeDasharray="4 4" />
+                    <XAxis
+                      dataKey="label"
+                      tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))", fontWeight: 500 }}
+                      tickLine={false}
+                      axisLine={false}
+                      angle={-35}
+                      textAnchor="end"
+                      interval={0}
+                    />
+                    <YAxis
+                      tickFormatter={(v) => `${v}%`}
+                      tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+                      tickLine={false}
+                      axisLine={false}
+                      domain={[0, 100]}
+                      ticks={[0, 25, 50, 75, 100]}
+                    />
+                    <Tooltip
+                      cursor={{ fill: "hsl(var(--muted))", radius: 6 }}
+                      content={({ active, payload }) => {
+                        if (!active || !payload?.length) return null;
+                        const d = payload[0]?.payload as { fullLabel: string; pct: number };
+                        return (
+                          <div className="bg-card border border-border rounded-xl px-3 py-2 shadow-lg text-sm">
+                            <p className="font-semibold text-foreground max-w-[200px] truncate">{d.fullLabel}</p>
+                            <p className="text-primary font-bold mt-0.5">{d.pct}%</p>
+                          </div>
+                        );
+                      }}
+                    />
+                    <Bar dataKey="pct" radius={[6, 6, 0, 0]} maxBarSize={52}>
+                      {hunch.options
+                        .slice()
+                        .sort((a, b) => b.percentage - a.percentage)
+                        .slice(0, 12)
+                        .map((_, i) => (
+                          <Cell
+                            key={i}
+                            fill={i === 0 ? "hsl(var(--primary))" : `hsl(var(--primary) / ${Math.max(0.2, 0.85 - i * 0.07)})`}
+                          />
+                        ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            )}
 
             {/* Rules */}
             {hunch.rules && (
