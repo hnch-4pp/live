@@ -267,11 +267,19 @@ export default function HunchDetail() {
                         <LabelList
                           dataKey="count"
                           position="top"
-                          style={{ fontSize: 11, fontWeight: 600, fill: "hsl(var(--foreground))" }}
+                          style={{ fontSize: 11, fontWeight: 500, fill: "hsl(var(--primary) / 0.4)" }}
                         />
-                        {chartData.map((_, i) => (
-                          <Cell key={i} fill="hsl(var(--primary) / 0.75)" stroke="hsl(var(--primary))" strokeWidth={isNumeric ? 1 : 0} />
-                        ))}
+                        {chartData.map((d, i) => {
+                          const ratio = maxCount > 0 ? d.count / maxCount : 0;
+                          const opacity = 0.18 + ratio * 0.77;
+                          return (
+                            <Cell
+                              key={i}
+                              fill={`hsl(var(--primary) / ${opacity.toFixed(2)})`}
+                              stroke="none"
+                            />
+                          );
+                        })}
                       </Bar>
                     </BarChart>
                   </ResponsiveContainer>
