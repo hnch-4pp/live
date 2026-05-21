@@ -286,6 +286,13 @@ export default function HunchDetail() {
 
           {/* Sidebar */}
           <div className="space-y-4">
+            {/* Image */}
+            {hunch.imageUrl && (
+              <div className="rounded-2xl overflow-hidden border border-border bg-muted">
+                <img src={hunch.imageUrl} alt={hunch.title} className="w-full object-cover" />
+              </div>
+            )}
+
             {/* Prize */}
             <div className="bg-card border border-primary/20 rounded-2xl p-5 card-shadow">
               <div className="flex items-center gap-2 text-xs font-semibold text-primary mb-3 uppercase tracking-wide">
@@ -318,13 +325,6 @@ export default function HunchDetail() {
                 </>
               )}
             </div>
-
-            {/* Image */}
-            {hunch.imageUrl && (
-              <div className="rounded-2xl overflow-hidden border border-border bg-muted">
-                <img src={hunch.imageUrl} alt={hunch.title} className="w-full object-cover" />
-              </div>
-            )}
 
             {/* Prediction */}
             <div className="bg-card border border-border rounded-2xl p-5 card-shadow">
