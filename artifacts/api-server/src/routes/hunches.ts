@@ -28,7 +28,30 @@ function parsePrizeAmount(value: string): number {
   return m ? parseFloat(m[1]) : 0;
 }
 
+function toSlug(text: string, id: number): string {
+  return (
+    text
+      .toLowerCase()
+      .replace(/[^a-z0-9\s-]/g, "")
+      .trim()
+      .replace(/\s+/g, "-")
+      .replace(/-+/g, "-")
+      .slice(0, 80) +
+    "-" +
+    id
+  );
+}
+
 async function buildHunch(hunch: typeof hunchesTable.$inferSelect) {
+  // Lazily populate slug if missing — saves it so subsequent reads are fast
+  if (!hunch.slug) {
+    const generated = toSlug(hunch.title, hunch.id);
+    await db
+      .update(hunchesTable)
+      .set({ slug: generated })
+      .where(eq(hunchesTable.id, hunch.id));
+    hunch = { ...hunch, slug: generated };
+  }
   const category = await db
     .select()
     .from(categoriesTable)
