@@ -113,42 +113,54 @@ export default function HunchDetail() {
           {t("back_to_all")}
         </Link>
 
+        {/* Header row — same column grid so image aligns with sidebar */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-7">
+          <div className="lg:col-span-2">
+            <div className="flex flex-wrap items-center gap-2 mb-4">
+              <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${
+                hunch.status === 'open' ? 'bg-accent/10 text-accent' : 'bg-muted text-muted-foreground'
+              }`}>
+                <span className={`w-1.5 h-1.5 rounded-full ${hunch.status === 'open' ? 'bg-accent' : 'bg-muted-foreground'}`} />
+                {t(`status_${hunch.status}`)}
+              </span>
+              <span className="px-3 py-1 rounded-full text-xs font-medium bg-muted text-muted-foreground border border-border">
+                {t(`cat_${hunch.categoryName?.toLowerCase()}`, { defaultValue: hunch.categoryName })}
+              </span>
+            </div>
+
+            <h1 className="text-3xl md:text-4xl font-display font-bold text-foreground leading-tight mb-5">
+              {hunch.title}
+            </h1>
+
+            <div className="flex flex-wrap items-center gap-5 text-sm text-muted-foreground pb-5 border-b border-border">
+              <div className="flex items-center gap-1.5">
+                <Users className="w-4 h-4" />
+                <span><strong className="text-foreground font-semibold">{hunch.participantCount.toLocaleString()}</strong> {t("participants")}</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <Clock className="w-4 h-4" />
+                {isOpen
+                  ? <span>{t("ends_on", { date: format(new Date(hunch.endsAt), "PPPp", { locale: dateFnsLocale }) })}</span>
+                  : <span>{t("ended_on", { date: format(new Date(hunch.endsAt), "PPP", { locale: dateFnsLocale }) })}</span>
+                }
+              </div>
+            </div>
+          </div>
+
+          {/* Image — right column of header grid */}
+          <div>
+            {hunch.imageUrl && (
+              <div className="rounded-2xl overflow-hidden border border-border bg-muted h-full">
+                <img src={hunch.imageUrl} alt={hunch.title} className="w-full h-full object-cover" />
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Content grid — histogram and prize pool start at exactly the same line */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Main */}
           <div className="lg:col-span-2 space-y-7">
-            {/* Header */}
-            <div>
-              <div className="flex flex-wrap items-center gap-2 mb-4">
-                <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${
-                  hunch.status === 'open' ? 'bg-accent/10 text-accent' : 'bg-muted text-muted-foreground'
-                }`}>
-                  <span className={`w-1.5 h-1.5 rounded-full ${hunch.status === 'open' ? 'bg-accent' : 'bg-muted-foreground'}`} />
-                  {t(`status_${hunch.status}`)}
-                </span>
-                <span className="px-3 py-1 rounded-full text-xs font-medium bg-muted text-muted-foreground border border-border">
-                  {t(`cat_${hunch.categoryName?.toLowerCase()}`, { defaultValue: hunch.categoryName })}
-                </span>
-              </div>
-
-              <h1 className="text-3xl md:text-4xl font-display font-bold text-foreground leading-tight mb-5">
-                {hunch.title}
-              </h1>
-
-              <div className="flex flex-wrap items-center gap-5 text-sm text-muted-foreground pb-5 border-b border-border">
-                <div className="flex items-center gap-1.5">
-                  <Users className="w-4 h-4" />
-                  <span><strong className="text-foreground font-semibold">{hunch.participantCount.toLocaleString()}</strong> {t("participants")}</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <Clock className="w-4 h-4" />
-                  {isOpen
-                    ? <span>{t("ends_on", { date: format(new Date(hunch.endsAt), "PPPp", { locale: dateFnsLocale }) })}</span>
-                    : <span>{t("ended_on", { date: format(new Date(hunch.endsAt), "PPP", { locale: dateFnsLocale }) })}</span>
-                  }
-                </div>
-              </div>
-            </div>
-
             {/* Predictions distribution histogram */}
             {hunch.options.length > 0 && (() => {
               const total = hunch.participantCount || 1;
@@ -286,13 +298,6 @@ export default function HunchDetail() {
 
           {/* Sidebar */}
           <div className="space-y-4">
-            {/* Image */}
-            {hunch.imageUrl && (
-              <div className="rounded-2xl overflow-hidden border border-border bg-muted">
-                <img src={hunch.imageUrl} alt={hunch.title} className="w-full object-cover" />
-              </div>
-            )}
-
             {/* Prize */}
             <div className="bg-card border border-primary/20 rounded-2xl p-5 card-shadow">
               <div className="flex items-center gap-2 text-xs font-semibold text-primary mb-3 uppercase tracking-wide">
