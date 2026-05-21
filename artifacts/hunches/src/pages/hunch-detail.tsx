@@ -4,7 +4,7 @@ import { format, isPast, type Locale } from "date-fns";
 import {
   enUS, es, de, fr, pt, it, ja, ko, zhCN, id as idLocale, tr,
 } from "date-fns/locale";
-import { ArrowLeft, Users, Clock, Share2, AlertCircle, Info, Trophy, CheckCircle2, Gift, Award, DollarSign } from "lucide-react";
+import { ArrowLeft, Users, Clock, Share2, AlertCircle, Info, Trophy, CheckCircle2, Gift, Award, DollarSign, ChevronDown, ChevronUp } from "lucide-react";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, LabelList,
 } from "recharts";
@@ -47,6 +47,7 @@ export default function HunchDetail() {
   const queryClient = useQueryClient();
   const [freeText, setFreeText] = useState("");
   const [submitted, setSubmitted] = useState(false);
+  const [prizeOpen, setPrizeOpen] = useState(false);
 
   const { data: hunch, isLoading, error } = useGetHunch(hunchId, { lang }, {
     query: { queryKey: getGetHunchQueryKey(hunchId, { lang }), enabled: !!hunchId }
@@ -309,19 +310,45 @@ export default function HunchDetail() {
                   <div className="text-3xl font-display font-bold text-foreground mb-3">
                     {hunch.prizePoolTotal}
                   </div>
-                  <div className="space-y-2">
-                    {hunch.prizeTiers.map((tier) => (
-                      <div key={tier.rank} className="flex items-center gap-2.5">
-                        <span className="text-xs font-bold text-primary bg-primary/10 rounded-md px-2 py-0.5 w-16 text-center shrink-0">
-                          {ordinal(tier.rank)} place
-                        </span>
-                        <div className="min-w-0">
-                          <span className="text-sm font-semibold text-foreground">{tier.prize.value}</span>
-                          <span className="text-xs text-muted-foreground ml-1.5">{tier.prize.label}</span>
+                  <button
+                    onClick={() => setPrizeOpen((o) => !o)}
+                    className="w-full flex items-center justify-between text-sm text-muted-foreground hover:text-foreground transition-colors group"
+                  >
+                    <span>
+                      {t("prize_split", {
+                        defaultValue: `Prize pool split among ${hunch.prizeTiers.length} winners`,
+                        count: hunch.prizeTiers.length,
+                      })}
+                    </span>
+                    <span className="flex items-center gap-1 text-xs font-medium text-primary group-hover:underline shrink-0 ml-2">
+                      {prizeOpen ? (
+                        <>
+                          {t("hide_list", { defaultValue: "Hide" })}
+                          <ChevronUp className="w-3.5 h-3.5" />
+                        </>
+                      ) : (
+                        <>
+                          {t("see_full_list", { defaultValue: "See full list" })}
+                          <ChevronDown className="w-3.5 h-3.5" />
+                        </>
+                      )}
+                    </span>
+                  </button>
+                  {prizeOpen && (
+                    <div className="space-y-2 mt-3 pt-3 border-t border-border">
+                      {hunch.prizeTiers.map((tier) => (
+                        <div key={tier.rank} className="flex items-center gap-2.5">
+                          <span className="text-xs font-bold text-primary bg-primary/10 rounded-md px-2 py-0.5 w-16 text-center shrink-0">
+                            {ordinal(tier.rank)} place
+                          </span>
+                          <div className="min-w-0">
+                            <span className="text-sm font-semibold text-foreground">{tier.prize.value}</span>
+                            <span className="text-xs text-muted-foreground ml-1.5">{tier.prize.label}</span>
+                          </div>
                         </div>
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
+                  )}
                 </>
               ) : (
                 <>
