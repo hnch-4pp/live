@@ -299,8 +299,9 @@ export default function HunchDetail() {
 
           {/* Sidebar */}
           <div className="space-y-4">
-            {/* Prize */}
+            {/* Prize + Prediction — single merged card */}
             <div className="bg-card border border-primary/20 rounded-2xl p-5 card-shadow">
+              {/* Prize Pool */}
               <div className="flex items-center gap-2 text-xs font-semibold text-primary mb-3 uppercase tracking-wide">
                 {getPrizeIcon(hunch.prize.type)}
                 {t("prize_pool")}
@@ -356,15 +357,15 @@ export default function HunchDetail() {
                   <div className="text-sm text-muted-foreground">{hunch.prize.label}</div>
                 </>
               )}
-            </div>
 
-            {/* Prediction */}
-            <div className="bg-card border border-border rounded-2xl p-5 card-shadow">
+              {/* Divider */}
+              <div className="border-t border-border my-5" />
+
+              {/* Prediction */}
               <h3 className="font-display font-bold text-lg text-foreground mb-4">
                 {isResolved ? t("final_results") : t("make_prediction")}
               </h3>
 
-              {/* Free-text input — shown when open and not yet submitted */}
               {isOpen && !submitted && (
                 <div className="mb-4">
                   <input
@@ -379,52 +380,11 @@ export default function HunchDetail() {
                 </div>
               )}
 
-              {/* Submitted confirmation */}
               {submitted && (
                 <div className="flex items-center gap-2 mb-4 p-3 bg-primary/5 border border-primary/20 rounded-xl">
                   <CheckCircle2 className="w-4 h-4 text-primary flex-shrink-0" />
                   <span className="text-sm font-semibold text-primary">{freeText}</span>
                 </div>
-              )}
-
-              {/* Community answers */}
-              {hunch.options.length > 0 ? (
-                <div className="mb-5">
-                  <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground mb-3">
-                    {t("community_answers")}
-                  </p>
-                  <div className="space-y-2.5">
-                    {hunch.options
-                      .slice()
-                      .sort((a, b) => b.percentage - a.percentage)
-                      .slice(0, 5)
-                      .map((option) => {
-                        const isWinner = isResolved && hunch.winnerOption === option.label;
-                        const isUserAnswer = submitted && option.label.trim().toLowerCase() === freeText.trim().toLowerCase();
-                        return (
-                          <div key={option.id} className="relative">
-                            <div className="flex justify-between items-baseline mb-1">
-                              <span className={`text-sm truncate pr-3 font-medium ${isWinner ? "text-primary font-semibold" : isUserAnswer ? "text-primary font-semibold" : "text-foreground"}`}>
-                                {isWinner && <CheckCircle2 className="w-3 h-3 inline mr-1 mb-0.5" />}
-                                {option.label}
-                              </span>
-                              <span className={`text-sm font-mono font-semibold flex-shrink-0 tabular-nums ${isWinner || isUserAnswer ? "text-primary" : "text-muted-foreground"}`}>
-                                {Math.round(option.percentage)}%
-                              </span>
-                            </div>
-                            <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-                              <div
-                                className={`h-full rounded-full transition-all duration-500 ${isWinner ? "bg-primary" : isUserAnswer ? "bg-primary/80" : "bg-primary/30"}`}
-                                style={{ width: `${option.percentage}%` }}
-                              />
-                            </div>
-                          </div>
-                        );
-                      })}
-                  </div>
-                </div>
-              ) : (
-                <p className="text-sm text-muted-foreground mb-5">{t("be_first")}</p>
               )}
 
               {isOpen && !submitted ? (
