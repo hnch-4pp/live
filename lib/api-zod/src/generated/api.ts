@@ -52,6 +52,17 @@ export const ListHunchesResponse = zod.object({
   "value": zod.string(),
   "imageUrl": zod.string().nullish()
 }),
+  "prizeTiers": zod.array(zod.object({
+  "rank": zod.number(),
+  "prize": zod.object({
+  "id": zod.number(),
+  "label": zod.string(),
+  "type": zod.enum(['gift_card', 'merch', 'cash_equivalent']),
+  "value": zod.string(),
+  "imageUrl": zod.string().nullish()
+})
+})),
+  "prizePoolTotal": zod.string().nullish(),
   "options": zod.array(zod.object({
   "id": zod.number(),
   "label": zod.string(),
@@ -59,7 +70,9 @@ export const ListHunchesResponse = zod.object({
 })),
   "featured": zod.boolean().optional(),
   "imageUrl": zod.string().nullish(),
-  "winnerOption": zod.string().nullish()
+  "winnerOption": zod.string().nullish(),
+  "rules": zod.string().nullish(),
+  "answerType": zod.string().optional()
 })),
   "total": zod.number()
 })
@@ -90,6 +103,17 @@ export const GetFeaturedHunchesResponseItem = zod.object({
   "value": zod.string(),
   "imageUrl": zod.string().nullish()
 }),
+  "prizeTiers": zod.array(zod.object({
+  "rank": zod.number(),
+  "prize": zod.object({
+  "id": zod.number(),
+  "label": zod.string(),
+  "type": zod.enum(['gift_card', 'merch', 'cash_equivalent']),
+  "value": zod.string(),
+  "imageUrl": zod.string().nullish()
+})
+})),
+  "prizePoolTotal": zod.string().nullish(),
   "options": zod.array(zod.object({
   "id": zod.number(),
   "label": zod.string(),
@@ -97,7 +121,9 @@ export const GetFeaturedHunchesResponseItem = zod.object({
 })),
   "featured": zod.boolean().optional(),
   "imageUrl": zod.string().nullish(),
-  "winnerOption": zod.string().nullish()
+  "winnerOption": zod.string().nullish(),
+  "rules": zod.string().nullish(),
+  "answerType": zod.string().optional()
 })
 export const GetFeaturedHunchesResponse = zod.array(GetFeaturedHunchesResponseItem)
 
@@ -142,6 +168,17 @@ export const GetHunchResponse = zod.object({
   "value": zod.string(),
   "imageUrl": zod.string().nullish()
 }),
+  "prizeTiers": zod.array(zod.object({
+  "rank": zod.number(),
+  "prize": zod.object({
+  "id": zod.number(),
+  "label": zod.string(),
+  "type": zod.enum(['gift_card', 'merch', 'cash_equivalent']),
+  "value": zod.string(),
+  "imageUrl": zod.string().nullish()
+})
+})),
+  "prizePoolTotal": zod.string().nullish(),
   "options": zod.array(zod.object({
   "id": zod.number(),
   "label": zod.string(),
@@ -149,7 +186,9 @@ export const GetHunchResponse = zod.object({
 })),
   "featured": zod.boolean().optional(),
   "imageUrl": zod.string().nullish(),
-  "winnerOption": zod.string().nullish()
+  "winnerOption": zod.string().nullish(),
+  "rules": zod.string().nullish(),
+  "answerType": zod.string().optional()
 })
 
 

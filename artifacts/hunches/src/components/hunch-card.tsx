@@ -1,5 +1,5 @@
 import { Link } from "wouter";
-import { formatDistanceToNow, isPast } from "date-fns";
+import { formatDistanceToNow, isPast, type Locale } from "date-fns";
 import {
   enUS, es, de, fr, pt, it, ja, ko, zhCN, id, tr,
 } from "date-fns/locale";

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useParams, Link } from "wouter";
-import { format, isPast } from "date-fns";
+import { format, isPast, type Locale } from "date-fns";
 import {
   enUS, es, de, fr, pt, it, ja, ko, zhCN, id as idLocale, tr,
 } from "date-fns/locale";
@@ -8,13 +8,21 @@ import { ArrowLeft, Users, Clock, Share2, AlertCircle, Info, Trophy, CheckCircle
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, LabelList,
 } from "recharts";
+
 import { useQueryClient } from "@tanstack/react-query";
 import { Layout } from "@/components/layout";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+
 import { useToast } from "@/hooks/use-toast";
 import { useGetHunch, useSubmitPrediction, getGetHunchQueryKey } from "@workspace/api-client-react";
 import { useTranslation } from "react-i18next";
+
+function ordinal(n: number): string {
+  const s = ["th", "st", "nd", "rd"];
+  const v = n % 100;
+  return n + (s[(v - 20) % 10] ?? s[v] ?? s[0]);
+}
 
 const DATE_FNS_LOCALES: Record<string, Locale> = {
   en: enUS, es, de, fr, pt, it, ja, ko, zh: zhCN, id: idLocale, tr,
@@ -41,7 +49,7 @@ export default function HunchDetail() {
   const [submitted, setSubmitted] = useState(false);
 
   const { data: hunch, isLoading, error } = useGetHunch(hunchId, { lang }, {
-    query: { enabled: !!hunchId }
+    query: { queryKey: getGetHunchQueryKey(hunchId, { lang }), enabled: !!hunchId }
   });
 
   const submitPrediction = useSubmitPrediction();
@@ -291,8 +299,31 @@ export default function HunchDetail() {
                 {getPrizeIcon(hunch.prize.type)}
                 {t("prize_pool")}
               </div>
-              <div className="text-3xl font-display font-bold text-foreground mb-0.5">{hunch.prize.value}</div>
-              <div className="text-sm text-muted-foreground">{hunch.prize.label}</div>
+              {hunch.prizeTiers && hunch.prizeTiers.length > 1 ? (
+                <>
+                  <div className="text-3xl font-display font-bold text-foreground mb-3">
+                    {hunch.prizePoolTotal}
+                  </div>
+                  <div className="space-y-2">
+                    {hunch.prizeTiers.map((tier) => (
+                      <div key={tier.rank} className="flex items-center gap-2.5">
+                        <span className="text-xs font-bold text-primary bg-primary/10 rounded-md px-2 py-0.5 w-16 text-center shrink-0">
+                          {ordinal(tier.rank)} place
+                        </span>
+                        <div className="min-w-0">
+                          <span className="text-sm font-semibold text-foreground">{tier.prize.value}</span>
+                          <span className="text-xs text-muted-foreground ml-1.5">{tier.prize.label}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="text-3xl font-display font-bold text-foreground mb-0.5">{hunch.prize.value}</div>
+                  <div className="text-sm text-muted-foreground">{hunch.prize.label}</div>
+                </>
+              )}
             </div>
 
             {/* Prediction */}

@@ -8,6 +8,7 @@
 import type { HunchOption } from './hunchOption';
 import type { HunchStatus } from './hunchStatus';
 import type { Prize } from './prize';
+import type { PrizeTier } from './prizeTier';
 
 export interface Hunch {
   id: number;
@@ -22,10 +23,16 @@ export interface Hunch {
   /** @nullable */
   resolvedAt?: string | null;
   prize: Prize;
+  prizeTiers: PrizeTier[];
+  /** @nullable */
+  prizePoolTotal?: string | null;
   options: HunchOption[];
   featured?: boolean;
   /** @nullable */
   imageUrl?: string | null;
   /** @nullable */
   winnerOption?: string | null;
+  /** @nullable */
+  rules?: string | null;
+  answerType?: string;
 }

@@ -7,8 +7,14 @@ import {
   categoriesTable,
   prizesTable,
   optionsTable,
+  hunchPrizeTiersTable,
 } from "@workspace/db";
 import { eq } from "drizzle-orm";
+
+function parsePrizeAmount(value: string): number {
+  const m = value.match(/\$?(\d+(?:\.\d+)?)/);
+  return m ? parseFloat(m[1]) : 0;
+}
 
 declare module "express-session" {
   interface SessionData {
@@ -149,11 +155,16 @@ router.get(
   requireAdmin,
   requireAdminHeader,
   async (req, res): Promise<void> => {
-    const id = parseInt(req.params["id"] ?? "0", 10);
+    const id = parseInt(String(req.params["id"] ?? "0"), 10);
     if (!id) { res.status(400).json({ error: "Invalid ID" }); return; }
     const [hunch] = await db.select().from(hunchesTable).where(eq(hunchesTable.id, id));
     if (!hunch) { res.status(404).json({ error: "Not found" }); return; }
-    res.json(hunch);
+    const tiers = await db
+      .select({ rank: hunchPrizeTiersTable.rank, prizeId: hunchPrizeTiersTable.prizeId })
+      .from(hunchPrizeTiersTable)
+      .where(eq(hunchPrizeTiersTable.hunchId, id))
+      .orderBy(hunchPrizeTiersTable.rank);
+    res.json({ ...hunch, prizeTiers: tiers });
   },
 );
 
@@ -179,6 +190,11 @@ router.post(
       return;
     }
 
+    const prizeTiers = Array.isArray(req.body.prizeTiers)
+      ? (req.body.prizeTiers as { rank: number; prizeId: number }[])
+      : [];
+    const firstPrizeId = prizeTiers.length > 0 ? prizeTiers[0].prizeId : Number(prizeId);
+
     const [hunch] = await db
       .insert(hunchesTable)
       .values({
@@ -186,7 +202,7 @@ router.post(
         description: String(description),
         imageUrl: imageUrl ? String(imageUrl) : null,
         categoryId: Number(categoryId),
-        prizeId: Number(prizeId),
+        prizeId: firstPrizeId,
         featured: featured === true || featured === "true",
         endsAt: new Date(String(endsAt)),
         status: (status as "open" | "closed" | "resolved") ?? "open",
@@ -194,6 +210,12 @@ router.post(
         rules: req.body.rules ? String(req.body.rules) : null,
       })
       .returning();
+
+    if (prizeTiers.length > 0) {
+      await db.insert(hunchPrizeTiersTable).values(
+        prizeTiers.map((t) => ({ hunchId: hunch.id, rank: t.rank, prizeId: t.prizeId })),
+      );
+    }
 
     res.status(201).json(hunch);
   },
@@ -204,7 +226,7 @@ router.patch(
   requireAdmin,
   requireAdminHeader,
   async (req, res): Promise<void> => {
-    const id = parseInt(req.params["id"] ?? "0", 10);
+    const id = parseInt(String(req.params["id"] ?? "0"), 10);
     if (!id) {
       res.status(400).json({ error: "Invalid ID" });
       return;
@@ -239,6 +261,23 @@ router.patch(
     if (answerType !== undefined) updates["answerType"] = String(answerType);
     if ("rules" in req.body) updates["rules"] = req.body.rules ? String(req.body.rules) : null;
 
+    // Prize tiers
+    if (Array.isArray(req.body.prizeTiers)) {
+      const tiers = req.body.prizeTiers as { rank: number; prizeId: number }[];
+      if (tiers.length > 0) {
+        updates["prizeId"] = tiers[0].prizeId;
+        await db.delete(hunchPrizeTiersTable).where(eq(hunchPrizeTiersTable.hunchId, id));
+        await db.insert(hunchPrizeTiersTable).values(
+          tiers.map((t) => ({ hunchId: id, rank: t.rank, prizeId: t.prizeId })),
+        );
+      }
+    }
+
+    if (Object.keys(updates).length === 0) {
+      res.status(400).json({ error: "Nothing to update" });
+      return;
+    }
+
     const [hunch] = await db
       .update(hunchesTable)
       .set(updates)
@@ -259,7 +298,7 @@ router.delete(
   requireAdmin,
   requireAdminHeader,
   async (req, res): Promise<void> => {
-    const id = parseInt(req.params["id"] ?? "0", 10);
+    const id = parseInt(String(req.params["id"] ?? "0"), 10);
     if (!id) {
       res.status(400).json({ error: "Invalid ID" });
       return;
@@ -330,7 +369,7 @@ router.patch(
   requireAdmin,
   requireAdminHeader,
   async (req, res): Promise<void> => {
-    const id = parseInt(req.params["id"] ?? "0", 10);
+    const id = parseInt(String(req.params["id"] ?? "0"), 10);
     if (!id) { res.status(400).json({ error: "Invalid ID" }); return; }
 
     const { name, icon, color, enabled } = req.body as Record<string, string | boolean | undefined>;
@@ -361,7 +400,7 @@ router.delete(
   requireAdmin,
   requireAdminHeader,
   async (req, res): Promise<void> => {
-    const id = parseInt(req.params["id"] ?? "0", 10);
+    const id = parseInt(String(req.params["id"] ?? "0"), 10);
     if (!id) { res.status(400).json({ error: "Invalid ID" }); return; }
     await db.delete(categoriesTable).where(eq(categoriesTable.id, id));
     res.json({ ok: true });

@@ -40,6 +40,11 @@ export interface Prize {
   imageUrl?: string | null;
 }
 
+export interface PrizeTier {
+  rank: number;
+  prize: Prize;
+}
+
 export type HunchStatus = typeof HunchStatus[keyof typeof HunchStatus];
 
 
@@ -68,12 +73,18 @@ export interface Hunch {
   /** @nullable */
   resolvedAt?: string | null;
   prize: Prize;
+  prizeTiers: PrizeTier[];
+  /** @nullable */
+  prizePoolTotal?: string | null;
   options: HunchOption[];
   featured?: boolean;
   /** @nullable */
   imageUrl?: string | null;
   /** @nullable */
   winnerOption?: string | null;
+  /** @nullable */
+  rules?: string | null;
+  answerType?: string;
 }
 
 export interface HunchList {

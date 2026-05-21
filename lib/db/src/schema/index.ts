@@ -4,3 +4,4 @@ export * from "./hunches";
 export * from "./options";
 export * from "./predictions";
 export * from "./translations";
+export * from "./hunchPrizeTiers";

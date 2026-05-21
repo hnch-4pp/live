@@ -8,6 +8,7 @@ import {
   optionsTable,
   predictionsTable,
   hunchTranslationsTable,
+  hunchPrizeTiersTable,
 } from "@workspace/db";
 import {
   ListHunchesQueryParams,
@@ -22,6 +23,11 @@ const router: IRouter = Router();
 
 type HunchDetail = Awaited<ReturnType<typeof buildHunch>>;
 
+function parsePrizeAmount(value: string): number {
+  const m = value.match(/\$?(\d+(?:\.\d+)?)/);
+  return m ? parseFloat(m[1]) : 0;
+}
+
 async function buildHunch(hunch: typeof hunchesTable.$inferSelect) {
   const category = await db
     .select()
@@ -34,6 +40,32 @@ async function buildHunch(hunch: typeof hunchesTable.$inferSelect) {
     .from(prizesTable)
     .where(eq(prizesTable.id, hunch.prizeId))
     .then((r) => r[0]);
+
+  const tiers = await db
+    .select()
+    .from(hunchPrizeTiersTable)
+    .where(eq(hunchPrizeTiersTable.hunchId, hunch.id))
+    .orderBy(hunchPrizeTiersTable.rank);
+
+  const prizeTiers = await Promise.all(
+    tiers.map(async (t) => {
+      const p = await db.select().from(prizesTable).where(eq(prizesTable.id, t.prizeId)).then((r) => r[0]);
+      return {
+        rank: t.rank,
+        prize: {
+          id: p?.id ?? 0,
+          label: p?.label ?? "",
+          type: (p?.type ?? "gift_card") as "gift_card" | "merch" | "cash_equivalent",
+          value: p?.value ?? "",
+          imageUrl: p?.imageUrl ?? null,
+        },
+      };
+    }),
+  );
+
+  const prizePoolTotal = prizeTiers.length > 1
+    ? "$" + prizeTiers.reduce((sum, t) => sum + parsePrizeAmount(t.prize.value), 0).toLocaleString()
+    : null;
 
   const options = await db
     .select()
@@ -58,6 +90,8 @@ async function buildHunch(hunch: typeof hunchesTable.$inferSelect) {
       value: prize?.value ?? "",
       imageUrl: prize?.imageUrl ?? null,
     },
+    prizeTiers,
+    prizePoolTotal,
     options: options.map((o) => ({
       id: o.id,
       label: o.label,

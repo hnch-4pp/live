@@ -242,9 +242,18 @@ components:
         imageUrl:
           type: ["string", "null"]
 
+    PrizeTier:
+      type: object
+      required: [rank, prize]
+      properties:
+        rank:
+          type: integer
+        prize:
+          $ref: "#/components/schemas/Prize"
+
     Hunch:
       type: object
-      required: [id, title, description, categorySlug, categoryName, status, participantCount, endsAt, prize, options]
+      required: [id, title, description, categorySlug, categoryName, status, participantCount, endsAt, prize, options, prizeTiers]
       properties:
         id:
           type: integer
@@ -270,6 +279,12 @@ components:
           type: ["string", "null"]
         prize:
           $ref: "#/components/schemas/Prize"
+        prizeTiers:
+          type: array
+          items:
+            $ref: "#/components/schemas/PrizeTier"
+        prizePoolTotal:
+          type: ["string", "null"]
         options:
           type: array
           items:
@@ -280,6 +295,10 @@ components:
           type: ["string", "null"]
         winnerOption:
           type: ["string", "null"]
+        rules:
+          type: ["string", "null"]
+        answerType:
+          type: string
 
     HunchOption:
       type: object
