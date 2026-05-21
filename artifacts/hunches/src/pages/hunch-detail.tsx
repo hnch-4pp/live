@@ -149,20 +149,7 @@ export default function HunchDetail() {
               </div>
             </div>
 
-            {/* Image */}
-            {hunch.imageUrl && (
-              <div className="rounded-2xl overflow-hidden border border-border bg-muted">
-                <img src={hunch.imageUrl} alt={hunch.title} className="w-full max-h-[380px] object-cover" />
-              </div>
-            )}
-
-            {/* Context */}
-            <div className="bg-card border border-border rounded-2xl p-6 card-shadow">
-              <h3 className="text-base font-display font-bold text-foreground mb-3">{t("the_context")}</h3>
-              <p className="text-muted-foreground leading-relaxed">{hunch.description}</p>
-            </div>
-
-            {/* Answer distribution histogram */}
+            {/* Predictions distribution histogram */}
             {hunch.options.length > 0 && (() => {
               const total = hunch.participantCount || 1;
               const isNumeric = (hunch as any).answerType === "integer" || (hunch as any).answerType === "decimal";
@@ -223,7 +210,7 @@ export default function HunchDetail() {
 
               return (
                 <div className="bg-card border border-border rounded-2xl p-6 card-shadow">
-                  <h3 className="text-base font-display font-bold text-foreground mb-1">Answer distribution</h3>
+                  <h3 className="text-base font-display font-bold text-foreground mb-1">Predictions distribution</h3>
                   <p className="text-xs text-muted-foreground mb-5">
                     {total.toLocaleString()} prediction{total !== 1 ? "s" : ""} so far
                   </p>
@@ -279,6 +266,12 @@ export default function HunchDetail() {
               );
             })()}
 
+            {/* Context */}
+            <div className="bg-card border border-border rounded-2xl p-6 card-shadow">
+              <h3 className="text-base font-display font-bold text-foreground mb-3">{t("the_context")}</h3>
+              <p className="text-muted-foreground leading-relaxed">{hunch.description}</p>
+            </div>
+
             {/* Rules */}
             {hunch.rules && (
               <div className="flex items-start gap-3 bg-primary/5 border border-primary/15 rounded-2xl p-5">
@@ -293,6 +286,13 @@ export default function HunchDetail() {
 
           {/* Sidebar */}
           <div className="space-y-4">
+            {/* Image */}
+            {hunch.imageUrl && (
+              <div className="rounded-2xl overflow-hidden border border-border bg-muted">
+                <img src={hunch.imageUrl} alt={hunch.title} className="w-full object-cover" />
+              </div>
+            )}
+
             {/* Prize */}
             <div className="bg-card border border-primary/20 rounded-2xl p-5 card-shadow">
               <div className="flex items-center gap-2 text-xs font-semibold text-primary mb-3 uppercase tracking-wide">
