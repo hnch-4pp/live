@@ -316,7 +316,7 @@ export default function HunchDetail() {
                   >
                     <span>
                       {t("prize_split", {
-                        defaultValue: `Prize pool split among ${hunch.prizeTiers.length} winners`,
+                        defaultValue: `Split among ${hunch.prizeTiers.length} winners`,
                         count: hunch.prizeTiers.length,
                       })}
                     </span>
