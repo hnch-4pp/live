@@ -363,13 +363,13 @@ export default function HunchDetail() {
                   {prizeOpen && (
                     <div className="space-y-2 mt-3 pt-3 border-t border-border">
                       {hunch.prizeTiers.map((tier) => (
-                        <div key={tier.rank} className="flex items-center gap-2.5">
-                          <span className="text-xs font-bold text-primary bg-primary/10 rounded-md px-2 py-0.5 w-16 text-center shrink-0">
+                        <div key={tier.rank} className="flex items-center gap-3">
+                          <span className="text-xs font-bold text-primary bg-primary/10 rounded-lg px-2.5 py-1 whitespace-nowrap shrink-0 min-w-[72px] text-center">
                             {ordinal(tier.rank)} place
                           </span>
-                          <div className="min-w-0">
+                          <div className="flex items-baseline gap-1.5 min-w-0">
                             <span className="text-sm font-semibold text-foreground">{tier.prize.value}</span>
-                            <span className="text-xs text-muted-foreground ml-1.5">{tier.prize.label}</span>
+                            <span className="text-xs text-muted-foreground truncate">{tier.prize.label}</span>
                           </div>
                         </div>
                       ))}
