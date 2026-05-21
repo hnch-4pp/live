@@ -4,7 +4,7 @@ import { format, isPast, type Locale } from "date-fns";
 import {
   enUS, es, de, fr, pt, it, ja, ko, zhCN, id as idLocale, tr,
 } from "date-fns/locale";
-import { ArrowLeft, Users, Clock, Share2, AlertCircle, Info, Trophy, CheckCircle2, Gift, Award, DollarSign, ChevronDown, ChevronUp } from "lucide-react";
+import { ArrowLeft, Users, Clock, Share2, AlertCircle, Info, Trophy, CheckCircle2, Gift, Award, DollarSign, ChevronDown, ChevronUp, Check } from "lucide-react";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, LabelList,
 } from "recharts";
@@ -47,6 +47,24 @@ export default function HunchDetail() {
   const [freeText, setFreeText] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const [prizeOpen, setPrizeOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const handleShare = async () => {
+    const url = window.location.href;
+    const title = hunch?.title ?? "Hunches";
+    const text = hunch?.description ?? "";
+    if (navigator.share) {
+      try {
+        await navigator.share({ title, text, url });
+      } catch {
+        // user cancelled or browser blocked — no-op
+      }
+    } else {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
 
   const { data: hunch, isLoading, error } = useGetHunch(slug ?? "", { lang }, {
     query: { queryKey: getGetHunchQueryKey(slug ?? "", { lang }), enabled: !!slug }
@@ -409,8 +427,11 @@ export default function HunchDetail() {
               ) : null}
             </div>
 
-            <Button variant="outline" className="w-full rounded-xl border-border font-medium">
-              <Share2 className="w-4 h-4 mr-2" /> {t("share")}
+            <Button variant="outline" className="w-full rounded-xl border-border font-medium" onClick={handleShare}>
+              {copied
+                ? <><Check className="w-4 h-4 mr-2 text-green-600" /><span className="text-green-600">Link copied</span></>
+                : <><Share2 className="w-4 h-4 mr-2" /> {t("share")}</>
+              }
             </Button>
           </div>
         </div>
