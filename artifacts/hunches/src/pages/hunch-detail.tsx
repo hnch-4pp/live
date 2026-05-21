@@ -6,7 +6,7 @@ import {
 } from "date-fns/locale";
 import { ArrowLeft, Users, Clock, Share2, AlertCircle, Info, Trophy, CheckCircle2, Gift, Award, DollarSign } from "lucide-react";
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell,
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, LabelList,
 } from "recharts";
 import { useQueryClient } from "@tanstack/react-query";
 import { Layout } from "@/components/layout";
@@ -155,73 +155,121 @@ export default function HunchDetail() {
             </div>
 
             {/* Answer distribution histogram */}
-            {hunch.options.length > 0 && (
-              <div className="bg-card border border-border rounded-2xl p-6 card-shadow">
-                <h3 className="text-base font-display font-bold text-foreground mb-1">Answer distribution</h3>
-                <p className="text-xs text-muted-foreground mb-5">
-                  {hunch.participantCount.toLocaleString()} prediction{hunch.participantCount !== 1 ? "s" : ""} so far
-                </p>
-                <ResponsiveContainer width="100%" height={220}>
-                  <BarChart
-                    data={hunch.options
-                      .slice()
-                      .sort((a, b) => b.percentage - a.percentage)
-                      .slice(0, 12)
-                      .map((o) => ({
-                        label: o.label.length > 14 ? o.label.slice(0, 13) + "…" : o.label,
-                        fullLabel: o.label,
-                        pct: Math.round(o.percentage),
-                      }))}
-                    margin={{ top: 4, right: 8, left: -18, bottom: 40 }}
-                    barCategoryGap="28%"
-                  >
-                    <CartesianGrid vertical={false} stroke="hsl(var(--border))" strokeDasharray="4 4" />
-                    <XAxis
-                      dataKey="label"
-                      tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))", fontWeight: 500 }}
-                      tickLine={false}
-                      axisLine={false}
-                      angle={-35}
-                      textAnchor="end"
-                      interval={0}
-                    />
-                    <YAxis
-                      tickFormatter={(v) => `${v}%`}
-                      tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
-                      tickLine={false}
-                      axisLine={false}
-                      domain={[0, 100]}
-                      ticks={[0, 25, 50, 75, 100]}
-                    />
-                    <Tooltip
-                      cursor={{ fill: "hsl(var(--muted))", radius: 6 }}
-                      content={({ active, payload }) => {
-                        if (!active || !payload?.length) return null;
-                        const d = payload[0]?.payload as { fullLabel: string; pct: number };
-                        return (
-                          <div className="bg-card border border-border rounded-xl px-3 py-2 shadow-lg text-sm">
-                            <p className="font-semibold text-foreground max-w-[200px] truncate">{d.fullLabel}</p>
-                            <p className="text-primary font-bold mt-0.5">{d.pct}%</p>
-                          </div>
-                        );
-                      }}
-                    />
-                    <Bar dataKey="pct" radius={[6, 6, 0, 0]} maxBarSize={52}>
-                      {hunch.options
-                        .slice()
-                        .sort((a, b) => b.percentage - a.percentage)
-                        .slice(0, 12)
-                        .map((_, i) => (
-                          <Cell
-                            key={i}
-                            fill={i === 0 ? "hsl(var(--primary))" : `hsl(var(--primary) / ${Math.max(0.2, 0.85 - i * 0.07)})`}
-                          />
+            {hunch.options.length > 0 && (() => {
+              const total = hunch.participantCount || 1;
+              const isNumeric = (hunch as any).answerType === "integer" || (hunch as any).answerType === "decimal";
+
+              // Derive count per option from percentage
+              const withCounts = hunch.options.map((o) => ({
+                ...o,
+                count: Math.max(1, Math.round((o.percentage / 100) * total)),
+              }));
+
+              let chartData: { label: string; fullLabel: string; count: number }[];
+
+              if (isNumeric) {
+                // Parse numeric values and bin them
+                const parsed = withCounts
+                  .map((o) => ({ val: parseFloat(o.label), count: o.count }))
+                  .filter((o) => !isNaN(o.val));
+
+                if (parsed.length === 0) return null;
+
+                const vals = parsed.map((o) => o.val);
+                const min = Math.min(...vals);
+                const max = Math.max(...vals);
+                const numBins = min === max ? 1 : Math.min(10, Math.max(4, Math.ceil(Math.sqrt(total))));
+                const binWidth = min === max ? 1 : (max - min) / numBins;
+
+                const bins = Array.from({ length: numBins }, (_, i) => {
+                  const lo = min + i * binWidth;
+                  const hi = lo + binWidth;
+                  const isLast = i === numBins - 1;
+                  const count = parsed
+                    .filter((o) => isLast ? o.val >= lo && o.val <= hi : o.val >= lo && o.val < hi)
+                    .reduce((s, o) => s + o.count, 0);
+                  const fmt = (n: number) =>
+                    Number.isInteger(n) ? String(n) : n.toFixed(1);
+                  return {
+                    label: numBins === 1 ? fmt(lo) : fmt(lo),
+                    fullLabel: numBins === 1 ? fmt(lo) : `${fmt(lo)} – ${fmt(hi)}`,
+                    count,
+                  };
+                });
+
+                chartData = bins;
+              } else {
+                // Non-numeric: sort by count descending, take top 12
+                chartData = withCounts
+                  .slice()
+                  .sort((a, b) => b.count - a.count)
+                  .slice(0, 12)
+                  .map((o) => ({
+                    label: o.label.length > 12 ? o.label.slice(0, 11) + "…" : o.label,
+                    fullLabel: o.label,
+                    count: o.count,
+                  }));
+              }
+
+              const maxCount = Math.max(...chartData.map((d) => d.count));
+
+              return (
+                <div className="bg-card border border-border rounded-2xl p-6 card-shadow">
+                  <h3 className="text-base font-display font-bold text-foreground mb-1">Answer distribution</h3>
+                  <p className="text-xs text-muted-foreground mb-5">
+                    {total.toLocaleString()} prediction{total !== 1 ? "s" : ""} so far
+                  </p>
+                  <ResponsiveContainer width="100%" height={240}>
+                    <BarChart
+                      data={chartData}
+                      margin={{ top: 22, right: 8, left: -12, bottom: isNumeric ? 8 : 44 }}
+                      barCategoryGap={isNumeric ? "0%" : "12%"}
+                    >
+                      <CartesianGrid vertical={false} stroke="hsl(var(--border))" strokeDasharray="4 4" />
+                      <XAxis
+                        dataKey="label"
+                        tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))", fontWeight: 500 }}
+                        tickLine={isNumeric}
+                        axisLine={isNumeric}
+                        angle={isNumeric ? 0 : -38}
+                        textAnchor={isNumeric ? "middle" : "end"}
+                        interval={0}
+                      />
+                      <YAxis
+                        allowDecimals={false}
+                        tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+                        tickLine={false}
+                        axisLine={false}
+                        domain={[0, Math.ceil(maxCount * 1.18)]}
+                      />
+                      <Tooltip
+                        cursor={{ fill: "hsl(var(--muted))" }}
+                        content={({ active, payload }) => {
+                          if (!active || !payload?.length) return null;
+                          const d = payload[0]?.payload as { fullLabel: string; count: number };
+                          return (
+                            <div className="bg-card border border-border rounded-xl px-3 py-2 shadow-lg text-sm">
+                              <p className="font-semibold text-foreground max-w-[220px]">{d.fullLabel}</p>
+                              <p className="text-primary font-bold mt-0.5">{d.count} prediction{d.count !== 1 ? "s" : ""}</p>
+                            </div>
+                          );
+                        }}
+                      />
+                      <Bar dataKey="count" radius={isNumeric ? [2, 2, 0, 0] : [4, 4, 0, 0]} maxBarSize={isNumeric ? undefined : 48}>
+                        <LabelList
+                          dataKey="count"
+                          position="top"
+                          style={{ fontSize: 11, fontWeight: 600, fill: "hsl(var(--foreground))" }}
+                        />
+                        {chartData.map((_, i) => (
+                          <Cell key={i} fill="hsl(var(--primary) / 0.75)" stroke="hsl(var(--primary))" strokeWidth={isNumeric ? 1 : 0} />
                         ))}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            )}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              );
+            })()}
 
             {/* Rules */}
             {hunch.rules && (

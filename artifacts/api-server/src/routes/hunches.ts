@@ -67,6 +67,7 @@ async function buildHunch(hunch: typeof hunchesTable.$inferSelect) {
     imageUrl: hunch.imageUrl ?? null,
     winnerOption: hunch.winnerOption ?? null,
     rules: hunch.rules ?? null,
+    answerType: hunch.answerType,
   };
 }
 
