@@ -52,7 +52,7 @@ const resources = {
       ends_on: "Ends {{date}}",
       ended_on: "Ended {{date}}",
       the_context: "The Context",
-      how_resolution: "How resolution works",
+      how_resolution: "Hunch rules",
       resolution_desc: "This hunch will be resolved based on official announcements or verifiable public data. If the outcome is ambiguous, the prize may be split or refunded according to our terms of service. No money is wagered.",
       prize_pool: "PRIZE POOL",
       final_results: "Final Results",
