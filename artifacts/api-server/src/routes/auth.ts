@@ -51,7 +51,7 @@ async function sendEmailOtp(email: string, code: string): Promise<void> {
   const response = await connectors.proxy("resend", "/emails", {
     method: "POST",
     body: JSON.stringify({
-      from: "Hunches <onboarding@resend.dev>",
+      from: "Hunches <no-reply@hunch.fan>",
       to: [email],
       subject: "Your Hunches verification code",
       html: `
