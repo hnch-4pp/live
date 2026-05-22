@@ -82,12 +82,34 @@ async function sendEmailOtp(email: string, code: string): Promise<void> {
 }
 
 async function sendPhoneOtp(phone: string, code: string): Promise<void> {
+  // Always log dev code for easy testing
   if (isDev) {
     console.log(`[AUTH DEV] SMS OTP for ${phone}: ${code}`);
-    return;
   }
-  // Production: configure TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_PHONE
-  // and integrate Twilio here
+
+  // Send via Twilio (Replit connector — handles auth automatically)
+  const TWILIO_ACCOUNT_SID = "AC516fbae6880c25635411e4f4d18047a3";
+  const connectors = new ReplitConnectors();
+  const body = new URLSearchParams({
+    To: phone,
+    From: "+15069080313",
+    Body: `Your Hunches verification code is: ${code}. It expires in 10 minutes.`,
+  });
+
+  const response = await connectors.proxy(
+    "twilio",
+    `/2010-04-01/Accounts/${TWILIO_ACCOUNT_SID}/Messages.json`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: body.toString(),
+    },
+  );
+
+  if (!response.ok) {
+    const text = await response.text().catch(() => "");
+    throw new Error(`Twilio error ${response.status}: ${text}`);
+  }
 }
 
 // ── Signup flow ────────────────────────────────────────────────────────────
