@@ -3,6 +3,7 @@ import { eq, and, gt, isNull } from "drizzle-orm";
 import { db } from "@workspace/db";
 import { usersTable, otpsTable } from "@workspace/db";
 import { ReplitConnectors } from "@replit/connectors-sdk";
+import bcrypt from "bcryptjs";
 
 const router: IRouter = Router();
 
@@ -187,12 +188,30 @@ router.post("/auth/signup/verify-phone-otp", async (req, res): Promise<void> => 
   res.json({ ok: true });
 });
 
+router.post("/auth/signup/set-password", async (req, res): Promise<void> => {
+  const { password } = req.body as { password?: string };
+  const pending = req.session.pendingSignup;
+
+  if (!pending?.phoneVerified) {
+    res.status(400).json({ error: "Phone must be verified before setting a password." });
+    return;
+  }
+  if (!password || password.length < 8) {
+    res.status(400).json({ error: "Password must be at least 8 characters." });
+    return;
+  }
+
+  const passwordHash = await bcrypt.hash(password, 12);
+  req.session.pendingSignup = { ...pending, passwordHash, passwordSet: true };
+  res.json({ ok: true });
+});
+
 router.post("/auth/signup/complete", async (req, res): Promise<void> => {
   const { address, dateOfBirth } = req.body as { address?: string; dateOfBirth?: string };
   const pending = req.session.pendingSignup;
 
-  if (!pending?.emailVerified || !pending?.phoneVerified) {
-    res.status(400).json({ error: "Email and phone must be verified before completing signup." });
+  if (!pending?.emailVerified || !pending?.phoneVerified || !pending?.passwordSet) {
+    res.status(400).json({ error: "Email, phone, and password must be set before completing signup." });
     return;
   }
   if (!address || address.trim().length < 5) {
@@ -222,6 +241,7 @@ router.post("/auth/signup/complete", async (req, res): Promise<void> => {
       phone: pending.phone!,
       address: address.trim(),
       dateOfBirth,
+      passwordHash: pending.passwordHash,
     })
     .returning();
 

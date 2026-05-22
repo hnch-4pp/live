@@ -9,6 +9,8 @@ declare module "express-session" {
       emailVerified?: boolean;
       phone?: string;
       phoneVerified?: boolean;
+      passwordHash?: string;
+      passwordSet?: boolean;
     };
     loginEmail?: string;
   }

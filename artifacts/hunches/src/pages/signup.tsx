@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
-import { ArrowLeft, Mail, Phone, MapPin, Calendar, Search, ChevronDown } from "lucide-react";
+import { ArrowLeft, Mail, Phone, MapPin, Calendar, Search, ChevronDown, Eye, EyeOff, Lock } from "lucide-react";
 
 // ── Country data ─────────────────────────────────────────────────────────────
 
@@ -322,13 +322,14 @@ function CountryPicker({
 
 // ── Step definitions ──────────────────────────────────────────────────────────
 
-type Step = "email" | "email-otp" | "phone" | "phone-otp" | "address" | "dob";
+type Step = "email" | "email-otp" | "phone" | "phone-otp" | "password" | "address" | "dob";
 
 const STEP_TITLES: Record<Step, string> = {
   email: "Create your account",
   "email-otp": "Verify your email",
   phone: "Add your phone",
   "phone-otp": "Verify your phone",
+  password: "Set a password",
   address: "Your address",
   dob: "Date of birth",
 };
@@ -338,17 +339,19 @@ const STEP_SUBS: Record<Step, string> = {
   "email-otp": "We sent a 6-digit code to your email",
   phone: "We'll send a verification code via SMS",
   "phone-otp": "We sent a 6-digit code to your phone",
+  password: "Choose a strong password for your account",
   address: "Required to ship prizes",
   dob: "You must be 18 or older to participate",
 };
 
-const STEPS: Step[] = ["email", "email-otp", "phone", "phone-otp", "address", "dob"];
+const STEPS: Step[] = ["email", "email-otp", "phone", "phone-otp", "password", "address", "dob"];
 
 function StepDots({ current }: { current: Step }) {
   const idx = STEPS.indexOf(current);
   const groups = [
     ["email", "email-otp"],
     ["phone", "phone-otp"],
+    ["password"],
     ["address"],
     ["dob"],
   ] as Step[][];
@@ -419,6 +422,10 @@ export default function Signup() {
   const [country, setCountry] = useState<Country>(COUNTRIES.find(c => c.code === "US")!);
   const [localPhone, setLocalPhone] = useState("");
   const [phoneOtp, setPhoneOtp] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
   const [address, setAddress] = useState("");
   const [dob, setDob] = useState("");
   const [loading, setLoading] = useState(false);
@@ -460,6 +467,9 @@ export default function Signup() {
         setStep("phone-otp");
       } else if (step === "phone-otp") {
         await post("/auth/signup/verify-phone-otp", { code: phoneOtp });
+        setStep("password");
+      } else if (step === "password") {
+        await post("/auth/signup/set-password", { password });
         setStep("address");
       } else if (step === "address") {
         setStep("dob");
@@ -484,7 +494,8 @@ export default function Signup() {
       "email-otp": "email",
       phone: "email-otp",
       "phone-otp": "phone",
-      address: "phone-otp",
+      password: "phone-otp",
+      address: "password",
       dob: "address",
     };
     const p = prev[step];
@@ -496,6 +507,7 @@ export default function Signup() {
     if (step === "email-otp") return emailOtp.length === 6;
     if (step === "phone") return localPhone.replace(/\D/g, "").length >= 6;
     if (step === "phone-otp") return phoneOtp.length === 6;
+    if (step === "password") return password.length >= 8 && password === confirmPassword;
     if (step === "address") return address.trim().length >= 5;
     if (step === "dob") return dob.length > 0;
     return false;
@@ -506,6 +518,7 @@ export default function Signup() {
     "email-otp": "Verify email",
     phone: "Send SMS code",
     "phone-otp": "Verify phone",
+    password: "Set password",
     address: "Continue",
     dob: loading ? "Creating account..." : "Create account",
   };
@@ -518,6 +531,7 @@ export default function Signup() {
             <div className="w-12 h-12 rounded-2xl bg-primary flex items-center justify-center mx-auto mb-4 shadow-sm">
               {step === "email" || step === "email-otp" ? <Mail className="w-5 h-5 text-white" /> :
                step === "phone" || step === "phone-otp" ? <Phone className="w-5 h-5 text-white" /> :
+               step === "password" ? <Lock className="w-5 h-5 text-white" /> :
                step === "address" ? <MapPin className="w-5 h-5 text-white" /> :
                <Calendar className="w-5 h-5 text-white" />}
             </div>
@@ -594,6 +608,96 @@ export default function Signup() {
                   <p className="text-xs text-center text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
                     {devHint}
                   </p>
+                )}
+              </div>
+            )}
+
+            {/* Password */}
+            {step === "password" && (
+              <div className="space-y-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="password">Password</Label>
+                  <div className="relative">
+                    <Input
+                      id="password"
+                      type={showPassword ? "text" : "password"}
+                      autoFocus
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && confirmPassword && isValid() && handle()}
+                      placeholder="At least 8 characters"
+                      className="rounded-xl h-11 bg-background border-border pr-10"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((v) => !v)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                      tabIndex={-1}
+                    >
+                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="confirm-password">Confirm password</Label>
+                  <div className="relative">
+                    <Input
+                      id="confirm-password"
+                      type={showConfirm ? "text" : "password"}
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && isValid() && handle()}
+                      placeholder="Repeat your password"
+                      className={`rounded-xl h-11 bg-background border-border pr-10 ${
+                        confirmPassword && confirmPassword !== password
+                          ? "border-destructive focus:ring-destructive/30"
+                          : ""
+                      }`}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirm((v) => !v)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                      tabIndex={-1}
+                    >
+                      {showConfirm ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                  {confirmPassword && confirmPassword !== password && (
+                    <p className="text-xs text-destructive">Passwords do not match</p>
+                  )}
+                </div>
+                {/* Strength hint */}
+                {password.length > 0 && (
+                  <div className="space-y-1">
+                    <div className="flex gap-1">
+                      {[1, 2, 3, 4].map((level) => {
+                        const strength =
+                          password.length >= 12 && /[A-Z]/.test(password) && /[0-9]/.test(password) && /[^a-zA-Z0-9]/.test(password) ? 4 :
+                          password.length >= 10 && (/[A-Z]/.test(password) || /[0-9]/.test(password)) ? 3 :
+                          password.length >= 8 ? 2 : 1;
+                        return (
+                          <div
+                            key={level}
+                            className={`h-1 flex-1 rounded-full transition-colors ${
+                              level <= strength
+                                ? strength === 1 ? "bg-destructive"
+                                  : strength === 2 ? "bg-amber-400"
+                                  : strength === 3 ? "bg-yellow-400"
+                                  : "bg-green-500"
+                                : "bg-border"
+                            }`}
+                          />
+                        );
+                      })}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {password.length < 8 ? "Too short — minimum 8 characters" :
+                       password.length >= 12 && /[A-Z]/.test(password) && /[0-9]/.test(password) && /[^a-zA-Z0-9]/.test(password) ? "Strong password" :
+                       password.length >= 10 ? "Good — add symbols or uppercase to strengthen" :
+                       "Acceptable — a longer password is more secure"}
+                    </p>
+                  </div>
                 )}
               </div>
             )}
