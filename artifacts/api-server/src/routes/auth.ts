@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import { eq, and, gt, isNull } from "drizzle-orm";
 import { db } from "@workspace/db";
 import { usersTable, otpsTable } from "@workspace/db";
+import { ReplitConnectors } from "@replit/connectors-sdk";
 
 const router: IRouter = Router();
 
@@ -40,12 +41,44 @@ async function verifyOtp(identifier: string, type: "email" | "phone", code: stri
 }
 
 async function sendEmailOtp(email: string, code: string): Promise<void> {
+  // Always log dev code for easy testing
   if (isDev) {
     console.log(`[AUTH DEV] Email OTP for ${email}: ${code}`);
-    return;
   }
-  // Production: configure SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_FROM
-  // and integrate nodemailer or a transactional email service here
+
+  // Send via Resend (Replit connector — handles auth automatically)
+  const connectors = new ReplitConnectors();
+  const response = await connectors.proxy("resend", "/emails", {
+    method: "POST",
+    body: JSON.stringify({
+      from: "Hunches <onboarding@resend.dev>",
+      to: [email],
+      subject: "Your Hunches verification code",
+      html: `
+        <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px 24px">
+          <h2 style="margin:0 0 8px;font-size:22px;color:#1a1a2e">Your verification code</h2>
+          <p style="margin:0 0 24px;color:#555;font-size:15px">
+            Use the code below to verify your email address. It expires in 10 minutes.
+          </p>
+          <div style="background:#f4f4f8;border-radius:10px;padding:20px 0;text-align:center">
+            <span style="font-size:36px;font-weight:700;letter-spacing:10px;color:#1a1a2e">${code}</span>
+          </div>
+          <p style="margin:24px 0 0;color:#888;font-size:13px">
+            If you didn't request this, you can safely ignore this email.
+          </p>
+          <hr style="margin:24px 0;border:none;border-top:1px solid #eee"/>
+          <p style="margin:0;color:#aaa;font-size:12px">
+            Hunches — a skill-based prediction platform. No money wagered.
+          </p>
+        </div>
+      `,
+    }),
+  });
+
+  if (!response.ok) {
+    const body = await response.text().catch(() => "");
+    throw new Error(`Resend error ${response.status}: ${body}`);
+  }
 }
 
 async function sendPhoneOtp(phone: string, code: string): Promise<void> {
