@@ -1,4 +1,6 @@
-import { pgTable, serial, text, date, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, date, timestamp, pgEnum } from "drizzle-orm/pg-core";
+
+export const userStatusEnum = pgEnum("user_status", ["active", "suspended", "banned"]);
 
 export const usersTable = pgTable("users", {
   id: serial("id").primaryKey(),
@@ -6,6 +8,7 @@ export const usersTable = pgTable("users", {
   phone: text("phone").unique(),
   address: text("address"),
   dateOfBirth: date("date_of_birth"),
+  status: userStatusEnum("status").notNull().default("active"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

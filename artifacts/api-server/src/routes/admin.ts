@@ -451,6 +451,7 @@ router.get(
           id: usersTable.id,
           email: usersTable.email,
           phone: usersTable.phone,
+          status: usersTable.status,
           createdAt: usersTable.createdAt,
         })
         .from(usersTable)
@@ -488,6 +489,31 @@ router.get(
     const id = parseInt(String(req.params["id"] ?? "0"), 10);
     if (!id) { res.status(400).json({ error: "Invalid ID" }); return; }
     const [user] = await db.select().from(usersTable).where(eq(usersTable.id, id)).limit(1);
+    if (!user) { res.status(404).json({ error: "User not found" }); return; }
+    res.json(user);
+  },
+);
+
+router.patch(
+  "/admin/users/:id/status",
+  requireAdmin,
+  requireAdminHeader,
+  async (req, res): Promise<void> => {
+    const id = parseInt(String(req.params["id"] ?? "0"), 10);
+    if (!id) { res.status(400).json({ error: "Invalid ID" }); return; }
+
+    const { status } = req.body as { status?: string };
+    if (!status || !["active", "suspended", "banned"].includes(status)) {
+      res.status(400).json({ error: "status must be one of: active, suspended, banned" });
+      return;
+    }
+
+    const [user] = await db
+      .update(usersTable)
+      .set({ status: status as "active" | "suspended" | "banned" })
+      .where(eq(usersTable.id, id))
+      .returning();
+
     if (!user) { res.status(404).json({ error: "User not found" }); return; }
     res.json(user);
   },

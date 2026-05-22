@@ -1,12 +1,15 @@
 import { useEffect, useState, useRef } from "react";
 import { AdminLayout } from "@/components/admin-layout";
 import { useAdminAuth, adminFetch } from "./dashboard";
-import { Search, X, Trash2, User, Calendar, Phone, MapPin, Mail } from "lucide-react";
+import { Search, X, Trash2, User, Calendar, Phone, MapPin, Mail, ShieldAlert, Ban } from "lucide-react";
+
+type UserStatus = "active" | "suspended" | "banned";
 
 interface AdminUser {
   id: number;
   email: string;
   phone: string | null;
+  status: UserStatus;
   createdAt: string;
 }
 
@@ -22,6 +25,14 @@ interface UsersResponse {
   limit: number;
 }
 
+type ModAction = "suspend" | "ban" | "reactivate";
+
+const STATUS_BADGE: Record<UserStatus, { label: string; className: string }> = {
+  active:    { label: "Active",    className: "bg-green-100 text-green-700" },
+  suspended: { label: "Suspended", className: "bg-yellow-100 text-yellow-700" },
+  banned:    { label: "Banned",    className: "bg-red-100 text-red-700" },
+};
+
 export default function AdminUsers() {
   const [data, setData] = useState<UsersResponse | null>(null);
   const [search, setSearch] = useState("");
@@ -29,6 +40,8 @@ export default function AdminUsers() {
   const [selected, setSelected] = useState<AdminUserDetail | null>(null);
   const [deleteId, setDeleteId] = useState<number | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [modAction, setModAction] = useState<{ id: number; action: ModAction } | null>(null);
+  const [modding, setModding] = useState(false);
   const searchRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useAdminAuth();
@@ -69,7 +82,50 @@ export default function AdminUsers() {
     load(search, page);
   };
 
+  const handleMod = async () => {
+    if (!modAction) return;
+    setModding(true);
+    const statusMap: Record<ModAction, UserStatus> = {
+      suspend: "suspended",
+      ban: "banned",
+      reactivate: "active",
+    };
+    const r = await adminFetch(`/admin/users/${modAction.id}/status`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: statusMap[modAction.action] }),
+    });
+    if (r.ok) {
+      const updated = await r.json() as AdminUserDetail;
+      setSelected(updated);
+      load(search, page);
+    }
+    setModding(false);
+    setModAction(null);
+  };
+
   const totalPages = data ? Math.ceil(data.total / data.limit) : 1;
+
+  const modLabels: Record<ModAction, { title: string; desc: string; confirmLabel: string; confirmClass: string }> = {
+    suspend: {
+      title: "Suspend this user?",
+      desc: "The user will not be able to log in until reactivated. Their account and data are preserved.",
+      confirmLabel: "Suspend",
+      confirmClass: "bg-yellow-500 hover:bg-yellow-600 text-white",
+    },
+    ban: {
+      title: "Permanently ban this user?",
+      desc: "The user will be blocked from logging in indefinitely. Their account and data are preserved.",
+      confirmLabel: "Ban",
+      confirmClass: "bg-red-600 hover:bg-red-700 text-white",
+    },
+    reactivate: {
+      title: "Reactivate this user?",
+      desc: "The user will be able to log in again.",
+      confirmLabel: "Reactivate",
+      confirmClass: "bg-green-600 hover:bg-green-700 text-white",
+    },
+  };
 
   return (
     <AdminLayout>
@@ -113,25 +169,34 @@ export default function AdminUsers() {
                 <th className="px-5 py-3 text-left font-semibold">ID</th>
                 <th className="px-5 py-3 text-left font-semibold">Email</th>
                 <th className="px-5 py-3 text-left font-semibold">Phone</th>
+                <th className="px-5 py-3 text-left font-semibold">Status</th>
                 <th className="px-5 py-3 text-left font-semibold">Joined</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {data?.users.map((u) => (
-                <tr
-                  key={u.id}
-                  onClick={() => openDetail(u.id)}
-                  className="hover:bg-violet-50 transition-colors cursor-pointer"
-                >
-                  <td className="px-5 py-3 text-gray-400 font-mono text-xs">{u.id}</td>
-                  <td className="px-5 py-3 font-medium text-gray-900">{u.email}</td>
-                  <td className="px-5 py-3 text-gray-600">{u.phone ?? <span className="text-gray-300">—</span>}</td>
-                  <td className="px-5 py-3 text-gray-500">{new Date(u.createdAt).toLocaleDateString()}</td>
-                </tr>
-              ))}
+              {data?.users.map((u) => {
+                const badge = STATUS_BADGE[u.status] ?? STATUS_BADGE.active;
+                return (
+                  <tr
+                    key={u.id}
+                    onClick={() => openDetail(u.id)}
+                    className="hover:bg-violet-50 transition-colors cursor-pointer"
+                  >
+                    <td className="px-5 py-3 text-gray-400 font-mono text-xs">{u.id}</td>
+                    <td className="px-5 py-3 font-medium text-gray-900">{u.email}</td>
+                    <td className="px-5 py-3 text-gray-600">{u.phone ?? <span className="text-gray-300">—</span>}</td>
+                    <td className="px-5 py-3">
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold ${badge.className}`}>
+                        {badge.label}
+                      </span>
+                    </td>
+                    <td className="px-5 py-3 text-gray-500">{new Date(u.createdAt).toLocaleDateString()}</td>
+                  </tr>
+                );
+              })}
               {data?.users.length === 0 && (
                 <tr>
-                  <td colSpan={4} className="px-6 py-12 text-center text-gray-400 text-sm">
+                  <td colSpan={5} className="px-6 py-12 text-center text-gray-400 text-sm">
                     {search ? "No users match your search" : "No users yet"}
                   </td>
                 </tr>
@@ -176,7 +241,17 @@ export default function AdminUsers() {
                   <User className="w-4.5 h-4.5 text-violet-600" />
                 </div>
                 <div>
-                  <p className="font-semibold text-gray-900 text-sm leading-tight">{selected.email}</p>
+                  <div className="flex items-center gap-2">
+                    <p className="font-semibold text-gray-900 text-sm leading-tight">{selected.email}</p>
+                    {(() => {
+                      const badge = STATUS_BADGE[selected.status] ?? STATUS_BADGE.active;
+                      return (
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold ${badge.className}`}>
+                          {badge.label}
+                        </span>
+                      );
+                    })()}
+                  </div>
                   <p className="text-xs text-gray-400">User #{selected.id}</p>
                 </div>
               </div>
@@ -209,13 +284,77 @@ export default function AdminUsers() {
             </div>
 
             {/* Footer */}
-            <div className="px-6 py-4 border-t border-gray-100">
+            <div className="px-6 py-4 border-t border-gray-100 space-y-2">
+              {/* Moderation actions */}
+              <div className="flex gap-2">
+                {selected.status !== "suspended" && selected.status !== "banned" && (
+                  <button
+                    onClick={() => setModAction({ id: selected.id, action: "suspend" })}
+                    className="flex-1 flex items-center justify-center gap-2 border border-yellow-200 text-yellow-700 hover:bg-yellow-50 font-semibold text-sm py-2.5 rounded-xl transition-colors"
+                  >
+                    <ShieldAlert className="w-4 h-4" />
+                    Suspend
+                  </button>
+                )}
+                {selected.status !== "banned" && (
+                  <button
+                    onClick={() => setModAction({ id: selected.id, action: "ban" })}
+                    className="flex-1 flex items-center justify-center gap-2 border border-red-200 text-red-600 hover:bg-red-50 font-semibold text-sm py-2.5 rounded-xl transition-colors"
+                  >
+                    <Ban className="w-4 h-4" />
+                    Ban
+                  </button>
+                )}
+                {(selected.status === "suspended" || selected.status === "banned") && (
+                  <button
+                    onClick={() => setModAction({ id: selected.id, action: "reactivate" })}
+                    className="flex-1 flex items-center justify-center gap-2 border border-green-200 text-green-700 hover:bg-green-50 font-semibold text-sm py-2.5 rounded-xl transition-colors"
+                  >
+                    <User className="w-4 h-4" />
+                    Reactivate
+                  </button>
+                )}
+              </div>
+              {/* Delete */}
               <button
                 onClick={() => setDeleteId(selected.id)}
                 className="w-full flex items-center justify-center gap-2 border border-red-200 text-red-600 hover:bg-red-50 font-semibold text-sm py-2.5 rounded-xl transition-colors"
               >
                 <Trash2 className="w-4 h-4" />
                 Delete account
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Moderation confirm */}
+      {modAction && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm text-center">
+            <div className={`w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4 ${
+              modAction.action === "suspend" ? "bg-yellow-100" :
+              modAction.action === "ban" ? "bg-red-100" : "bg-green-100"
+            }`}>
+              {modAction.action === "suspend" && <ShieldAlert className="w-5 h-5 text-yellow-600" />}
+              {modAction.action === "ban" && <Ban className="w-5 h-5 text-red-600" />}
+              {modAction.action === "reactivate" && <User className="w-5 h-5 text-green-600" />}
+            </div>
+            <h3 className="font-bold text-gray-900 mb-2">{modLabels[modAction.action].title}</h3>
+            <p className="text-sm text-gray-500 mb-5">{modLabels[modAction.action].desc}</p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setModAction(null)}
+                className="flex-1 border border-gray-200 text-gray-700 font-semibold text-sm py-2.5 rounded-xl hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleMod}
+                disabled={modding}
+                className={`flex-1 font-semibold text-sm py-2.5 rounded-xl transition-colors disabled:opacity-60 ${modLabels[modAction.action].confirmClass}`}
+              >
+                {modding ? "Saving..." : modLabels[modAction.action].confirmLabel}
               </button>
             </div>
           </div>

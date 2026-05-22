@@ -264,6 +264,15 @@ router.post("/auth/login/verify-otp", async (req, res): Promise<void> => {
   const [user] = await db.select().from(usersTable).where(eq(usersTable.email, email)).limit(1);
   if (!user) { res.status(404).json({ error: "Account not found" }); return; }
 
+  if (user.status === "suspended") {
+    res.status(403).json({ error: "Your account has been suspended. Please contact support." });
+    return;
+  }
+  if (user.status === "banned") {
+    res.status(403).json({ error: "Your account has been permanently banned." });
+    return;
+  }
+
   req.session.loginEmail = undefined;
   req.session.userId = user.id;
   res.json({ ok: true, user: { id: user.id, email: user.email } });
