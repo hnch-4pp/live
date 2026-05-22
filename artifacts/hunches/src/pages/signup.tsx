@@ -416,7 +416,7 @@ export default function Signup() {
   const [step, setStep] = useState<Step>("email");
   const [email, setEmail] = useState("");
   const [emailOtp, setEmailOtp] = useState("");
-  const [country, setCountry] = useState<Country>(COUNTRIES[0]); // Mexico default
+  const [country, setCountry] = useState<Country>(COUNTRIES.find(c => c.code === "US")!);
   const [localPhone, setLocalPhone] = useState("");
   const [phoneOtp, setPhoneOtp] = useState("");
   const [address, setAddress] = useState("");
