@@ -587,7 +587,7 @@ export default function Signup() {
                     value={localPhone}
                     onChange={(e) => setLocalPhone(e.target.value.replace(/[^\d\s\-()]/g, ""))}
                     onKeyDown={(e) => e.key === "Enter" && isValid() && handle()}
-                    placeholder="55 6899 2044"
+                    placeholder="Phone number"
                     className="flex-1 rounded-xl h-11 bg-background border-border"
                   />
                 </div>
@@ -622,6 +622,7 @@ export default function Signup() {
                       id="password"
                       type={showPassword ? "text" : "password"}
                       autoFocus
+                      autoComplete="new-password"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       onKeyDown={(e) => e.key === "Enter" && confirmPassword && isValid() && handle()}
