@@ -27,11 +27,6 @@ function toSlug(title: string): string {
     .slice(0, 80);
 }
 
-declare module "express-session" {
-  interface SessionData {
-    admin: boolean;
-  }
-}
 
 const router = Router();
 

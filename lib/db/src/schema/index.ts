@@ -5,3 +5,5 @@ export * from "./options";
 export * from "./predictions";
 export * from "./translations";
 export * from "./hunchPrizeTiers";
+export * from "./users";
+export * from "./otps";

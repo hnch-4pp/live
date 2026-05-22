@@ -1,10 +1,11 @@
 import { Link, useLocation, useSearch } from "wouter";
 import { Button } from "@/components/ui/button";
 import { useEffect, useRef, useState } from "react";
-import { Globe, ChevronDown, Heart, Search, X, Trophy, Music, Film, Clapperboard, TrendingUp, Star, Zap as ZapIcon, Globe2, Heart as HeartIcon } from "lucide-react";
+import { Globe, ChevronDown, Heart, Search, X, Trophy, Music, Film, Clapperboard, TrendingUp, Star, Zap as ZapIcon, Globe2, Heart as HeartIcon, LogOut, User } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import i18n from "@/i18n";
 import { useListCategories } from "@workspace/api-client-react";
+import { useAuth } from "@/hooks/use-auth";
 
 const ICON_MAP: Record<string, React.ElementType> = {
   "Trophy":       Trophy,
@@ -109,6 +110,71 @@ function LanguageSelector() {
   );
 }
 
+function AuthButtons() {
+  const { t } = useTranslation();
+  const { user, isLoading, logout } = useAuth();
+  const [, setLocation] = useLocation();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false);
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  if (isLoading) return <div className="w-20 h-8 bg-muted rounded-lg animate-pulse" />;
+
+  if (user) {
+    return (
+      <div ref={menuRef} className="relative">
+        <button
+          onClick={() => setMenuOpen((o) => !o)}
+          className="flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-muted transition-colors text-sm font-medium text-foreground"
+        >
+          <div className="w-7 h-7 rounded-full bg-primary/15 flex items-center justify-center shrink-0">
+            <User className="w-3.5 h-3.5 text-primary" />
+          </div>
+          <span className="hidden sm:block max-w-[120px] truncate">{user.email.split("@")[0]}</span>
+          <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" style={{ transform: menuOpen ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 200ms" }} />
+        </button>
+        {menuOpen && (
+          <div className="absolute top-full mt-2 right-0 w-52 rounded-xl border border-border bg-card shadow-xl shadow-black/10 overflow-hidden z-50">
+            <div className="px-4 py-3 border-b border-border">
+              <p className="text-xs text-muted-foreground">Signed in as</p>
+              <p className="text-sm font-semibold text-foreground truncate">{user.email}</p>
+            </div>
+            <button
+              onClick={async () => { setMenuOpen(false); await logout(); setLocation("/"); }}
+              className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+            >
+              <LogOut className="w-4 h-4" />
+              Sign out
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <Link href="/login">
+        <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground font-medium hidden sm:flex">
+          {t("nav_login")}
+        </Button>
+      </Link>
+      <Link href="/signup">
+        <Button size="sm" className="bg-primary text-white hover:bg-primary/90 font-semibold rounded-lg px-5 shadow-sm">
+          {t("nav_signup")}
+        </Button>
+      </Link>
+    </>
+  );
+}
+
 export function Navbar() {
   const { t } = useTranslation();
   const [, setLocation] = useLocation();
@@ -168,16 +234,7 @@ export function Navbar() {
 
         <div className="flex items-center gap-2">
           <LanguageSelector />
-          <Link href="/login">
-            <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground font-medium hidden sm:flex">
-              {t("nav_login")}
-            </Button>
-          </Link>
-          <Link href="/signup">
-            <Button size="sm" className="bg-primary text-white hover:bg-primary/90 font-semibold rounded-lg px-5 shadow-sm">
-              {t("nav_signup")}
-            </Button>
-          </Link>
+          <AuthButtons />
         </div>
       </div>
 
