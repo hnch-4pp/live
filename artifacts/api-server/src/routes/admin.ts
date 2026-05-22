@@ -8,8 +8,9 @@ import {
   prizesTable,
   optionsTable,
   hunchPrizeTiersTable,
+  usersTable,
 } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { eq, or, ilike, sql } from "drizzle-orm";
 
 function parsePrizeAmount(value: string): number {
   const m = value.match(/\$?(\d+(?:\.\d+)?)/);
@@ -425,6 +426,84 @@ router.get(
   async (_req, res): Promise<void> => {
     const prizes = await db.select().from(prizesTable);
     res.json(prizes);
+  },
+);
+
+// ── Users ──────────────────────────────────────────────────────────────────
+
+router.get(
+  "/admin/users",
+  requireAdmin,
+  requireAdminHeader,
+  async (req, res): Promise<void> => {
+    const search = typeof req.query["search"] === "string" ? req.query["search"].trim() : "";
+    const page = Math.max(1, parseInt(String(req.query["page"] ?? "1"), 10));
+    const limit = 25;
+    const offset = (page - 1) * limit;
+
+    const where = search
+      ? or(ilike(usersTable.email, `%${search}%`), ilike(usersTable.phone, `%${search}%`))
+      : undefined;
+
+    const [users, [{ count }]] = await Promise.all([
+      db
+        .select({
+          id: usersTable.id,
+          email: usersTable.email,
+          phone: usersTable.phone,
+          createdAt: usersTable.createdAt,
+        })
+        .from(usersTable)
+        .where(where)
+        .orderBy(usersTable.createdAt)
+        .limit(limit)
+        .offset(offset),
+      db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(usersTable)
+        .where(where),
+    ]);
+
+    res.json({ users, total: count, page, limit });
+  },
+);
+
+router.get(
+  "/admin/users/count",
+  requireAdmin,
+  requireAdminHeader,
+  async (_req, res): Promise<void> => {
+    const [{ count }] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(usersTable);
+    res.json({ count });
+  },
+);
+
+router.get(
+  "/admin/users/:id",
+  requireAdmin,
+  requireAdminHeader,
+  async (req, res): Promise<void> => {
+    const id = parseInt(String(req.params["id"] ?? "0"), 10);
+    if (!id) { res.status(400).json({ error: "Invalid ID" }); return; }
+    const [user] = await db.select().from(usersTable).where(eq(usersTable.id, id)).limit(1);
+    if (!user) { res.status(404).json({ error: "User not found" }); return; }
+    res.json(user);
+  },
+);
+
+router.delete(
+  "/admin/users/:id",
+  requireAdmin,
+  requireAdminHeader,
+  async (req, res): Promise<void> => {
+    const id = parseInt(String(req.params["id"] ?? "0"), 10);
+    if (!id) { res.status(400).json({ error: "Invalid ID" }); return; }
+    const [user] = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.id, id)).limit(1);
+    if (!user) { res.status(404).json({ error: "User not found" }); return; }
+    await db.delete(usersTable).where(eq(usersTable.id, id));
+    res.json({ ok: true });
   },
 );
 

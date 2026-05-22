@@ -38,6 +38,7 @@ export { adminFetch };
 
 export default function AdminDashboard() {
   const [hunches, setHunches] = useState<AdminHunch[]>([]);
+  const [userCount, setUserCount] = useState<number | null>(null);
 
   useAdminAuth();
 
@@ -45,6 +46,10 @@ export default function AdminDashboard() {
     adminFetch("/admin/hunches")
       .then((r) => r.json() as Promise<AdminHunch[]>)
       .then(setHunches)
+      .catch(() => {});
+    adminFetch("/admin/users/count")
+      .then((r) => r.json() as Promise<{ count: number }>)
+      .then((d) => setUserCount(d.count))
       .catch(() => {});
   }, []);
 
@@ -57,10 +62,11 @@ export default function AdminDashboard() {
       <div className="p-8">
         <h1 className="text-2xl font-bold text-gray-900 mb-6">Dashboard</h1>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 mb-8">
           <StatCard icon={ListChecks} label="Total hunches" value={hunches.length} color="violet" />
           <StatCard icon={BarChart2} label="Open" value={open} color="green" />
           <StatCard icon={Users} label="Total predictions" value={totalParticipants.toLocaleString()} color="blue" />
+          <StatCard icon={Users} label="Registered users" value={userCount !== null ? userCount.toLocaleString() : "—"} color="indigo" />
         </div>
 
         <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
@@ -101,6 +107,7 @@ function StatCard({ icon: Icon, label, value, color }: { icon: React.ElementType
     violet: "bg-violet-50 text-violet-600",
     green: "bg-green-50 text-green-600",
     blue: "bg-blue-50 text-blue-600",
+    indigo: "bg-indigo-50 text-indigo-600",
   };
   return (
     <div className="bg-white border border-gray-200 rounded-2xl p-5 flex items-center gap-4">
