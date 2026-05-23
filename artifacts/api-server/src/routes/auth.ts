@@ -272,6 +272,7 @@ router.post("/auth/signup/complete", async (req, res): Promise<void> => {
       address: address.trim(),
       dateOfBirth,
       passwordHash: pending.passwordHash,
+      tickets: 3,
     })
     .returning();
 
@@ -341,7 +342,7 @@ router.get("/auth/me", async (req, res): Promise<void> => {
     res.status(401).json({ error: "Not authenticated" });
     return;
   }
-  res.json({ id: user.id, email: user.email, phone: user.phone, username: user.username, address: user.address, dateOfBirth: user.dateOfBirth, avatarUrl: user.avatarUrl });
+  res.json({ id: user.id, email: user.email, phone: user.phone, username: user.username, address: user.address, dateOfBirth: user.dateOfBirth, avatarUrl: user.avatarUrl, tickets: user.tickets });
 });
 
 router.patch("/auth/me", async (req, res): Promise<void> => {
@@ -390,7 +391,7 @@ router.patch("/auth/me", async (req, res): Promise<void> => {
     .where(eq(usersTable.id, req.session.userId))
     .returning();
 
-  res.json({ id: updated.id, email: updated.email, phone: updated.phone, username: updated.username, address: updated.address, dateOfBirth: updated.dateOfBirth, avatarUrl: updated.avatarUrl });
+  res.json({ id: updated.id, email: updated.email, phone: updated.phone, username: updated.username, address: updated.address, dateOfBirth: updated.dateOfBirth, avatarUrl: updated.avatarUrl, tickets: updated.tickets });
 });
 
 router.delete("/auth/me", async (req, res): Promise<void> => {

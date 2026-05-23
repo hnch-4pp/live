@@ -18,6 +18,7 @@ export const hunchesTable = pgTable("hunches", {
   winnerOption: text("winner_option"),
   rules: text("rules"),
   answerType: text("answer_type").notNull().default("integer"), // integer | decimal | date | time
+  ticketCost: integer("ticket_cost").notNull().default(1),
   endsAt: timestamp("ends_at", { withTimezone: true }).notNull(),
   resolvedAt: timestamp("resolved_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

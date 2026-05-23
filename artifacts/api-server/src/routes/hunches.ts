@@ -9,6 +9,7 @@ import {
   predictionsTable,
   hunchTranslationsTable,
   hunchPrizeTiersTable,
+  usersTable,
 } from "@workspace/db";
 import {
   ListHunchesQueryParams,
@@ -126,6 +127,7 @@ async function buildHunch(hunch: typeof hunchesTable.$inferSelect) {
     winnerOption: hunch.winnerOption ?? null,
     rules: hunch.rules ?? null,
     answerType: hunch.answerType,
+    ticketCost: hunch.ticketCost,
   };
 }
 
@@ -303,6 +305,11 @@ router.get("/hunches/:id", async (req, res): Promise<void> => {
 });
 
 router.post("/hunches/:id/predict", async (req, res): Promise<void> => {
+  if (!req.session?.userId) {
+    res.status(401).json({ error: "You must be signed in to make a prediction." });
+    return;
+  }
+
   const rawId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const params = SubmitPredictionParams.safeParse({ id: parseInt(rawId, 10) });
   if (!params.success) {
@@ -331,6 +338,22 @@ router.post("/hunches/:id/predict", async (req, res): Promise<void> => {
     return;
   }
 
+  const [currentUser] = await db
+    .select()
+    .from(usersTable)
+    .where(eq(usersTable.id, req.session.userId));
+
+  if (!currentUser) {
+    res.status(401).json({ error: "User not found." });
+    return;
+  }
+
+  const cost = hunch.ticketCost;
+  if (currentUser.tickets < cost) {
+    res.status(402).json({ error: `Not enough tickets. This hunch costs ${cost} ticket${cost !== 1 ? "s" : ""}. You have ${currentUser.tickets}.` });
+    return;
+  }
+
   const normalizedLabel = body.data.freeText.trim();
 
   const existingOptions = await db
@@ -356,13 +379,18 @@ router.post("/hunches/:id/predict", async (req, res): Promise<void> => {
 
   const [prediction] = await db
     .insert(predictionsTable)
-    .values({ hunchId: params.data.id, optionId })
+    .values({ hunchId: params.data.id, optionId, userId: req.session.userId })
     .returning();
 
   await db
     .update(hunchesTable)
     .set({ participantCount: hunch.participantCount + 1 })
     .where(eq(hunchesTable.id, params.data.id));
+
+  await db
+    .update(usersTable)
+    .set({ tickets: currentUser.tickets - cost })
+    .where(eq(usersTable.id, req.session.userId));
 
   const predictionCounts = await db
     .select({ optionId: predictionsTable.optionId, cnt: count() })

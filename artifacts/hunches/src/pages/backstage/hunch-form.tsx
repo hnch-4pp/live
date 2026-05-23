@@ -38,6 +38,7 @@ const EMPTY = {
   prizeId: 0,
   winnerOption: "",
   answerType: "integer",
+  ticketCost: 1,
 };
 
 function toSlug(title: string): string {
@@ -101,6 +102,7 @@ export default function HunchForm() {
           winnerOption: h.winnerOption ?? "",
           rules: h.rules ?? "",
           answerType: h.answerType ?? "integer",
+          ticketCost: h.ticketCost ?? 1,
         });
         if (Array.isArray(h.prizeTiers) && h.prizeTiers.length > 0) {
           setPrizeTiers(h.prizeTiers);
@@ -392,6 +394,17 @@ export default function HunchForm() {
                   type="datetime-local"
                   value={form.endsAt}
                   onChange={(e) => setForm({ ...form, endsAt: e.target.value })}
+                  className={inputCls}
+                />
+              </Field>
+
+              <Field label="Ticket cost" hint="Tickets required to participate (default: 1)">
+                <input
+                  type="number"
+                  min={1}
+                  max={99}
+                  value={form.ticketCost}
+                  onChange={(e) => setForm({ ...form, ticketCost: Math.max(1, parseInt(e.target.value) || 1) })}
                   className={inputCls}
                 />
               </Field>

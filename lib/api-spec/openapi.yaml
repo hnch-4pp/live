@@ -344,6 +344,8 @@ components:
           type: ["string", "null"]
         rules:
           type: ["string", "null"]
+        ticketCost:
+          type: integer
         answerType:
           type: string
 

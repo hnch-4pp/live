@@ -19,6 +19,7 @@ import HunchForm from "@/pages/backstage/hunch-form";
 import AdminCategories from "@/pages/backstage/categories";
 import AdminUsers from "@/pages/backstage/users";
 import Account from "@/pages/account";
+import Tickets from "@/pages/tickets";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -40,6 +41,7 @@ function Router() {
       <Route path="/privacy" component={Privacy} />
       <Route path="/responsible" component={Responsible} />
       <Route path="/account" component={Account} />
+      <Route path="/tickets" component={Tickets} />
       <Route path="/backstage/login" component={AdminLogin} />
       <Route path="/backstage/dashboard" component={AdminDashboard} />
       <Route path="/backstage/hunches" component={AdminHunches} />

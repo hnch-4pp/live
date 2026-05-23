@@ -85,6 +85,7 @@ export interface Hunch {
   winnerOption?: string | null;
   /** @nullable */
   rules?: string | null;
+  ticketCost?: number;
   answerType?: string;
 }
 

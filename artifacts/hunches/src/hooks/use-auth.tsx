@@ -8,6 +8,7 @@ export interface AuthUser {
   address: string | null;
   dateOfBirth: string | null;
   avatarUrl: string | null;
+  tickets: number;
 }
 
 interface AuthContextValue {

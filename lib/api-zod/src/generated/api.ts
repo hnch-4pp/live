@@ -111,6 +111,7 @@ export const ListHunchesResponse = zod.object({
   "imageUrl": zod.string().nullish(),
   "winnerOption": zod.string().nullish(),
   "rules": zod.string().nullish(),
+  "ticketCost": zod.number().optional(),
   "answerType": zod.string().optional()
 })),
   "total": zod.number()
@@ -163,6 +164,7 @@ export const GetFeaturedHunchesResponseItem = zod.object({
   "imageUrl": zod.string().nullish(),
   "winnerOption": zod.string().nullish(),
   "rules": zod.string().nullish(),
+  "ticketCost": zod.number().optional(),
   "answerType": zod.string().optional()
 })
 export const GetFeaturedHunchesResponse = zod.array(GetFeaturedHunchesResponseItem)
@@ -229,6 +231,7 @@ export const GetHunchResponse = zod.object({
   "imageUrl": zod.string().nullish(),
   "winnerOption": zod.string().nullish(),
   "rules": zod.string().nullish(),
+  "ticketCost": zod.number().optional(),
   "answerType": zod.string().optional()
 })
 

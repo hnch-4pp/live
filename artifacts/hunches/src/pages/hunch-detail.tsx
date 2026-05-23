@@ -1,10 +1,10 @@
 import { useState } from "react";
-import { useParams, Link } from "wouter";
+import { useParams, Link, useLocation } from "wouter";
 import { format, isPast, type Locale } from "date-fns";
 import {
   enUS, es, de, fr, pt, it, ja, ko, zhCN, id as idLocale, tr,
 } from "date-fns/locale";
-import { ArrowLeft, Users, Clock, Share2, AlertCircle, Info, Trophy, CheckCircle2, Gift, Award, DollarSign, ChevronDown, ChevronUp, Check } from "lucide-react";
+import { ArrowLeft, Users, Clock, Share2, AlertCircle, Trophy, CheckCircle2, Gift, Award, DollarSign, ChevronDown, ChevronUp, Check, Ticket, X, Info } from "lucide-react";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, LabelList,
 } from "recharts";
@@ -17,6 +17,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { useGetHunch, useSubmitPrediction, getGetHunchQueryKey } from "@workspace/api-client-react";
 import { useTranslation } from "react-i18next";
+import { useAuth } from "@/hooks/use-auth";
 
 function ordinal(n: number): string {
   const s = ["th", "st", "nd", "rd"];
@@ -44,10 +45,13 @@ export default function HunchDetail() {
   const { slug } = useParams<{ slug: string }>();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [, setLocation] = useLocation();
+  const { user, refetch: refetchUser } = useAuth();
   const [freeText, setFreeText] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const [prizeOpen, setPrizeOpen] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
 
   const handleShare = async () => {
     const url = window.location.href;
@@ -75,14 +79,23 @@ export default function HunchDetail() {
   const handlePredict = () => {
     const trimmed = freeText.trim();
     if (!trimmed) return;
+    if (!user) { setLocation("/login"); return; }
+    setShowConfirm(true);
+  };
+
+  const confirmPredict = () => {
+    const trimmed = freeText.trim();
+    if (!trimmed) return;
+    setShowConfirm(false);
     submitPrediction.mutate({ id: hunch?.id ?? 0, data: { freeText: trimmed } }, {
       onSuccess: () => {
         setSubmitted(true);
+        refetchUser();
         toast({ title: t("prediction_ok_title"), description: t("prediction_ok_desc") });
         queryClient.invalidateQueries({ queryKey: getGetHunchQueryKey(slug ?? "") });
       },
       onError: (err: any) => {
-        toast({ title: t("error"), description: err.error || t("failed_submit"), variant: "destructive" });
+        toast({ title: t("error"), description: (err as any)?.error || t("failed_submit"), variant: "destructive" });
       }
     });
   };
@@ -391,6 +404,16 @@ export default function HunchDetail() {
                 {isResolved ? t("final_results") : t("make_prediction")}
               </h3>
 
+              {isOpen && !submitted && hunch.ticketCost && (
+                <div className="flex items-center gap-2 mb-3 px-3 py-2 bg-primary/5 border border-primary/15 rounded-xl">
+                  <Ticket className="w-4 h-4 text-primary flex-shrink-0" />
+                  <span className="text-sm text-primary font-medium">
+                    Costs {hunch.ticketCost} ticket{hunch.ticketCost !== 1 ? "s" : ""}
+                    {user ? <span className="text-muted-foreground ml-1">({user.tickets} remaining)</span> : null}
+                  </span>
+                </div>
+              )}
+
               {isOpen && !submitted && (
                 <div className="mb-4">
                   <input
@@ -418,13 +441,51 @@ export default function HunchDetail() {
                   disabled={!freeText.trim() || submitPrediction.isPending}
                   onClick={handlePredict}
                 >
-                  {submitPrediction.isPending ? t("submitting") : t("lock_prediction")}
+                  {submitPrediction.isPending ? t("submitting") : user ? t("lock_prediction") : "Sign in to predict"}
                 </Button>
               ) : !isOpen ? (
                 <div className="w-full text-center p-3.5 bg-muted rounded-xl text-muted-foreground text-sm font-medium border border-border">
                   {isResolved ? t("hunch_resolved") : t("predictions_closed")}
                 </div>
               ) : null}
+
+              {/* Ticket confirmation dialog */}
+              {showConfirm && hunch && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+                  <div className="bg-card border border-border rounded-2xl shadow-2xl p-6 w-full max-w-sm">
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center">
+                          <Ticket className="w-5 h-5 text-primary" />
+                        </div>
+                        <h3 className="font-display font-bold text-lg text-foreground">Confirm prediction</h3>
+                      </div>
+                      <button onClick={() => setShowConfirm(false)} className="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                    <p className="text-sm text-muted-foreground mb-1">Your answer</p>
+                    <div className="bg-muted rounded-xl px-4 py-2.5 mb-4">
+                      <span className="text-sm font-semibold text-foreground">{freeText}</span>
+                    </div>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      This will use{" "}
+                      <span className="font-semibold text-foreground">{hunch.ticketCost} ticket{hunch.ticketCost !== 1 ? "s" : ""}</span>.
+                      {user ? <> You have <span className="font-semibold text-foreground">{user.tickets}</span> remaining.</> : null}
+                    </p>
+                    <div className="flex gap-2">
+                      <Button variant="outline" className="flex-1 rounded-xl" onClick={() => setShowConfirm(false)}>Cancel</Button>
+                      <Button
+                        className="flex-1 bg-primary text-white hover:bg-primary/90 rounded-xl font-bold"
+                        onClick={confirmPredict}
+                        disabled={submitPrediction.isPending}
+                      >
+                        {submitPrediction.isPending ? "Submitting..." : "Lock it in"}
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             <Button variant="outline" className="w-full rounded-xl border-border font-medium" onClick={handleShare}>
