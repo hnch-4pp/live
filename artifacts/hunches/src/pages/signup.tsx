@@ -320,6 +320,125 @@ function CountryPicker({
   );
 }
 
+// ── Address autocomplete ──────────────────────────────────────────────────────
+
+interface PlaceSuggestion {
+  place_id: string;
+  description: string;
+  structured_formatting: { main_text: string; secondary_text: string };
+}
+
+interface ParsedAddress {
+  street: string;
+  city: string;
+  state: string;
+  postal: string;
+  country: string;
+}
+
+function AddressAutocomplete({
+  value,
+  onChange,
+  onSelect,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  onSelect: (parsed: ParsedAddress) => void;
+}) {
+  const [suggestions, setSuggestions] = useState<PlaceSuggestion[]>([]);
+  const [open, setOpen] = useState(false);
+  const [fetching, setFetching] = useState(false);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const sessionRef = useRef<string>(crypto.randomUUID());
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const fetchSuggestions = (input: string) => {
+    clearTimeout(debounceRef.current);
+    if (input.length < 3) { setSuggestions([]); setOpen(false); return; }
+    debounceRef.current = setTimeout(async () => {
+      setFetching(true);
+      try {
+        const res = await fetch(
+          `/api/places/autocomplete?input=${encodeURIComponent(input)}&sessiontoken=${sessionRef.current}`,
+          { credentials: "include" },
+        );
+        const data = await res.json();
+        if (data.predictions) { setSuggestions(data.predictions.slice(0, 5)); setOpen(true); }
+      } catch { /* ignore */ }
+      finally { setFetching(false); }
+    }, 350);
+  };
+
+  const selectPlace = async (placeId: string, mainText: string) => {
+    setOpen(false);
+    onChange(mainText);
+    try {
+      const res = await fetch(
+        `/api/places/details?place_id=${placeId}&sessiontoken=${sessionRef.current}`,
+        { credentials: "include" },
+      );
+      const data = await res.json();
+      sessionRef.current = crypto.randomUUID();
+      const comps: { types: string[]; long_name: string }[] = data.result?.address_components ?? [];
+      const get = (type: string) => comps.find((c) => c.types.includes(type))?.long_name ?? "";
+      const street = [get("street_number"), get("route")].filter(Boolean).join(" ");
+      onSelect({
+        street: street || mainText,
+        city: get("locality") || get("sublocality") || get("administrative_area_level_2"),
+        state: get("administrative_area_level_1"),
+        postal: get("postal_code"),
+        country: get("country"),
+      });
+    } catch { /* ignore */ }
+  };
+
+  return (
+    <div ref={containerRef} className="relative">
+      <div className="relative">
+        <Input
+          type="text"
+          autoFocus
+          autoComplete="off"
+          value={value}
+          onChange={(e) => { onChange(e.target.value); fetchSuggestions(e.target.value); }}
+          placeholder="Street address and number"
+          className="rounded-xl h-11 bg-background border-border pr-8"
+        />
+        {fetching && (
+          <div className="absolute right-3 top-1/2 -translate-y-1/2">
+            <div className="w-3.5 h-3.5 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+          </div>
+        )}
+      </div>
+      {open && suggestions.length > 0 && (
+        <div className="absolute left-0 right-0 top-full mt-1 z-50 bg-white border border-border rounded-xl shadow-lg overflow-hidden">
+          {suggestions.map((s) => (
+            <button
+              key={s.place_id}
+              type="button"
+              onMouseDown={(e) => { e.preventDefault(); selectPlace(s.place_id, s.structured_formatting.main_text); }}
+              className="w-full text-left px-3 py-2.5 hover:bg-violet-50 transition-colors border-b border-border/50 last:border-0"
+            >
+              <p className="text-sm font-medium text-foreground truncate">{s.structured_formatting.main_text}</p>
+              <p className="text-xs text-muted-foreground truncate">{s.structured_formatting.secondary_text}</p>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Step definitions ──────────────────────────────────────────────────────────
 
 type Step = "email" | "email-otp" | "phone" | "phone-otp" | "password" | "address" | "dob";
@@ -426,8 +545,16 @@ export default function Signup() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
-  const [address, setAddress] = useState("");
+  const [addrStreet, setAddrStreet] = useState("");
+  const [addrApt, setAddrApt] = useState("");
+  const [addrCity, setAddrCity] = useState("");
+  const [addrState, setAddrState] = useState("");
+  const [addrPostal, setAddrPostal] = useState("");
+  const [addrCountry, setAddrCountry] = useState("");
   const [dob, setDob] = useState("");
+
+  const fullAddress = [addrStreet, addrApt, addrCity, addrState, addrPostal, addrCountry]
+    .filter(Boolean).join(", ");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [devHint, setDevHint] = useState("");
@@ -474,7 +601,7 @@ export default function Signup() {
       } else if (step === "address") {
         setStep("dob");
       } else if (step === "dob") {
-        await post("/auth/signup/complete", { address, dateOfBirth: dob });
+        await post("/auth/signup/complete", { address: fullAddress, dateOfBirth: dob });
         await refetch();
         setLocation("/");
       }
@@ -508,7 +635,7 @@ export default function Signup() {
     if (step === "phone") return localPhone.replace(/\D/g, "").length >= 6;
     if (step === "phone-otp") return phoneOtp.length === 6;
     if (step === "password") return password.length >= 8 && password === confirmPassword;
-    if (step === "address") return address.trim().length >= 5;
+    if (step === "address") return addrStreet.trim().length >= 3 && addrCity.trim().length >= 1 && addrCountry.trim().length >= 1;
     if (step === "dob") return dob.length > 0;
     return false;
   };
@@ -705,17 +832,85 @@ export default function Signup() {
 
             {/* Address */}
             {step === "address" && (
-              <div className="space-y-1.5">
-                <Label htmlFor="address">Full address</Label>
-                <textarea
-                  id="address"
-                  autoFocus
-                  rows={3}
-                  value={address}
-                  onChange={(e) => setAddress(e.target.value)}
-                  placeholder="123 Main St, City, State, ZIP, Country"
-                  className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all resize-none"
-                />
+              <div className="space-y-3">
+                <div className="space-y-1.5">
+                  <Label>Street address</Label>
+                  <AddressAutocomplete
+                    value={addrStreet}
+                    onChange={setAddrStreet}
+                    onSelect={(p) => {
+                      setAddrStreet(p.street);
+                      setAddrCity(p.city);
+                      setAddrState(p.state);
+                      setAddrPostal(p.postal);
+                      setAddrCountry(p.country);
+                    }}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="addr-apt">Apt / Suite / Unit <span className="text-muted-foreground font-normal">(optional)</span></Label>
+                  <Input
+                    id="addr-apt"
+                    type="text"
+                    autoComplete="off"
+                    value={addrApt}
+                    onChange={(e) => setAddrApt(e.target.value)}
+                    placeholder="Apt 4B, Suite 100..."
+                    className="rounded-xl h-11 bg-background border-border"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="addr-city">City</Label>
+                    <Input
+                      id="addr-city"
+                      type="text"
+                      autoComplete="off"
+                      value={addrCity}
+                      onChange={(e) => setAddrCity(e.target.value)}
+                      placeholder="City"
+                      className="rounded-xl h-11 bg-background border-border"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="addr-state">State / Province</Label>
+                    <Input
+                      id="addr-state"
+                      type="text"
+                      autoComplete="off"
+                      value={addrState}
+                      onChange={(e) => setAddrState(e.target.value)}
+                      placeholder="State"
+                      className="rounded-xl h-11 bg-background border-border"
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="addr-postal">ZIP / Postal code</Label>
+                    <Input
+                      id="addr-postal"
+                      type="text"
+                      autoComplete="off"
+                      value={addrPostal}
+                      onChange={(e) => setAddrPostal(e.target.value)}
+                      placeholder="00000"
+                      className="rounded-xl h-11 bg-background border-border"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="addr-country">Country</Label>
+                    <Input
+                      id="addr-country"
+                      type="text"
+                      autoComplete="off"
+                      value={addrCountry}
+                      onChange={(e) => setAddrCountry(e.target.value)}
+                      placeholder="Country"
+                      className="rounded-xl h-11 bg-background border-border"
+                    />
+                  </div>
+                </div>
                 <p className="text-xs text-muted-foreground">Used only to ship prizes if you win</p>
               </div>
             )}
