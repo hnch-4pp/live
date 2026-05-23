@@ -552,6 +552,8 @@ export default function Signup() {
   const [addrPostal, setAddrPostal] = useState("");
   const [addrCountry, setAddrCountry] = useState("");
   const [dob, setDob] = useState("");
+  const [agreedTerms, setAgreedTerms] = useState(false);
+  const [agreedPrivacy, setAgreedPrivacy] = useState(false);
 
   const fullAddress = [addrStreet, addrApt, addrCity, addrState, addrPostal, addrCountry]
     .filter(Boolean).join(", ");
@@ -636,7 +638,7 @@ export default function Signup() {
     if (step === "phone-otp") return phoneOtp.length === 6;
     if (step === "password") return password.length >= 8 && password === confirmPassword;
     if (step === "address") return addrStreet.trim().length >= 3 && addrCity.trim().length >= 1 && addrCountry.trim().length >= 1;
-    if (step === "dob") return dob.length > 0;
+    if (step === "dob") return dob.length > 0 && agreedTerms && agreedPrivacy;
     return false;
   };
 
@@ -929,6 +931,36 @@ export default function Signup() {
                   className="rounded-xl h-11 bg-background border-border"
                 />
                 <p className="text-xs text-muted-foreground">You must be at least 18 years old</p>
+                <div className="pt-1 space-y-3">
+                  <label className="flex items-start gap-3 cursor-pointer group">
+                    <input
+                      type="checkbox"
+                      checked={agreedTerms}
+                      onChange={(e) => setAgreedTerms(e.target.checked)}
+                      className="mt-0.5 w-4 h-4 rounded border-border accent-primary cursor-pointer flex-shrink-0"
+                    />
+                    <span className="text-xs text-muted-foreground leading-relaxed group-hover:text-foreground transition-colors">
+                      I have read and agree to the{" "}
+                      <a href="/terms" target="_blank" className="text-primary underline underline-offset-2 font-medium">
+                        Terms &amp; Conditions
+                      </a>
+                    </span>
+                  </label>
+                  <label className="flex items-start gap-3 cursor-pointer group">
+                    <input
+                      type="checkbox"
+                      checked={agreedPrivacy}
+                      onChange={(e) => setAgreedPrivacy(e.target.checked)}
+                      className="mt-0.5 w-4 h-4 rounded border-border accent-primary cursor-pointer flex-shrink-0"
+                    />
+                    <span className="text-xs text-muted-foreground leading-relaxed group-hover:text-foreground transition-colors">
+                      I have read and agree to the{" "}
+                      <a href="/privacy" target="_blank" className="text-primary underline underline-offset-2 font-medium">
+                        Privacy Policy
+                      </a>
+                    </span>
+                  </label>
+                </div>
               </div>
             )}
 
