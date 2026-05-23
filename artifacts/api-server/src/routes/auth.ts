@@ -206,12 +206,41 @@ router.post("/auth/signup/set-password", async (req, res): Promise<void> => {
   res.json({ ok: true });
 });
 
+const USERNAME_RE = /^[a-zA-Z0-9_.]{3,20}$/;
+
+router.get("/auth/signup/check-username", async (req, res): Promise<void> => {
+  const { username } = req.query as { username?: string };
+  if (!username || !USERNAME_RE.test(username)) {
+    res.status(400).json({ error: "Username must be 3–20 characters: letters, numbers, _ or ." });
+    return;
+  }
+  const [existing] = await db
+    .select({ id: usersTable.id })
+    .from(usersTable)
+    .where(eq(usersTable.username, username.toLowerCase()))
+    .limit(1);
+  res.json({ available: !existing });
+});
+
 router.post("/auth/signup/complete", async (req, res): Promise<void> => {
-  const { address, dateOfBirth } = req.body as { address?: string; dateOfBirth?: string };
+  const { address, dateOfBirth, username } = req.body as { address?: string; dateOfBirth?: string; username?: string };
   const pending = req.session.pendingSignup;
 
   if (!pending?.emailVerified || !pending?.phoneVerified || !pending?.passwordSet) {
     res.status(400).json({ error: "Email, phone, and password must be set before completing signup." });
+    return;
+  }
+  if (!username || !USERNAME_RE.test(username)) {
+    res.status(400).json({ error: "Valid username required." });
+    return;
+  }
+  const [existingUsername] = await db
+    .select({ id: usersTable.id })
+    .from(usersTable)
+    .where(eq(usersTable.username, username.toLowerCase()))
+    .limit(1);
+  if (existingUsername) {
+    res.status(409).json({ error: "Username is already taken." });
     return;
   }
   if (!address || address.trim().length < 5) {
@@ -239,6 +268,7 @@ router.post("/auth/signup/complete", async (req, res): Promise<void> => {
     .values({
       email: pending.email!,
       phone: pending.phone!,
+      username: username.toLowerCase(),
       address: address.trim(),
       dateOfBirth,
       passwordHash: pending.passwordHash,

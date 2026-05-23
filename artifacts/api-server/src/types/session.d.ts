@@ -11,6 +11,7 @@ declare module "express-session" {
       phoneVerified?: boolean;
       passwordHash?: string;
       passwordSet?: boolean;
+      username?: string;
     };
     loginEmail?: string;
   }

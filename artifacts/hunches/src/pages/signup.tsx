@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
-import { ArrowLeft, Mail, Phone, MapPin, Calendar, Search, ChevronDown, Eye, EyeOff, Lock } from "lucide-react";
+import { ArrowLeft, Mail, Phone, MapPin, Calendar, Search, ChevronDown, Eye, EyeOff, Lock, AtSign, Check, X, Loader2 } from "lucide-react";
 
 // ── Country data ─────────────────────────────────────────────────────────────
 
@@ -441,7 +441,7 @@ function AddressAutocomplete({
 
 // ── Step definitions ──────────────────────────────────────────────────────────
 
-type Step = "email" | "email-otp" | "phone" | "phone-otp" | "password" | "address" | "dob";
+type Step = "email" | "email-otp" | "phone" | "phone-otp" | "password" | "username" | "address" | "dob";
 
 const STEP_TITLES: Record<Step, string> = {
   email: "Create your account",
@@ -449,6 +449,7 @@ const STEP_TITLES: Record<Step, string> = {
   phone: "Add your phone",
   "phone-otp": "Verify your phone",
   password: "Set a password",
+  username: "Choose a username",
   address: "Your address",
   dob: "Date of birth",
 };
@@ -459,11 +460,12 @@ const STEP_SUBS: Record<Step, string> = {
   phone: "We'll send a verification code via SMS",
   "phone-otp": "We sent a 6-digit code to your phone",
   password: "Choose a strong password for your account",
+  username: "Pick a unique username for your profile",
   address: "Required to ship prizes",
   dob: "You must be 18 or older to participate",
 };
 
-const STEPS: Step[] = ["email", "email-otp", "phone", "phone-otp", "password", "address", "dob"];
+const STEPS: Step[] = ["email", "email-otp", "phone", "phone-otp", "password", "username", "address", "dob"];
 
 function StepDots({ current }: { current: Step }) {
   const idx = STEPS.indexOf(current);
@@ -471,6 +473,7 @@ function StepDots({ current }: { current: Step }) {
     ["email", "email-otp"],
     ["phone", "phone-otp"],
     ["password"],
+    ["username"],
     ["address"],
     ["dob"],
   ] as Step[][];
@@ -545,6 +548,8 @@ export default function Signup() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [username, setUsername] = useState("");
+  const [usernameStatus, setUsernameStatus] = useState<"idle" | "checking" | "available" | "taken" | "invalid">("idle");
   const [addrStreet, setAddrStreet] = useState("");
   const [addrApt, setAddrApt] = useState("");
   const [addrCity, setAddrCity] = useState("");
@@ -565,6 +570,25 @@ export default function Signup() {
   const fullPhone = country.dial + localPhone.replace(/^0+/, "").replace(/\D/g, "");
   // Display version for confirmation screen
   const displayPhone = `${country.flag} ${country.dial} ${localPhone}`;
+
+  // Debounced username availability check
+  useEffect(() => {
+    const raw = username.trim();
+    if (!raw) { setUsernameStatus("idle"); return; }
+    const FORMAT_RE = /^[a-zA-Z0-9_.]{3,20}$/;
+    if (!FORMAT_RE.test(raw)) { setUsernameStatus("invalid"); return; }
+    setUsernameStatus("checking");
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/auth/signup/check-username?username=${encodeURIComponent(raw)}`, { credentials: "include" });
+        const data = await res.json();
+        setUsernameStatus(data.available ? "available" : "taken");
+      } catch {
+        setUsernameStatus("idle");
+      }
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [username]);
 
   const post = async (path: string, body: object) => {
     const res = await fetch(`/api${path}`, {
@@ -599,11 +623,13 @@ export default function Signup() {
         setStep("password");
       } else if (step === "password") {
         await post("/auth/signup/set-password", { password });
+        setStep("username");
+      } else if (step === "username") {
         setStep("address");
       } else if (step === "address") {
         setStep("dob");
       } else if (step === "dob") {
-        await post("/auth/signup/complete", { address: fullAddress, dateOfBirth: dob });
+        await post("/auth/signup/complete", { username: username.trim().toLowerCase(), address: fullAddress, dateOfBirth: dob });
         await refetch();
         setLocation("/");
       }
@@ -624,7 +650,8 @@ export default function Signup() {
       phone: "email-otp",
       "phone-otp": "phone",
       password: "phone-otp",
-      address: "password",
+      username: "password",
+      address: "username",
       dob: "address",
     };
     const p = prev[step];
@@ -637,6 +664,7 @@ export default function Signup() {
     if (step === "phone") return localPhone.replace(/\D/g, "").length >= 6;
     if (step === "phone-otp") return phoneOtp.length === 6;
     if (step === "password") return password.length >= 8 && password === confirmPassword;
+    if (step === "username") return usernameStatus === "available";
     if (step === "address") return addrStreet.trim().length >= 3 && addrCity.trim().length >= 1 && addrCountry.trim().length >= 1;
     if (step === "dob") return dob.length > 0 && agreedTerms && agreedPrivacy;
     return false;
@@ -648,6 +676,7 @@ export default function Signup() {
     phone: "Send SMS code",
     "phone-otp": "Verify phone",
     password: "Set password",
+    username: "Continue",
     address: "Continue",
     dob: loading ? "Creating account..." : "Create account",
   };
@@ -661,6 +690,7 @@ export default function Signup() {
               {step === "email" || step === "email-otp" ? <Mail className="w-5 h-5 text-white" /> :
                step === "phone" || step === "phone-otp" ? <Phone className="w-5 h-5 text-white" /> :
                step === "password" ? <Lock className="w-5 h-5 text-white" /> :
+               step === "username" ? <AtSign className="w-5 h-5 text-white" /> :
                step === "address" ? <MapPin className="w-5 h-5 text-white" /> :
                <Calendar className="w-5 h-5 text-white" />}
             </div>
@@ -829,6 +859,45 @@ export default function Signup() {
                     </p>
                   </div>
                 )}
+              </div>
+            )}
+
+            {/* Username */}
+            {step === "username" && (
+              <div className="space-y-2">
+                <Label htmlFor="username">Username</Label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm select-none">@</span>
+                  <Input
+                    id="username"
+                    type="text"
+                    autoFocus
+                    autoComplete="username"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value.replace(/\s/g, ""))}
+                    onKeyDown={(e) => e.key === "Enter" && isValid() && handle()}
+                    placeholder="your_username"
+                    className="rounded-xl h-11 bg-background border-border pl-7 pr-10"
+                    maxLength={20}
+                  />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2">
+                    {usernameStatus === "checking" && <Loader2 className="w-4 h-4 text-muted-foreground animate-spin" />}
+                    {usernameStatus === "available" && <Check className="w-4 h-4 text-green-500" />}
+                    {(usernameStatus === "taken" || usernameStatus === "invalid") && <X className="w-4 h-4 text-destructive" />}
+                  </span>
+                </div>
+                <p className={`text-xs ${
+                  usernameStatus === "available" ? "text-green-600" :
+                  usernameStatus === "taken" ? "text-destructive" :
+                  usernameStatus === "invalid" ? "text-destructive" :
+                  "text-muted-foreground"
+                }`}>
+                  {usernameStatus === "idle" && "3–20 characters: letters, numbers, _ or ."}
+                  {usernameStatus === "checking" && "Checking availability..."}
+                  {usernameStatus === "available" && `@${username.trim().toLowerCase()} is available`}
+                  {usernameStatus === "taken" && `@${username.trim().toLowerCase()} is already taken`}
+                  {usernameStatus === "invalid" && "3–20 characters: letters, numbers, _ or ."}
+                </p>
               </div>
             )}
 
