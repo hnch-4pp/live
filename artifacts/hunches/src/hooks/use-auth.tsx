@@ -4,6 +4,7 @@ export interface AuthUser {
   id: number;
   email: string;
   phone: string | null;
+  username: string | null;
   address: string | null;
   dateOfBirth: string | null;
 }

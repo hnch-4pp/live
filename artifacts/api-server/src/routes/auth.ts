@@ -341,7 +341,64 @@ router.get("/auth/me", async (req, res): Promise<void> => {
     res.status(401).json({ error: "Not authenticated" });
     return;
   }
-  res.json({ id: user.id, email: user.email, phone: user.phone, address: user.address, dateOfBirth: user.dateOfBirth });
+  res.json({ id: user.id, email: user.email, phone: user.phone, username: user.username, address: user.address, dateOfBirth: user.dateOfBirth });
+});
+
+router.patch("/auth/me", async (req, res): Promise<void> => {
+  if (!req.session.userId) { res.status(401).json({ error: "Not authenticated" }); return; }
+  const { username, address } = req.body as { username?: string; address?: string };
+
+  const updates: Partial<typeof usersTable.$inferInsert> = {};
+
+  if (username !== undefined) {
+    if (!USERNAME_RE.test(username)) {
+      res.status(400).json({ error: "Username must be 3–20 characters: letters, numbers, _ or ." });
+      return;
+    }
+    const [existing] = await db
+      .select({ id: usersTable.id })
+      .from(usersTable)
+      .where(eq(usersTable.username, username.toLowerCase()))
+      .limit(1);
+    if (existing && existing.id !== req.session.userId) {
+      res.status(409).json({ error: "Username is already taken." });
+      return;
+    }
+    updates.username = username.toLowerCase();
+  }
+
+  if (address !== undefined) {
+    if (address.trim().length < 5) {
+      res.status(400).json({ error: "Please enter a valid address." });
+      return;
+    }
+    updates.address = address.trim();
+  }
+
+  if (Object.keys(updates).length === 0) {
+    res.status(400).json({ error: "Nothing to update." });
+    return;
+  }
+
+  const [updated] = await db
+    .update(usersTable)
+    .set(updates)
+    .where(eq(usersTable.id, req.session.userId))
+    .returning();
+
+  res.json({ id: updated.id, email: updated.email, phone: updated.phone, username: updated.username, address: updated.address, dateOfBirth: updated.dateOfBirth });
+});
+
+router.delete("/auth/me", async (req, res): Promise<void> => {
+  if (!req.session.userId) { res.status(401).json({ error: "Not authenticated" }); return; }
+  const { confirm } = req.body as { confirm?: boolean };
+  if (!confirm) { res.status(400).json({ error: "Confirmation required." }); return; }
+
+  await db.delete(usersTable).where(eq(usersTable.id, req.session.userId));
+  req.session.destroy(() => {
+    res.clearCookie("hunch.sid");
+    res.json({ ok: true });
+  });
 });
 
 router.post("/auth/logout", (req, res): void => {

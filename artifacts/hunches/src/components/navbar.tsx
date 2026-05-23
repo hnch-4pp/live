@@ -1,7 +1,7 @@
 import { Link, useLocation, useSearch } from "wouter";
 import { Button } from "@/components/ui/button";
 import { useEffect, useRef, useState } from "react";
-import { Globe, ChevronDown, Heart, Search, X, Trophy, Music, Film, Clapperboard, TrendingUp, Star, Zap as ZapIcon, Globe2, Heart as HeartIcon, LogOut, User } from "lucide-react";
+import { Globe, ChevronDown, Heart, Search, X, Trophy, Music, Film, Clapperboard, TrendingUp, Star, Zap as ZapIcon, Globe2, Heart as HeartIcon, LogOut, User, Settings } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import i18n from "@/i18n";
 import { useListCategories } from "@workspace/api-client-react";
@@ -144,11 +144,18 @@ function AuthButtons() {
           <div className="absolute top-full mt-2 right-0 w-52 rounded-xl border border-border bg-card shadow-xl shadow-black/10 overflow-hidden z-50">
             <div className="px-4 py-3 border-b border-border">
               <p className="text-xs text-muted-foreground">Signed in as</p>
-              <p className="text-sm font-semibold text-foreground truncate">{user.email}</p>
+              <p className="text-sm font-semibold text-foreground truncate">{user.username ? `@${user.username}` : user.email}</p>
             </div>
             <button
-              onClick={async () => { setMenuOpen(false); await logout(); setLocation("/"); }}
+              onClick={() => { setMenuOpen(false); setLocation("/account"); }}
               className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+            >
+              <Settings className="w-4 h-4" />
+              Account settings
+            </button>
+            <button
+              onClick={async () => { setMenuOpen(false); await logout(); setLocation("/"); }}
+              className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left text-muted-foreground hover:text-foreground hover:bg-muted transition-colors border-t border-border"
             >
               <LogOut className="w-4 h-4" />
               Sign out
