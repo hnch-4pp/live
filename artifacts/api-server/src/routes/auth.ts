@@ -52,9 +52,9 @@ async function sendEmailOtp(email: string, code: string): Promise<void> {
   const response = await connectors.proxy("resend", "/emails", {
     method: "POST",
     body: JSON.stringify({
-      from: "Hunches <no-reply@hunch.fan>",
+      from: "Hunch <no-reply@hunch.fan>",
       to: [email],
-      subject: "Your Hunches verification code",
+      subject: "Your Hunch verification code",
       html: `
         <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px 24px">
           <h2 style="margin:0 0 8px;font-size:22px;color:#1a1a2e">Your verification code</h2>
@@ -69,7 +69,7 @@ async function sendEmailOtp(email: string, code: string): Promise<void> {
           </p>
           <hr style="margin:24px 0;border:none;border-top:1px solid #eee"/>
           <p style="margin:0;color:#aaa;font-size:12px">
-            Hunches — a skill-based prediction platform. No money wagered.
+            Hunch — a skill-based prediction platform. No money wagered.
           </p>
         </div>
       `,
@@ -94,7 +94,7 @@ async function sendPhoneOtp(phone: string, code: string): Promise<void> {
   const body = new URLSearchParams({
     To: phone,
     From: "+15069080313",
-    Body: `Your Hunches verification code is: ${code}. It expires in 10 minutes.`,
+    Body: `Your Hunch verification code is: ${code}. It expires in 10 minutes.`,
   });
 
   const response = await connectors.proxy(

@@ -8,13 +8,13 @@ export default function Responsible() {
           <h1 className="font-display text-primary">Responsible Play</h1>
           
           <p className="text-xl font-medium text-foreground mb-8">
-            While Hunches involves no real money wagering, we believe in promoting a healthy approach to prediction competitions.
+            While Hunch involves no real money wagering, we believe in promoting a healthy approach to prediction competitions.
           </p>
           
           <div className="bg-card border border-border p-6 rounded-lg mb-8">
             <h3 className="text-foreground mt-0">Our Stance on Gambling</h3>
             <p className="mb-0 text-muted-foreground">
-              Hunches is definitively not a gambling platform. You cannot deposit funds, you cannot lose money, and there is no house edge. Prizes are funded through sponsorships and platform revenue, not user losses.
+              Hunch is definitively not a gambling platform. You cannot deposit funds, you cannot lose money, and there is no house edge. Prizes are funded through sponsorships and platform revenue, not user losses.
             </p>
           </div>
           
@@ -28,7 +28,7 @@ export default function Responsible() {
           </ul>
           
           <h2>Taking a Break</h2>
-          <p>If you feel you are spending too much time on Hunches, you can request a temporary or permanent account deactivation. Contact our support team to initiate a self-exclusion period.</p>
+          <p>If you feel you are spending too much time on Hunch, you can request a temporary or permanent account deactivation. Contact our support team to initiate a self-exclusion period.</p>
         </div>
       </div>
     </Layout>

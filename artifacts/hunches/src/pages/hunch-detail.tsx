@@ -51,7 +51,7 @@ export default function HunchDetail() {
 
   const handleShare = async () => {
     const url = window.location.href;
-    const title = hunch?.title ?? "Hunches";
+    const title = hunch?.title ?? "Hunch";
     const text = hunch?.description ?? "";
     if (navigator.share) {
       try {
