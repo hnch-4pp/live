@@ -341,12 +341,12 @@ router.get("/auth/me", async (req, res): Promise<void> => {
     res.status(401).json({ error: "Not authenticated" });
     return;
   }
-  res.json({ id: user.id, email: user.email, phone: user.phone, username: user.username, address: user.address, dateOfBirth: user.dateOfBirth });
+  res.json({ id: user.id, email: user.email, phone: user.phone, username: user.username, address: user.address, dateOfBirth: user.dateOfBirth, avatarUrl: user.avatarUrl });
 });
 
 router.patch("/auth/me", async (req, res): Promise<void> => {
   if (!req.session.userId) { res.status(401).json({ error: "Not authenticated" }); return; }
-  const { username, address } = req.body as { username?: string; address?: string };
+  const { username, address, avatarUrl } = req.body as { username?: string; address?: string; avatarUrl?: string | null };
 
   const updates: Partial<typeof usersTable.$inferInsert> = {};
 
@@ -375,6 +375,10 @@ router.patch("/auth/me", async (req, res): Promise<void> => {
     updates.address = address.trim();
   }
 
+  if (avatarUrl !== undefined) {
+    updates.avatarUrl = avatarUrl;
+  }
+
   if (Object.keys(updates).length === 0) {
     res.status(400).json({ error: "Nothing to update." });
     return;
@@ -386,7 +390,7 @@ router.patch("/auth/me", async (req, res): Promise<void> => {
     .where(eq(usersTable.id, req.session.userId))
     .returning();
 
-  res.json({ id: updated.id, email: updated.email, phone: updated.phone, username: updated.username, address: updated.address, dateOfBirth: updated.dateOfBirth });
+  res.json({ id: updated.id, email: updated.email, phone: updated.phone, username: updated.username, address: updated.address, dateOfBirth: updated.dateOfBirth, avatarUrl: updated.avatarUrl });
 });
 
 router.delete("/auth/me", async (req, res): Promise<void> => {

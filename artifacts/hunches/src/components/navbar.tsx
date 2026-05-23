@@ -128,14 +128,19 @@ function AuthButtons() {
   if (isLoading) return <div className="w-20 h-8 bg-muted rounded-lg animate-pulse" />;
 
   if (user) {
+    const navInitials = (user.username ?? user.email).slice(0, 2).toUpperCase();
     return (
       <div ref={menuRef} className="relative">
         <button
           onClick={() => setMenuOpen((o) => !o)}
           className="flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-muted transition-colors text-sm font-medium text-foreground"
         >
-          <div className="w-7 h-7 rounded-full bg-primary/15 flex items-center justify-center shrink-0">
-            <User className="w-3.5 h-3.5 text-primary" />
+          <div className="w-7 h-7 rounded-full bg-primary/15 flex items-center justify-center shrink-0 overflow-hidden">
+            {user.avatarUrl ? (
+              <img src={`/api/storage${user.avatarUrl}`} alt="avatar" className="w-full h-full object-cover" />
+            ) : (
+              <span className="text-[10px] font-bold text-primary">{navInitials}</span>
+            )}
           </div>
           <span className="hidden sm:block max-w-[120px] truncate">{user.email.split("@")[0]}</span>
           <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" style={{ transform: menuOpen ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 200ms" }} />

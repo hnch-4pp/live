@@ -6,9 +6,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/hooks/use-auth";
 import { AddressAutocomplete } from "@/components/address-autocomplete";
+import { useUpload } from "@workspace/object-storage-web";
 import {
   AtSign, Check, X, Loader2, Mail, Phone, Calendar,
-  MapPin, Lock, Trash2, AlertTriangle, ChevronRight,
+  MapPin, Lock, Trash2, AlertTriangle, ChevronRight, Camera,
 } from "lucide-react";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -54,6 +55,73 @@ function ReadOnlyField({
         {note && <p className="text-xs text-muted-foreground mt-0.5">{note}</p>}
       </div>
       <Lock className="w-3.5 h-3.5 text-border mt-2 shrink-0" />
+    </div>
+  );
+}
+
+// ── Avatar section ─────────────────────────────────────────────────────────────
+
+function AvatarUpload({
+  avatarUrl,
+  initials,
+  onUploaded,
+}: {
+  avatarUrl: string | null;
+  initials: string;
+  onUploaded: (objectPath: string) => void;
+}) {
+  const fileInputRef = useRef<HTMLInputElement | undefined>(undefined);
+  const [preview, setPreview] = useState<string | null>(null);
+
+  const { uploadFile, isUploading } = useUpload({
+    onSuccess: ({ objectPath }) => {
+      onUploaded(objectPath);
+    },
+  });
+
+  const handleFile = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = (e) => setPreview(e.target?.result as string);
+    reader.readAsDataURL(file);
+    uploadFile(file);
+  };
+
+  const imgSrc = preview ?? (avatarUrl ? `/api/storage${avatarUrl}` : null);
+
+  return (
+    <div className="flex items-center gap-4">
+      <div className="relative group">
+        <div className="w-16 h-16 rounded-2xl bg-primary flex items-center justify-center shadow-sm overflow-hidden shrink-0">
+          {imgSrc ? (
+            <img src={imgSrc} alt="avatar" className="w-full h-full object-cover" />
+          ) : (
+            <span className="text-white font-bold text-xl">{initials}</span>
+          )}
+        </div>
+        <button
+          onClick={() => fileInputRef.current?.click()}
+          disabled={isUploading}
+          className="absolute inset-0 rounded-2xl bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+          aria-label="Change avatar"
+        >
+          {isUploading ? (
+            <Loader2 className="w-5 h-5 text-white animate-spin" />
+          ) : (
+            <Camera className="w-5 h-5 text-white" />
+          )}
+        </button>
+        <input
+          ref={fileInputRef as React.RefObject<HTMLInputElement>}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); e.target.value = ""; }}
+        />
+      </div>
+      <div>
+        <p className="text-sm font-medium text-foreground">Profile photo</p>
+        <p className="text-xs text-muted-foreground mt-0.5">Click the photo to upload a new one</p>
+      </div>
     </div>
   );
 }
@@ -383,6 +451,16 @@ export default function Account() {
 
   const initials = (user.username ?? user.email).slice(0, 2).toUpperCase();
 
+  const saveAvatarUrl = async (objectPath: string) => {
+    await fetch("/api/auth/me", {
+      method: "PATCH",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ avatarUrl: objectPath }),
+    });
+    await refetch();
+  };
+
   return (
     <Layout>
       <div className="flex-1 bg-muted/30 py-10 px-4">
@@ -390,9 +468,6 @@ export default function Account() {
 
           {/* Header */}
           <div className="flex items-center gap-4">
-            <div className="w-14 h-14 rounded-2xl bg-primary flex items-center justify-center shadow-sm shrink-0">
-              <span className="text-white font-bold text-lg">{initials}</span>
-            </div>
             <div>
               <h1 className="font-display text-2xl font-bold text-foreground">Account Settings</h1>
               <p className="text-sm text-muted-foreground">{user.email}</p>
@@ -401,11 +476,16 @@ export default function Account() {
 
           {/* Profile */}
           <SectionCard title="Profile">
-            <UsernameSection
-              current={user.username}
-              onSaved={async () => { await refetch(); }}
+            <AvatarUpload
+              avatarUrl={user.avatarUrl}
+              initials={initials}
+              onUploaded={saveAvatarUrl}
             />
-            <div className="pt-1">
+            <div className="border-t border-border pt-4 space-y-4">
+              <UsernameSection
+                current={user.username}
+                onSaved={async () => { await refetch(); }}
+              />
               <ReadOnlyField icon={Mail} label="Email address" value={user.email} note="Contact support to change your email" />
             </div>
           </SectionCard>

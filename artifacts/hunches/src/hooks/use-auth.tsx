@@ -7,6 +7,7 @@ export interface AuthUser {
   username: string | null;
   address: string | null;
   dateOfBirth: string | null;
+  avatarUrl: string | null;
 }
 
 interface AuthContextValue {
