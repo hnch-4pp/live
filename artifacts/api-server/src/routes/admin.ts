@@ -610,6 +610,40 @@ router.post(
   },
 );
 
+router.post(
+  "/admin/ticket-codes/bulk-generate",
+  requireAdmin,
+  requireAdminHeader,
+  async (req, res): Promise<void> => {
+    const { count, scope, bonusTickets, startsAt, expiresAt, instructions, termsAndConditions, isActive } =
+      req.body as Record<string, unknown>;
+
+    const n = Math.min(500, Math.max(1, parseInt(String(count ?? "1"), 10)));
+    if (isNaN(n)) { res.status(400).json({ error: "count must be a number 1–500" }); return; }
+    if (!bonusTickets || Number(bonusTickets) < 1) { res.status(400).json({ error: "bonusTickets must be at least 1" }); return; }
+
+    const codeSet = new Set<string>();
+    while (codeSet.size < n) codeSet.add(generateUniqueCode());
+
+    const rows = await db.insert(ticketCodesTable).values(
+      Array.from(codeSet).map((code) => ({
+        code,
+        codeType: "unique" as const,
+        scope: (scope as "registration" | "general" | "both") ?? "both",
+        bonusTickets: Number(bonusTickets),
+        maxUses: null,
+        startsAt: startsAt ? new Date(String(startsAt)) : null,
+        expiresAt: expiresAt ? new Date(String(expiresAt)) : null,
+        instructions: instructions ? String(instructions) : null,
+        termsAndConditions: termsAndConditions ? String(termsAndConditions) : null,
+        isActive: isActive !== false && isActive !== "false",
+      })),
+    ).returning();
+
+    res.status(201).json({ codes: rows, count: rows.length });
+  },
+);
+
 router.get(
   "/admin/ticket-codes/:id",
   requireAdmin,

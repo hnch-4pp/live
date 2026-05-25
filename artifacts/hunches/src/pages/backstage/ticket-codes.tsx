@@ -1,7 +1,10 @@
 import { useEffect, useState } from "react";
 import { AdminLayout } from "@/components/admin-layout";
 import { useAdminAuth, adminFetch } from "./dashboard";
-import { Ticket, Plus, Pencil, Trash2, RefreshCw, Eye, ChevronDown, ChevronUp } from "lucide-react";
+import {
+  Ticket, Plus, Pencil, Trash2, RefreshCw, Eye,
+  ChevronDown, ChevronUp, Download, Layers,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -33,6 +36,8 @@ interface RedemptionRow {
   context: string;
   redeemedAt: string;
 }
+
+type ModalState = "create" | "edit" | "redemptions" | "bulk-results" | null;
 
 const EMPTY_FORM = {
   code: "",
@@ -79,6 +84,31 @@ function fmtDate(iso: string | null): string {
   return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
+function exportCSV(codes: TicketCodeRow[], filename: string): void {
+  const headers = ["Code", "Bonus Tickets", "Scope", "Status", "Starts At", "Expires At", "Created At"];
+  const rows = codes.map((c) => [
+    c.code,
+    c.bonusTickets,
+    c.scope,
+    c.isActive ? "Active" : "Inactive",
+    c.startsAt ? new Date(c.startsAt).toISOString() : "",
+    c.expiresAt ? new Date(c.expiresAt).toISOString() : "",
+    new Date(c.createdAt).toISOString(),
+  ]);
+  const csv = [headers, ...rows]
+    .map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(","))
+    .join("\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
 // ── Main component ─────────────────────────────────────────────────────────────
 
 export default function AdminTicketCodes() {
@@ -86,7 +116,7 @@ export default function AdminTicketCodes() {
 
   const [codes, setCodes] = useState<TicketCodeRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [modal, setModal] = useState<"create" | "edit" | "redemptions" | null>(null);
+  const [modal, setModal] = useState<ModalState>(null);
   const [selected, setSelected] = useState<TicketCodeRow | null>(null);
   const [redemptions, setRedemptions] = useState<RedemptionRow[]>([]);
   const [redemptionsLoading, setRedemptionsLoading] = useState(false);
@@ -95,6 +125,12 @@ export default function AdminTicketCodes() {
   const [formError, setFormError] = useState("");
   const [generatingCode, setGeneratingCode] = useState(false);
   const [expandedId, setExpandedId] = useState<number | null>(null);
+
+  // Bulk state
+  const [bulkMode, setBulkMode] = useState(false);
+  const [bulkCount, setBulkCount] = useState(50);
+  const [bulkGenerating, setBulkGenerating] = useState(false);
+  const [bulkResults, setBulkResults] = useState<TicketCodeRow[]>([]);
 
   const load = () => {
     setLoading(true);
@@ -110,6 +146,8 @@ export default function AdminTicketCodes() {
     setForm({ ...EMPTY_FORM });
     setFormError("");
     setSelected(null);
+    setBulkMode(false);
+    setBulkCount(50);
     setModal("create");
   };
 
@@ -128,6 +166,7 @@ export default function AdminTicketCodes() {
       isActive: code.isActive,
     });
     setFormError("");
+    setBulkMode(false);
     setModal("edit");
   };
 
@@ -175,7 +214,6 @@ export default function AdminTicketCodes() {
         termsAndConditions: form.termsAndConditions || null,
         isActive: form.isActive,
       };
-
       const url = modal === "edit" && selected ? `/admin/ticket-codes/${selected.id}` : "/admin/ticket-codes";
       const method = modal === "edit" ? "PATCH" : "POST";
       const r = await adminFetch(url, { method, body: JSON.stringify(body) });
@@ -187,6 +225,33 @@ export default function AdminTicketCodes() {
       setFormError("Network error");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const bulkGenerate = async () => {
+    setFormError("");
+    setBulkGenerating(true);
+    try {
+      const body = {
+        count: bulkCount,
+        scope: form.scope,
+        bonusTickets: Number(form.bonusTickets),
+        startsAt: form.startsAt || null,
+        expiresAt: form.expiresAt || null,
+        instructions: form.instructions || null,
+        termsAndConditions: form.termsAndConditions || null,
+        isActive: form.isActive,
+      };
+      const r = await adminFetch("/admin/ticket-codes/bulk-generate", { method: "POST", body: JSON.stringify(body) });
+      const data = await r.json() as { codes?: TicketCodeRow[]; error?: string };
+      if (!r.ok) { setFormError(data.error ?? "Failed to generate codes"); return; }
+      setBulkResults(data.codes ?? []);
+      setModal("bulk-results");
+      load();
+    } catch {
+      setFormError("Network error");
+    } finally {
+      setBulkGenerating(false);
     }
   };
 
@@ -203,6 +268,14 @@ export default function AdminTicketCodes() {
     });
     load();
   };
+
+  const campaignSlug = (() => {
+    const instr = form.instructions.trim();
+    if (instr) {
+      return instr.slice(0, 20).toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "") + "-";
+    }
+    return "";
+  })();
 
   return (
     <AdminLayout>
@@ -360,7 +433,7 @@ export default function AdminTicketCodes() {
         </div>
       </div>
 
-      {/* Create / Edit modal */}
+      {/* ── Create / Edit modal ─────────────────────────────────────────────── */}
       {(modal === "create" || modal === "edit") && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setModal(null)}>
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
@@ -370,36 +443,17 @@ export default function AdminTicketCodes() {
             </div>
             <div className="p-6 space-y-5">
 
-              {/* Code + Generate */}
-              <div className="space-y-1.5">
-                <Label>Code</Label>
-                <div className="flex gap-2">
-                  <Input
-                    value={form.code}
-                    onChange={(e) => setForm((f) => ({ ...f, code: e.target.value.toUpperCase() }))}
-                    placeholder={form.codeType === "unique" ? "Auto-generated" : "NBA2026"}
-                    className="rounded-xl font-mono uppercase"
-                  />
-                  {form.codeType === "unique" && (
-                    <button
-                      onClick={generateCode}
-                      disabled={generatingCode}
-                      className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 transition-colors whitespace-nowrap"
-                    >
-                      <RefreshCw className={`w-3.5 h-3.5 ${generatingCode ? "animate-spin" : ""}`} />
-                      Generate
-                    </button>
-                  )}
-                </div>
-              </div>
-
               {/* Type + Scope */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <Label>Type</Label>
                   <select
                     value={form.codeType}
-                    onChange={(e) => setForm((f) => ({ ...f, codeType: e.target.value as "generic" | "unique" }))}
+                    onChange={(e) => {
+                      const t = e.target.value as "generic" | "unique";
+                      setForm((f) => ({ ...f, codeType: t }));
+                      if (t !== "unique") setBulkMode(false);
+                    }}
                     className="w-full rounded-xl border border-input bg-background h-10 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
                   >
                     <option value="generic">Generic (reusable)</option>
@@ -419,6 +473,72 @@ export default function AdminTicketCodes() {
                   </select>
                 </div>
               </div>
+
+              {/* Bulk toggle — only for unique type on create */}
+              {modal === "create" && form.codeType === "unique" && (
+                <div className={`rounded-xl border-2 transition-colors ${bulkMode ? "border-violet-300 bg-violet-50/50" : "border-gray-200 bg-gray-50/50"}`}>
+                  <button
+                    type="button"
+                    onClick={() => setBulkMode((v) => !v)}
+                    className="w-full flex items-center justify-between px-4 py-3 text-left"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <Layers className={`w-4 h-4 ${bulkMode ? "text-violet-600" : "text-gray-400"}`} />
+                      <div>
+                        <p className={`text-sm font-semibold ${bulkMode ? "text-violet-700" : "text-gray-700"}`}>
+                          Generate a batch of codes
+                        </p>
+                        <p className="text-xs text-gray-400 mt-0.5">Create multiple unique codes for a campaign</p>
+                      </div>
+                    </div>
+                    <div className={`w-9 h-5 rounded-full transition-colors flex items-center px-0.5 ${bulkMode ? "bg-violet-500" : "bg-gray-300"}`}>
+                      <div className={`w-4 h-4 bg-white rounded-full shadow transition-transform ${bulkMode ? "translate-x-4" : "translate-x-0"}`} />
+                    </div>
+                  </button>
+
+                  {bulkMode && (
+                    <div className="px-4 pb-4 border-t border-violet-200/60 pt-3">
+                      <Label className="mb-1.5 block">Number of codes to generate</Label>
+                      <div className="flex items-center gap-3">
+                        <Input
+                          type="number"
+                          min={1}
+                          max={500}
+                          value={bulkCount}
+                          onChange={(e) => setBulkCount(Math.min(500, Math.max(1, parseInt(e.target.value) || 1)))}
+                          className="rounded-xl w-32 font-mono"
+                        />
+                        <span className="text-sm text-gray-500">codes (max 500)</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Single code input — only when not in bulk mode */}
+              {!bulkMode && (
+                <div className="space-y-1.5">
+                  <Label>Code</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      value={form.code}
+                      onChange={(e) => setForm((f) => ({ ...f, code: e.target.value.toUpperCase() }))}
+                      placeholder={form.codeType === "unique" ? "Auto-generated" : "NBA2026"}
+                      className="rounded-xl font-mono uppercase"
+                    />
+                    {form.codeType === "unique" && (
+                      <button
+                        onClick={generateCode}
+                        disabled={generatingCode}
+                        className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 transition-colors whitespace-nowrap"
+                      >
+                        <RefreshCw className={`w-3.5 h-3.5 ${generatingCode ? "animate-spin" : ""}`} />
+                        Generate
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
 
               {/* Bonus + Max uses */}
               <div className="grid grid-cols-2 gap-4">
@@ -510,13 +630,24 @@ export default function AdminTicketCodes() {
               )}
 
               <div className="flex gap-3 pt-1">
-                <Button
-                  onClick={save}
-                  disabled={saving || !form.code.trim()}
-                  className="flex-1 bg-violet-600 hover:bg-violet-700 text-white rounded-xl h-10 font-semibold"
-                >
-                  {saving ? "Saving..." : modal === "create" ? "Create code" : "Save changes"}
-                </Button>
+                {bulkMode ? (
+                  <Button
+                    onClick={bulkGenerate}
+                    disabled={bulkGenerating || bulkCount < 1}
+                    className="flex-1 bg-violet-600 hover:bg-violet-700 text-white rounded-xl h-10 font-semibold flex items-center justify-center gap-2"
+                  >
+                    <Layers className="w-4 h-4" />
+                    {bulkGenerating ? "Generating..." : `Generate ${bulkCount} codes`}
+                  </Button>
+                ) : (
+                  <Button
+                    onClick={save}
+                    disabled={saving || (!bulkMode && !form.code.trim())}
+                    className="flex-1 bg-violet-600 hover:bg-violet-700 text-white rounded-xl h-10 font-semibold"
+                  >
+                    {saving ? "Saving..." : modal === "create" ? "Create code" : "Save changes"}
+                  </Button>
+                )}
                 <Button
                   variant="outline"
                   onClick={() => setModal(null)}
@@ -530,7 +661,77 @@ export default function AdminTicketCodes() {
         </div>
       )}
 
-      {/* Redemptions modal */}
+      {/* ── Bulk results modal ──────────────────────────────────────────────── */}
+      {modal === "bulk-results" && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setModal(null)}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl flex flex-col max-h-[85vh]" onClick={(e) => e.stopPropagation()}>
+            {/* Header */}
+            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
+              <div>
+                <h2 className="font-bold text-gray-900">
+                  {bulkResults.length} unique code{bulkResults.length !== 1 ? "s" : ""} generated
+                </h2>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  {bulkResults[0]?.scope ?? "both"} scope · +{bulkResults[0]?.bonusTickets ?? 0} tickets each ·{" "}
+                  {bulkResults[0]?.isActive ? "Active" : "Inactive"}
+                </p>
+              </div>
+              <button onClick={() => setModal(null)} className="text-gray-400 hover:text-gray-600 text-lg leading-none">&times;</button>
+            </div>
+
+            {/* Code list */}
+            <div className="overflow-y-auto flex-1 min-h-0">
+              <table className="w-full text-sm">
+                <thead className="sticky top-0 bg-gray-50 z-10">
+                  <tr className="text-xs uppercase tracking-wide text-gray-500 border-b border-gray-100">
+                    <th className="px-6 py-2.5 text-left font-semibold">#</th>
+                    <th className="px-6 py-2.5 text-left font-semibold">Code</th>
+                    <th className="px-6 py-2.5 text-left font-semibold">Status</th>
+                    <th className="px-6 py-2.5 text-left font-semibold">Expires</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-50">
+                  {bulkResults.map((c, i) => (
+                    <tr key={c.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-2.5 text-gray-400 text-xs">{i + 1}</td>
+                      <td className="px-6 py-2.5">
+                        <code className="font-mono font-bold text-gray-900 bg-gray-100 px-2 py-0.5 rounded text-xs tracking-wider">{c.code}</code>
+                      </td>
+                      <td className="px-6 py-2.5">
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold ${
+                          c.isActive ? "bg-green-50 text-green-700" : "bg-gray-100 text-gray-500"
+                        }`}>
+                          {c.isActive ? "Active" : "Inactive"}
+                        </span>
+                      </td>
+                      <td className="px-6 py-2.5 text-gray-500 text-xs">{fmtDate(c.expiresAt)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Footer */}
+            <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-between flex-shrink-0 bg-white">
+              <button
+                onClick={() => exportCSV(bulkResults, `ticket-codes-${campaignSlug}${new Date().toISOString().slice(0, 10)}.csv`)}
+                className="flex items-center gap-2 px-4 h-9 rounded-xl border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+              >
+                <Download className="w-4 h-4" />
+                Export CSV
+              </button>
+              <Button
+                onClick={() => setModal(null)}
+                className="bg-violet-600 hover:bg-violet-700 text-white rounded-xl h-9 px-5 font-semibold text-sm"
+              >
+                Done
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Redemptions modal ───────────────────────────────────────────────── */}
       {modal === "redemptions" && selected && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setModal(null)}>
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
