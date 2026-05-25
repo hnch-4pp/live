@@ -7,7 +7,9 @@ import {
   DollarSign, Trophy, Zap, ArrowRight,
 } from "lucide-react";
 import {
-  ResponsiveContainer, BarChart, Bar, Cell, LabelList,
+  ResponsiveContainer,
+  AreaChart, Area,
+  BarChart, Bar, Cell, LabelList,
   CartesianGrid, XAxis, YAxis, Tooltip,
 } from "recharts";
 import { useTranslation } from "react-i18next";
@@ -39,103 +41,231 @@ function getPrizeIcon(type: string) {
   }
 }
 
-function DistributionChart({ options, participantCount }: { options: Hunch["options"]; participantCount: number }) {
+// Gaussian KDE with Silverman's bandwidth rule
+function computeKDE(
+  values: number[],
+  weights: number[],
+  numPoints = 100,
+): { x: number; y: number }[] {
+  const totalW = weights.reduce((s, w) => s + w, 0);
+  if (totalW === 0 || values.length === 0) return [];
+
+  const mean = values.reduce((s, v, i) => s + v * (weights[i] ?? 0), 0) / totalW;
+  const variance =
+    values.reduce((s, v, i) => s + (weights[i] ?? 0) * (v - mean) ** 2, 0) / totalW;
+  const std = Math.sqrt(variance);
+  const h = std > 0 ? 1.06 * std * Math.pow(totalW, -0.2) : 1;
+
+  const lo = Math.min(...values) - h * 3;
+  const hi = Math.max(...values) + h * 3;
+  const step = (hi - lo) / (numPoints - 1);
+
+  const INV_SQRT_2PI = 0.3989422804014327;
+
+  return Array.from({ length: numPoints }, (_, i) => {
+    const x = lo + i * step;
+    let density = 0;
+    for (let j = 0; j < values.length; j++) {
+      const u = (x - (values[j] ?? 0)) / h;
+      density += (weights[j] ?? 0) * INV_SQRT_2PI * Math.exp(-0.5 * u * u);
+    }
+    density /= totalW * h;
+    return { x, y: density };
+  });
+}
+
+function DistributionChart({
+  options,
+  participantCount,
+}: {
+  options: Hunch["options"];
+  participantCount: number;
+}) {
   if (!options || options.length === 0) return null;
 
-  const total = participantCount || 1;
-  const isNumeric = options.every((o) => !isNaN(parseFloat(o.label)));
+  const total = Math.max(participantCount, 1);
+  const isNumeric =
+    options.length >= 2 && options.every((o) => !isNaN(parseFloat(o.label)));
 
-  const withCounts = options.map((o) => ({
-    ...o,
-    count: Math.max(0, Math.round((o.percentage / 100) * total)),
-  }));
+  const fmtX = (n: number) =>
+    Number.isInteger(n) ? String(n) : n.toFixed(1);
 
-  let chartData: { label: string; fullLabel: string; count: number }[];
-
+  // ── Numeric path: KDE area chart ─────────────────────────────────────────
   if (isNumeric) {
-    const parsed = withCounts
-      .map((o) => ({ val: parseFloat(o.label), count: o.count }))
-      .filter((o) => !isNaN(o.val));
+    const vals = options.map((o) => parseFloat(o.label));
+    const weights = options.map((o) =>
+      Math.max(1, Math.round((o.percentage / 100) * total)),
+    );
 
-    if (parsed.length === 0) return null;
+    const kdePoints = computeKDE(vals, weights);
+    if (kdePoints.length === 0) return null;
 
-    const vals = parsed.map((o) => o.val);
-    const min = Math.min(...vals);
-    const max = Math.max(...vals);
-    const numBins = min === max ? 1 : Math.min(10, Math.max(4, Math.ceil(Math.sqrt(total))));
-    const binWidth = min === max ? 1 : (max - min) / numBins;
+    const maxDensity = Math.max(...kdePoints.map((p) => p.y), 1e-12);
+    const chartData = kdePoints.map((p) => ({
+      x: parseFloat(p.x.toFixed(3)),
+      y: parseFloat((p.y / maxDensity).toFixed(4)),
+    }));
 
-    chartData = Array.from({ length: numBins }, (_, i) => {
-      const lo = min + i * binWidth;
-      const hi = lo + binWidth;
-      const isLast = i === numBins - 1;
-      const count = parsed
-        .filter((o) => isLast ? o.val >= lo && o.val <= hi : o.val >= lo && o.val < hi)
-        .reduce((s, o) => s + o.count, 0);
-      const fmt = (n: number) => Number.isInteger(n) ? String(n) : n.toFixed(1);
-      return { label: fmt(lo), fullLabel: numBins === 1 ? fmt(lo) : `${fmt(lo)} – ${fmt(hi)}`, count };
-    });
-  } else {
-    chartData = withCounts
-      .slice()
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 5)
-      .map((o) => ({
-        label: o.label.length > 12 ? o.label.slice(0, 11) + "…" : o.label,
-        fullLabel: o.label,
-        count: o.count,
-      }));
+    const xMin = Math.min(...vals);
+    const xMax = Math.max(...vals);
+    const xMid = (xMin + xMax) / 2;
+
+    const nearestLabel = (target: number) =>
+      fmtX(vals.reduce((a, b) => (Math.abs(b - target) < Math.abs(a - target) ? b : a)));
+
+    return (
+      <ResponsiveContainer width="100%" height={300}>
+        <AreaChart
+          data={chartData}
+          margin={{ top: 12, right: 6, left: -44, bottom: 0 }}
+        >
+          <defs>
+            <linearGradient id="kdeGreen" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%"   stopColor="#a3e635" stopOpacity={0.55} />
+              <stop offset="60%"  stopColor="#4d7c0f" stopOpacity={0.18} />
+              <stop offset="100%" stopColor="#a3e635" stopOpacity={0.00} />
+            </linearGradient>
+          </defs>
+          <CartesianGrid
+            vertical={false}
+            stroke="rgba(255,255,255,0.07)"
+            strokeDasharray="0"
+          />
+          <XAxis
+            dataKey="x"
+            type="number"
+            domain={["dataMin", "dataMax"]}
+            ticks={[xMin, xMid, xMax]}
+            tickFormatter={nearestLabel}
+            tick={{ fontSize: 11, fill: "rgba(255,255,255,0.45)", fontWeight: 500 }}
+            tickLine={false}
+            axisLine={{ stroke: "rgba(255,255,255,0.12)" }}
+          />
+          <YAxis hide domain={[0, 1.15]} />
+          <Tooltip
+            cursor={{
+              stroke: "rgba(163,230,53,0.4)",
+              strokeWidth: 1,
+              strokeDasharray: "4 3",
+            }}
+            content={({ active, payload }) => {
+              if (!active || !payload?.length) return null;
+              const d = payload[0]?.payload as { x: number; y: number };
+              const nearest = vals.reduce((a, b) =>
+                Math.abs(b - d.x) < Math.abs(a - d.x) ? b : a,
+              );
+              const opt = options.find((o) => parseFloat(o.label) === nearest);
+              return (
+                <div className="bg-black/85 border border-lime-400/30 backdrop-blur-sm rounded-xl px-3 py-2 text-sm shadow-xl">
+                  <p className="font-bold text-lime-400">{fmtX(d.x)}</p>
+                  {opt && (
+                    <p className="text-white/60 text-xs mt-0.5">
+                      {opt.percentage}% of predictions
+                    </p>
+                  )}
+                </div>
+              );
+            }}
+          />
+          <Area
+            type="monotone"
+            dataKey="y"
+            stroke="#a3e635"
+            strokeWidth={2.5}
+            fill="url(#kdeGreen)"
+            dot={false}
+            activeDot={{
+              r: 5,
+              fill: "#a3e635",
+              stroke: "rgba(0,0,0,0.6)",
+              strokeWidth: 2,
+            }}
+            isAnimationActive
+            animationDuration={900}
+            animationEasing="ease-out"
+          />
+        </AreaChart>
+      </ResponsiveContainer>
+    );
   }
+
+  // ── Categorical fallback: green bars ─────────────────────────────────────
+  const chartData = options
+    .slice()
+    .sort((a, b) => b.percentage - a.percentage)
+    .slice(0, 6)
+    .map((o) => ({
+      label: o.label.length > 13 ? o.label.slice(0, 12) + "…" : o.label,
+      fullLabel: o.label,
+      count: Math.max(0, Math.round((o.percentage / 100) * total)),
+      pct: o.percentage,
+    }));
 
   const maxCount = Math.max(...chartData.map((d) => d.count), 1);
 
   return (
-    <ResponsiveContainer width="100%" height={160}>
+    <ResponsiveContainer width="100%" height={300}>
       <BarChart
         data={chartData}
-        margin={{ top: 20, right: 4, left: -28, bottom: 4 }}
-        barCategoryGap={isNumeric ? "0%" : "10%"}
+        margin={{ top: 20, right: 6, left: -36, bottom: 4 }}
+        barCategoryGap="14%"
       >
-        <CartesianGrid vertical={false} stroke="rgba(255,255,255,0.12)" strokeDasharray="4 4" />
+        <defs>
+          <linearGradient id="barGreen" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%"   stopColor="#a3e635" stopOpacity={1}   />
+            <stop offset="100%" stopColor="#4d7c0f" stopOpacity={0.5} />
+          </linearGradient>
+        </defs>
+        <CartesianGrid
+          vertical={false}
+          stroke="rgba(255,255,255,0.07)"
+          strokeDasharray="0"
+        />
         <XAxis
           dataKey="label"
-          tick={isNumeric
-            ? { fontSize: 10, fill: "rgba(255,255,255,0.55)", fontWeight: 500 }
-            : false}
+          tick={false}
           tickLine={false}
-          axisLine={false}
-          interval={0}
+          axisLine={{ stroke: "rgba(255,255,255,0.12)" }}
         />
-        <YAxis
-          allowDecimals={false}
-          tick={{ fontSize: 10, fill: "rgba(255,255,255,0.45)" }}
-          tickLine={false}
-          axisLine={false}
-          domain={[0, Math.ceil(maxCount * 1.2)]}
-        />
+        <YAxis hide />
         <Tooltip
-          cursor={{ fill: "rgba(255,255,255,0.06)" }}
+          cursor={{ fill: "rgba(255,255,255,0.05)" }}
           content={({ active, payload }) => {
             if (!active || !payload?.length) return null;
-            const d = payload[0]?.payload as { fullLabel: string; count: number };
+            const d = payload[0]?.payload as {
+              fullLabel: string;
+              count: number;
+              pct: number;
+            };
             return (
-              <div className="bg-black/80 border border-white/20 backdrop-blur-sm rounded-xl px-3 py-2 text-sm shadow-xl">
-                <p className="font-semibold text-white max-w-[180px]">{d.fullLabel}</p>
-                <p className="text-violet-300 font-bold mt-0.5">{d.count} prediction{d.count !== 1 ? "s" : ""}</p>
+              <div className="bg-black/85 border border-lime-400/30 backdrop-blur-sm rounded-xl px-3 py-2 text-sm shadow-xl">
+                <p className="font-semibold text-white max-w-[200px]">
+                  {d.fullLabel}
+                </p>
+                <p className="text-lime-400 font-bold mt-0.5">
+                  {d.pct}% — {d.count.toLocaleString()} predictions
+                </p>
               </div>
             );
           }}
         />
-        <Bar dataKey="count" radius={isNumeric ? [2, 2, 0, 0] : [4, 4, 0, 0]} maxBarSize={isNumeric ? undefined : 40}>
+        <Bar dataKey="count" radius={[5, 5, 0, 0]} maxBarSize={60}>
           <LabelList
-            dataKey="count"
+            dataKey="pct"
             position="top"
-            style={{ fontSize: 10, fontWeight: 600, fill: "rgba(255,255,255,0.55)" }}
+            formatter={(v: number) => `${v}%`}
+            style={{ fontSize: 11, fontWeight: 700, fill: "rgba(163,230,53,0.8)" }}
           />
           {chartData.map((d, i) => {
             const ratio = maxCount > 0 ? d.count / maxCount : 0;
-            const opacity = 0.25 + ratio * 0.75;
-            return <Cell key={i} fill={`rgba(167,139,250,${opacity.toFixed(2)})`} stroke="none" />;
+            const opacity = 0.3 + ratio * 0.7;
+            return (
+              <Cell
+                key={i}
+                fill={`rgba(163,230,53,${opacity.toFixed(2)})`}
+                stroke="none"
+              />
+            );
           })}
         </Bar>
       </BarChart>
@@ -197,7 +327,7 @@ export function TrendingHero({ hunches }: TrendingHeroProps) {
   return (
     <section
       className="relative w-full overflow-hidden"
-      style={{ height: "clamp(420px, 55vh, 600px)" }}
+      style={{ height: "clamp(580px, 72vh, 820px)" }}
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
     >
@@ -288,9 +418,9 @@ export function TrendingHero({ hunches }: TrendingHeroProps) {
 
           {/* Right — distribution chart */}
           {hasOptions && (
-            <div className="hidden md:flex flex-col justify-end w-80 shrink-0">
-              <p className="text-white/50 text-[11px] font-semibold uppercase tracking-wider mb-2">Predictions distribution</p>
-              <p className="text-white/30 text-[10px] mb-1">{hunch.participantCount.toLocaleString()} prediction{hunch.participantCount !== 1 ? "s" : ""} so far</p>
+            <div className="hidden md:flex flex-col justify-end w-[420px] shrink-0">
+              <p className="text-white/50 text-[11px] font-semibold uppercase tracking-wider mb-1">Predictions distribution</p>
+              <p className="text-white/30 text-[10px] mb-2">{hunch.participantCount.toLocaleString()} prediction{hunch.participantCount !== 1 ? "s" : ""} so far</p>
               <DistributionChart options={hunch.options} participantCount={hunch.participantCount} />
             </div>
           )}
