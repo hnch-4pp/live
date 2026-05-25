@@ -110,6 +110,26 @@ function LanguageSelector() {
   );
 }
 
+function TicketCounter() {
+  const { user } = useAuth();
+  const [, setLocation] = useLocation();
+
+  if (!user) return null;
+
+  return (
+    <button
+      onClick={() => setLocation("/tickets")}
+      className="relative flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gradient-to-r from-primary to-violet-500 text-white shadow-md shadow-primary/30 hover:shadow-primary/50 hover:scale-105 active:scale-95 transition-all duration-150 font-semibold text-sm select-none"
+      title="My tickets"
+    >
+      <Ticket className="w-3.5 h-3.5 shrink-0" />
+      <span className="tabular-nums">{user.tickets}</span>
+      {/* Subtle shimmer pulse */}
+      <span className="absolute inset-0 rounded-full bg-white/20 animate-pulse opacity-0 hover:opacity-100 transition-opacity" />
+    </button>
+  );
+}
+
 function AuthButtons() {
   const { t } = useTranslation();
   const { user, isLoading, logout } = useAuth();
@@ -257,6 +277,7 @@ export function Navbar() {
 
         <div className="flex items-center gap-2">
           <LanguageSelector />
+          <TicketCounter />
           <AuthButtons />
         </div>
       </div>
