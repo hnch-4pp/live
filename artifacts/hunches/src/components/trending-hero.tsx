@@ -332,7 +332,7 @@ export function TrendingHero({ hunches }: TrendingHeroProps) {
   return (
     <section
       className="relative w-full overflow-hidden"
-      style={{ height: "clamp(580px, 72vh, 820px)" }}
+      style={{ height: "clamp(350px, 43vh, 490px)" }}
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
     >
