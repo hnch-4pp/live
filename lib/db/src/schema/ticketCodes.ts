@@ -1,5 +1,6 @@
 import { pgTable, serial, text, integer, boolean, timestamp, pgEnum, unique } from "drizzle-orm/pg-core";
 import { usersTable } from "./users";
+import { campaignsTable } from "./campaigns";
 
 export const ticketCodeTypeEnum = pgEnum("ticket_code_type", ["generic", "unique"]);
 export const ticketCodeScopeEnum = pgEnum("ticket_code_scope", ["registration", "general", "both"]);
@@ -7,6 +8,7 @@ export const redemptionContextEnum = pgEnum("redemption_context", ["registration
 
 export const ticketCodesTable = pgTable("ticket_codes", {
   id: serial("id").primaryKey(),
+  campaignId: integer("campaign_id").references(() => campaignsTable.id, { onDelete: "set null" }),
   code: text("code").unique().notNull(),
   codeType: ticketCodeTypeEnum("code_type").notNull(),
   scope: ticketCodeScopeEnum("scope").notNull().default("both"),

@@ -11,6 +11,7 @@ import {
   usersTable,
   ticketCodesTable,
   ticketCodeRedemptionsTable,
+  campaignsTable,
 } from "@workspace/db";
 import { eq, or, ilike, sql, desc, and } from "drizzle-orm";
 
@@ -537,6 +538,89 @@ router.delete(
   },
 );
 
+// ── Campaigns ──────────────────────────────────────────────────────────────
+
+router.get("/admin/campaigns", requireAdmin, requireAdminHeader, async (_req, res): Promise<void> => {
+  const rows = await db
+    .select({
+      id: campaignsTable.id,
+      name: campaignsTable.name,
+      createdAt: campaignsTable.createdAt,
+      codeCount: sql<number>`cast(count(${ticketCodesTable.id}) as int)`,
+      activeCount: sql<number>`cast(count(case when ${ticketCodesTable.isActive} then 1 end) as int)`,
+      redemptionCount: sql<number>`cast(coalesce(sum(${ticketCodesTable.currentUses}), 0) as int)`,
+    })
+    .from(campaignsTable)
+    .leftJoin(ticketCodesTable, eq(ticketCodesTable.campaignId, campaignsTable.id))
+    .groupBy(campaignsTable.id, campaignsTable.name, campaignsTable.createdAt)
+    .orderBy(desc(campaignsTable.createdAt));
+  res.json(rows);
+});
+
+router.post("/admin/campaigns", requireAdmin, requireAdminHeader, async (req, res): Promise<void> => {
+  const { name } = req.body as { name?: string };
+  if (!name?.trim()) { res.status(400).json({ error: "Campaign name required" }); return; }
+  try {
+    const [row] = await db.insert(campaignsTable).values({ name: name.trim() }).returning();
+    res.status(201).json(row);
+  } catch {
+    res.status(409).json({ error: "A campaign with that name already exists" });
+  }
+});
+
+router.patch("/admin/campaigns/:id", requireAdmin, requireAdminHeader, async (req, res): Promise<void> => {
+  const id = parseInt(String(req.params["id"] ?? "0"), 10);
+  if (!id) { res.status(400).json({ error: "Invalid ID" }); return; }
+
+  const body = req.body as Record<string, unknown>;
+
+  if (body["name"]) {
+    await db.update(campaignsTable).set({ name: String(body["name"]).trim() }).where(eq(campaignsTable.id, id));
+  }
+
+  const codeUpdates: Record<string, unknown> = { updatedAt: new Date() };
+  if ("isActive" in body) codeUpdates["isActive"] = body["isActive"] === true || body["isActive"] === "true";
+  if ("scope" in body) codeUpdates["scope"] = body["scope"];
+  if ("bonusTickets" in body) codeUpdates["bonusTickets"] = Number(body["bonusTickets"]);
+  if ("startsAt" in body) codeUpdates["startsAt"] = body["startsAt"] ? new Date(String(body["startsAt"])) : null;
+  if ("expiresAt" in body) codeUpdates["expiresAt"] = body["expiresAt"] ? new Date(String(body["expiresAt"])) : null;
+  if ("instructions" in body) codeUpdates["instructions"] = body["instructions"] ? String(body["instructions"]) : null;
+  if ("termsAndConditions" in body) codeUpdates["termsAndConditions"] = body["termsAndConditions"] ? String(body["termsAndConditions"]) : null;
+
+  if (Object.keys(codeUpdates).length > 1) {
+    await db.update(ticketCodesTable).set(codeUpdates).where(eq(ticketCodesTable.campaignId, id));
+  }
+
+  const [updated] = await db.select().from(campaignsTable).where(eq(campaignsTable.id, id));
+  res.json(updated);
+});
+
+router.delete("/admin/campaigns/:id", requireAdmin, requireAdminHeader, async (req, res): Promise<void> => {
+  const id = parseInt(String(req.params["id"] ?? "0"), 10);
+  if (!id) { res.status(400).json({ error: "Invalid ID" }); return; }
+  const codes = await db.select({ id: ticketCodesTable.id }).from(ticketCodesTable).where(eq(ticketCodesTable.campaignId, id));
+  for (const c of codes) {
+    await db.delete(ticketCodeRedemptionsTable).where(eq(ticketCodeRedemptionsTable.ticketCodeId, c.id));
+  }
+  await db.delete(ticketCodesTable).where(eq(ticketCodesTable.campaignId, id));
+  await db.delete(campaignsTable).where(eq(campaignsTable.id, id));
+  res.json({ ok: true });
+});
+
+router.get("/admin/campaigns/:id/codes", requireAdmin, requireAdminHeader, async (req, res): Promise<void> => {
+  const id = parseInt(String(req.params["id"] ?? "0"), 10);
+  if (!id) { res.status(400).json({ error: "Invalid ID" }); return; }
+  const codes = await db.select().from(ticketCodesTable).where(eq(ticketCodesTable.campaignId, id)).orderBy(ticketCodesTable.createdAt);
+  res.json(codes);
+});
+
+router.get("/admin/ticket-codes/uncategorized", requireAdmin, requireAdminHeader, async (_req, res): Promise<void> => {
+  const codes = await db.select().from(ticketCodesTable)
+    .where(sql`${ticketCodesTable.campaignId} is null`)
+    .orderBy(desc(ticketCodesTable.createdAt));
+  res.json(codes);
+});
+
 // ── Ticket Codes ───────────────────────────────────────────────────────────
 
 function generateUniqueCode(): string {
@@ -578,7 +662,7 @@ router.post(
   async (req, res): Promise<void> => {
     const {
       code, codeType, scope, bonusTickets, maxUses,
-      startsAt, expiresAt, instructions, termsAndConditions, isActive,
+      startsAt, expiresAt, instructions, termsAndConditions, isActive, campaignId,
     } = req.body as Record<string, unknown>;
 
     if (!code || typeof code !== "string" || code.trim().length === 0) {
@@ -594,6 +678,7 @@ router.post(
     const [row] = await db
       .insert(ticketCodesTable)
       .values({
+        campaignId: campaignId != null ? Number(campaignId) : null,
         code: String(code).trim().toUpperCase(),
         codeType: codeType as "generic" | "unique",
         scope: (scope as "registration" | "general" | "both") ?? "both",
@@ -615,7 +700,7 @@ router.post(
   requireAdmin,
   requireAdminHeader,
   async (req, res): Promise<void> => {
-    const { count, scope, bonusTickets, startsAt, expiresAt, instructions, termsAndConditions, isActive } =
+    const { count, scope, bonusTickets, startsAt, expiresAt, instructions, termsAndConditions, isActive, campaignId } =
       req.body as Record<string, unknown>;
 
     const n = Math.min(500, Math.max(1, parseInt(String(count ?? "1"), 10)));
@@ -627,6 +712,7 @@ router.post(
 
     const rows = await db.insert(ticketCodesTable).values(
       Array.from(codeSet).map((code) => ({
+        campaignId: campaignId != null ? Number(campaignId) : null,
         code,
         codeType: "unique" as const,
         scope: (scope as "registration" | "general" | "both") ?? "both",

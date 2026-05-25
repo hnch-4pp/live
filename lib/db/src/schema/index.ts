@@ -7,5 +7,6 @@ export * from "./translations";
 export * from "./hunchPrizeTiers";
 export * from "./users";
 export * from "./otps";
+export * from "./campaigns";
 export * from "./ticketCodes";
 export * from "./ticketTransactions";
