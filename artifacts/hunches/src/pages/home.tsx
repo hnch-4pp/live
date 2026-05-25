@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useLocation, useSearch } from "wouter";
 import { Layout } from "@/components/layout";
 import { HunchCard } from "@/components/hunch-card";
@@ -29,7 +30,11 @@ export default function Home() {
   const qParam = searchParams.get("q") || undefined;
 
   const { data: stats, isLoading: statsLoading } = useGetHunchStats();
-  const { data: featuredHunches, isLoading: featuredLoading } = useGetFeaturedHunches({ lang });
+  const { data: featuredHunches, isLoading: featuredLoading, refetch: refetchFeatured } = useGetFeaturedHunches({ lang });
+  useEffect(() => {
+    const id = setInterval(() => { void refetchFeatured(); }, 30_000);
+    return () => clearInterval(id);
+  }, [refetchFeatured]);
   const { data: categories, isLoading: categoriesLoading } = useListCategories();
   const { data: hunchesData, isLoading: hunchesLoading } = useListHunches({
     category: categoryParam || undefined,

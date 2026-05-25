@@ -6,7 +6,10 @@ import {
   ChevronLeft, ChevronRight, Users, Clock, Gift, Award,
   DollarSign, Trophy, Zap, ArrowRight,
 } from "lucide-react";
-import { ResponsiveContainer, BarChart, Bar, Cell, LabelList } from "recharts";
+import {
+  ResponsiveContainer, BarChart, Bar, Cell, LabelList,
+  CartesianGrid, XAxis, YAxis, Tooltip,
+} from "recharts";
 import { useTranslation } from "react-i18next";
 import type { Hunch } from "@workspace/api-client-react";
 
@@ -36,41 +39,107 @@ function getPrizeIcon(type: string) {
   }
 }
 
-function MiniChart({ options }: { options: Hunch["options"] }) {
+function DistributionChart({ options, participantCount }: { options: Hunch["options"]; participantCount: number }) {
   if (!options || options.length === 0) return null;
 
-  const sorted = [...options]
-    .filter((o) => o.percentage > 0)
-    .sort((a, b) => b.percentage - a.percentage)
-    .slice(0, 5);
+  const total = participantCount || 1;
+  const isNumeric = options.every((o) => !isNaN(parseFloat(o.label)));
 
-  if (sorted.length === 0) return null;
-
-  const data = sorted.map((o) => ({
-    label: o.label.length > 18 ? o.label.slice(0, 16) + "…" : o.label,
-    value: o.percentage,
+  const withCounts = options.map((o) => ({
+    ...o,
+    count: Math.max(0, Math.round((o.percentage / 100) * total)),
   }));
 
+  let chartData: { label: string; fullLabel: string; count: number }[];
+
+  if (isNumeric) {
+    const parsed = withCounts
+      .map((o) => ({ val: parseFloat(o.label), count: o.count }))
+      .filter((o) => !isNaN(o.val));
+
+    if (parsed.length === 0) return null;
+
+    const vals = parsed.map((o) => o.val);
+    const min = Math.min(...vals);
+    const max = Math.max(...vals);
+    const numBins = min === max ? 1 : Math.min(10, Math.max(4, Math.ceil(Math.sqrt(total))));
+    const binWidth = min === max ? 1 : (max - min) / numBins;
+
+    chartData = Array.from({ length: numBins }, (_, i) => {
+      const lo = min + i * binWidth;
+      const hi = lo + binWidth;
+      const isLast = i === numBins - 1;
+      const count = parsed
+        .filter((o) => isLast ? o.val >= lo && o.val <= hi : o.val >= lo && o.val < hi)
+        .reduce((s, o) => s + o.count, 0);
+      const fmt = (n: number) => Number.isInteger(n) ? String(n) : n.toFixed(1);
+      return { label: fmt(lo), fullLabel: numBins === 1 ? fmt(lo) : `${fmt(lo)} – ${fmt(hi)}`, count };
+    });
+  } else {
+    chartData = withCounts
+      .slice()
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5)
+      .map((o) => ({
+        label: o.label.length > 12 ? o.label.slice(0, 11) + "…" : o.label,
+        fullLabel: o.label,
+        count: o.count,
+      }));
+  }
+
+  const maxCount = Math.max(...chartData.map((d) => d.count), 1);
+
   return (
-    <div className="w-full">
-      <div className="space-y-2">
-        {data.map((item, i) => (
-          <div key={i} className="flex items-center gap-2">
-            <span className="text-white/70 text-xs w-28 truncate shrink-0 leading-tight">{item.label}</span>
-            <div className="flex-1 bg-white/15 rounded-full h-2 overflow-hidden">
-              <div
-                className="h-2 rounded-full transition-all duration-700"
-                style={{
-                  width: `${item.value}%`,
-                  backgroundColor: CHART_COLORS[i] ?? CHART_COLORS[0],
-                }}
-              />
-            </div>
-            <span className="text-white font-bold text-xs w-9 text-right shrink-0">{item.value}%</span>
-          </div>
-        ))}
-      </div>
-    </div>
+    <ResponsiveContainer width="100%" height={160}>
+      <BarChart
+        data={chartData}
+        margin={{ top: 20, right: 4, left: -28, bottom: 4 }}
+        barCategoryGap={isNumeric ? "0%" : "10%"}
+      >
+        <CartesianGrid vertical={false} stroke="rgba(255,255,255,0.12)" strokeDasharray="4 4" />
+        <XAxis
+          dataKey="label"
+          tick={isNumeric
+            ? { fontSize: 10, fill: "rgba(255,255,255,0.55)", fontWeight: 500 }
+            : false}
+          tickLine={false}
+          axisLine={false}
+          interval={0}
+        />
+        <YAxis
+          allowDecimals={false}
+          tick={{ fontSize: 10, fill: "rgba(255,255,255,0.45)" }}
+          tickLine={false}
+          axisLine={false}
+          domain={[0, Math.ceil(maxCount * 1.2)]}
+        />
+        <Tooltip
+          cursor={{ fill: "rgba(255,255,255,0.06)" }}
+          content={({ active, payload }) => {
+            if (!active || !payload?.length) return null;
+            const d = payload[0]?.payload as { fullLabel: string; count: number };
+            return (
+              <div className="bg-black/80 border border-white/20 backdrop-blur-sm rounded-xl px-3 py-2 text-sm shadow-xl">
+                <p className="font-semibold text-white max-w-[180px]">{d.fullLabel}</p>
+                <p className="text-violet-300 font-bold mt-0.5">{d.count} prediction{d.count !== 1 ? "s" : ""}</p>
+              </div>
+            );
+          }}
+        />
+        <Bar dataKey="count" radius={isNumeric ? [2, 2, 0, 0] : [4, 4, 0, 0]} maxBarSize={isNumeric ? undefined : 40}>
+          <LabelList
+            dataKey="count"
+            position="top"
+            style={{ fontSize: 10, fontWeight: 600, fill: "rgba(255,255,255,0.55)" }}
+          />
+          {chartData.map((d, i) => {
+            const ratio = maxCount > 0 ? d.count / maxCount : 0;
+            const opacity = 0.25 + ratio * 0.75;
+            return <Cell key={i} fill={`rgba(167,139,250,${opacity.toFixed(2)})`} stroke="none" />;
+          })}
+        </Bar>
+      </BarChart>
+    </ResponsiveContainer>
   );
 }
 
@@ -217,11 +286,12 @@ export function TrendingHero({ hunches }: TrendingHeroProps) {
             </Link>
           </div>
 
-          {/* Right — prediction chart */}
+          {/* Right — distribution chart */}
           {hasOptions && (
-            <div className="hidden md:flex flex-col justify-end w-72 shrink-0">
-              <p className="text-white/50 text-[11px] font-semibold uppercase tracking-wider mb-3">Community predictions</p>
-              <MiniChart options={hunch.options} />
+            <div className="hidden md:flex flex-col justify-end w-80 shrink-0">
+              <p className="text-white/50 text-[11px] font-semibold uppercase tracking-wider mb-2">Predictions distribution</p>
+              <p className="text-white/30 text-[10px] mb-1">{hunch.participantCount.toLocaleString()} prediction{hunch.participantCount !== 1 ? "s" : ""} so far</p>
+              <DistributionChart options={hunch.options} participantCount={hunch.participantCount} />
             </div>
           )}
         </div>
