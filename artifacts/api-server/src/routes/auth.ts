@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { eq, and, gt, isNull } from "drizzle-orm";
 import { db } from "@workspace/db";
-import { usersTable, otpsTable, ticketCodesTable, ticketCodeRedemptionsTable } from "@workspace/db";
+import { usersTable, otpsTable, ticketCodesTable, ticketCodeRedemptionsTable, ticketTransactionsTable } from "@workspace/db";
 import { ReplitConnectors } from "@replit/connectors-sdk";
 import bcrypt from "bcryptjs";
 
@@ -276,6 +276,13 @@ router.post("/auth/signup/complete", async (req, res): Promise<void> => {
     })
     .returning();
 
+  await db.insert(ticketTransactionsTable).values({
+    userId: user.id,
+    type: "welcome",
+    amount: 3,
+    label: "Welcome bonus",
+  });
+
   req.session.pendingSignup = undefined;
   req.session.userId = user.id;
   res.json({ ok: true, user: { id: user.id, email: user.email } });
@@ -508,7 +515,27 @@ router.post("/auth/ticket-codes/redeem", async (req, res): Promise<void> => {
     .where(eq(usersTable.id, req.session.userId))
     .returning({ tickets: usersTable.tickets });
 
+  await db.insert(ticketTransactionsTable).values({
+    userId: req.session.userId,
+    type: "promo",
+    amount: row.bonusTickets,
+    label: `Promo code: ${row.code}`,
+    reference: row.code,
+  });
+
   res.json({ ok: true, ticketsGranted: row.bonusTickets, newTotal: updated?.tickets ?? null });
+});
+
+// ── Ticket activity ─────────────────────────────────────────────────────────
+
+router.get("/auth/tickets/activity", async (req, res): Promise<void> => {
+  if (!req.session.userId) { res.status(401).json({ error: "Not authenticated" }); return; }
+  const rows = await db
+    .select()
+    .from(ticketTransactionsTable)
+    .where(eq(ticketTransactionsTable.userId, req.session.userId))
+    .orderBy(ticketTransactionsTable.createdAt);
+  res.json(rows);
 });
 
 export default router;

@@ -8,3 +8,4 @@ export * from "./hunchPrizeTiers";
 export * from "./users";
 export * from "./otps";
 export * from "./ticketCodes";
+export * from "./ticketTransactions";
