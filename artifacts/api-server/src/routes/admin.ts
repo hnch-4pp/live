@@ -12,6 +12,7 @@ import {
   ticketCodesTable,
   ticketCodeRedemptionsTable,
   campaignsTable,
+  predictionsTable,
 } from "@workspace/db";
 import { eq, or, ilike, sql, desc, and } from "drizzle-orm";
 
@@ -533,6 +534,8 @@ router.delete(
     if (!id) { res.status(400).json({ error: "Invalid ID" }); return; }
     const [user] = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.id, id)).limit(1);
     if (!user) { res.status(404).json({ error: "User not found" }); return; }
+    // predictions has NO ACTION FK — must delete before user
+    await db.delete(predictionsTable).where(eq(predictionsTable.userId, id));
     await db.delete(usersTable).where(eq(usersTable.id, id));
     res.json({ ok: true });
   },
