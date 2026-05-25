@@ -77,13 +77,13 @@ export function HunchCard({ hunch, featured = false }: HunchCardProps) {
   const gradient = CATEGORY_GRADIENTS[categorySlug] ?? "from-slate-900/80 to-slate-700/60";
   const imgSrc = hunch.imageUrl || CATEGORY_PLACEHOLDER[categorySlug] || CATEGORY_PLACEHOLDER.sports;
 
-  const isEnding = hunch.status === "open" && isPast(new Date(hunch.endsAt));
-  const statusKey = isEnding ? "ending" : hunch.status;
+  const isExpired = isPast(new Date(hunch.endsAt));
+  const effectiveStatus = (hunch.status === "open" && isExpired) ? "closed" : hunch.status;
+  const statusKey = effectiveStatus;
 
   const statusLabel = (() => {
-    if (isEnding)                   return t("status_ending");
-    if (hunch.status === "closed")  return t("status_closed");
-    if (hunch.status === "resolved") return t("status_resolved");
+    if (effectiveStatus === "closed")   return t("status_closed");
+    if (effectiveStatus === "resolved") return t("status_resolved");
     return t("status_open");
   })();
 
@@ -93,7 +93,7 @@ export function HunchCard({ hunch, featured = false }: HunchCardProps) {
 
   const imgHeight = featured ? "h-56" : "h-44";
 
-  const timeLeft = hunch.status === "open" && !isEnding
+  const timeLeft = effectiveStatus === "open"
     ? t("time_left", {
         time: formatDistanceToNow(new Date(hunch.endsAt), { locale: dateFnsLocale }),
       })

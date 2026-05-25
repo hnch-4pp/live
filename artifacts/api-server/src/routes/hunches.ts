@@ -104,7 +104,7 @@ async function buildHunch(hunch: typeof hunchesTable.$inferSelect) {
     categorySlug: category?.slug ?? "",
     categoryName: category?.name ?? "",
     categoryColor: category?.color ?? "",
-    status: hunch.status as "open" | "closed" | "resolved",
+    status: (hunch.status === "open" && hunch.endsAt < new Date() ? "closed" : hunch.status) as "open" | "closed" | "resolved",
     participantCount: hunch.participantCount,
     endsAt: hunch.endsAt.toISOString(),
     resolvedAt: hunch.resolvedAt ? hunch.resolvedAt.toISOString() : null,

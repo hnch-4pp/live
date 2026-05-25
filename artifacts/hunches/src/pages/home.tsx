@@ -145,6 +145,7 @@ export default function Home() {
                   {[
                     { label: t("filter_all"), value: null },
                     { label: t("filter_open"), value: "open" },
+                    { label: t("filter_closed"), value: "closed" },
                     { label: t("filter_resolved"), value: "resolved" },
                   ].map(({ label, value }) => (
                     <button
