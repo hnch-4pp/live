@@ -84,16 +84,21 @@ function DistributionChart({
   if (!options || options.length === 0) return null;
 
   const total = Math.max(participantCount, 1);
-  const isNumeric =
-    options.length >= 2 && options.every((o) => !isNaN(parseFloat(o.label)));
+
+  // Consider numeric any option whose label parses cleanly to a finite number
+  const numericOptions = options.filter((o) => {
+    const v = parseFloat(o.label);
+    return isFinite(v) && String(v) !== "NaN";
+  });
+  const isNumeric = numericOptions.length >= 2;
 
   const fmtX = (n: number) =>
     Number.isInteger(n) ? String(n) : n.toFixed(1);
 
   // ── Numeric path: KDE area chart ─────────────────────────────────────────
   if (isNumeric) {
-    const vals = options.map((o) => parseFloat(o.label));
-    const weights = options.map((o) =>
+    const vals = numericOptions.map((o) => parseFloat(o.label));
+    const weights = numericOptions.map((o) =>
       Math.max(1, Math.round((o.percentage / 100) * total)),
     );
 
@@ -114,7 +119,7 @@ function DistributionChart({
       fmtX(vals.reduce((a, b) => (Math.abs(b - target) < Math.abs(a - target) ? b : a)));
 
     return (
-      <ResponsiveContainer width="100%" height={300}>
+      <ResponsiveContainer width="100%" height={220}>
         <AreaChart
           data={chartData}
           margin={{ top: 12, right: 6, left: -44, bottom: 0 }}
@@ -204,7 +209,7 @@ function DistributionChart({
   const maxCount = Math.max(...chartData.map((d) => d.count), 1);
 
   return (
-    <ResponsiveContainer width="100%" height={300}>
+    <ResponsiveContainer width="100%" height={220}>
       <BarChart
         data={chartData}
         margin={{ top: 20, right: 6, left: -36, bottom: 4 }}
@@ -351,7 +356,7 @@ export function TrendingHero({ hunches }: TrendingHeroProps) {
       <div
         className={`absolute inset-0 flex items-end transition-all duration-320 ${animating ? (direction === "right" ? "translate-x-4 opacity-0" : "-translate-x-4 opacity-0") : "translate-x-0 opacity-100"}`}
       >
-        <div className="container mx-auto px-6 pb-10 pt-8 flex flex-col md:flex-row gap-8 items-end justify-between w-full">
+        <div className="container mx-auto px-6 pb-16 pt-8 flex flex-col md:flex-row gap-8 items-end justify-between w-full">
 
           {/* Left — hunch info */}
           <div className="flex-1 min-w-0 max-w-xl">
