@@ -9,8 +9,10 @@ import {
   optionsTable,
   hunchPrizeTiersTable,
   usersTable,
+  ticketCodesTable,
+  ticketCodeRedemptionsTable,
 } from "@workspace/db";
-import { eq, or, ilike, sql } from "drizzle-orm";
+import { eq, or, ilike, sql, desc, and } from "drizzle-orm";
 
 function parsePrizeAmount(value: string): number {
   const m = value.match(/\$?(\d+(?:\.\d+)?)/);
@@ -531,6 +533,166 @@ router.delete(
     const [user] = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.id, id)).limit(1);
     if (!user) { res.status(404).json({ error: "User not found" }); return; }
     await db.delete(usersTable).where(eq(usersTable.id, id));
+    res.json({ ok: true });
+  },
+);
+
+// ── Ticket Codes ───────────────────────────────────────────────────────────
+
+function generateUniqueCode(): string {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789@#$!";
+  const bytes = crypto.randomBytes(9);
+  let code = "";
+  for (let i = 0; i < 9; i++) {
+    code += chars[bytes[i]! % chars.length];
+  }
+  return code;
+}
+
+router.get(
+  "/admin/ticket-codes/generate-code",
+  requireAdmin,
+  requireAdminHeader,
+  (_req, res): void => {
+    res.json({ code: generateUniqueCode() });
+  },
+);
+
+router.get(
+  "/admin/ticket-codes",
+  requireAdmin,
+  requireAdminHeader,
+  async (_req, res): Promise<void> => {
+    const codes = await db
+      .select()
+      .from(ticketCodesTable)
+      .orderBy(desc(ticketCodesTable.createdAt));
+    res.json(codes);
+  },
+);
+
+router.post(
+  "/admin/ticket-codes",
+  requireAdmin,
+  requireAdminHeader,
+  async (req, res): Promise<void> => {
+    const {
+      code, codeType, scope, bonusTickets, maxUses,
+      startsAt, expiresAt, instructions, termsAndConditions, isActive,
+    } = req.body as Record<string, unknown>;
+
+    if (!code || typeof code !== "string" || code.trim().length === 0) {
+      res.status(400).json({ error: "Code is required" }); return;
+    }
+    if (!codeType || !["generic", "unique"].includes(String(codeType))) {
+      res.status(400).json({ error: "codeType must be 'generic' or 'unique'" }); return;
+    }
+    if (!bonusTickets || Number(bonusTickets) < 1) {
+      res.status(400).json({ error: "bonusTickets must be at least 1" }); return;
+    }
+
+    const [row] = await db
+      .insert(ticketCodesTable)
+      .values({
+        code: String(code).trim().toUpperCase(),
+        codeType: codeType as "generic" | "unique",
+        scope: (scope as "registration" | "general" | "both") ?? "both",
+        bonusTickets: Number(bonusTickets),
+        maxUses: maxUses != null && maxUses !== "" ? Number(maxUses) : null,
+        startsAt: startsAt ? new Date(String(startsAt)) : null,
+        expiresAt: expiresAt ? new Date(String(expiresAt)) : null,
+        instructions: instructions ? String(instructions) : null,
+        termsAndConditions: termsAndConditions ? String(termsAndConditions) : null,
+        isActive: isActive !== false && isActive !== "false",
+      })
+      .returning();
+    res.status(201).json(row);
+  },
+);
+
+router.get(
+  "/admin/ticket-codes/:id",
+  requireAdmin,
+  requireAdminHeader,
+  async (req, res): Promise<void> => {
+    const id = parseInt(String(req.params["id"] ?? "0"), 10);
+    if (!id) { res.status(400).json({ error: "Invalid ID" }); return; }
+    const [row] = await db.select().from(ticketCodesTable).where(eq(ticketCodesTable.id, id));
+    if (!row) { res.status(404).json({ error: "Not found" }); return; }
+    res.json(row);
+  },
+);
+
+router.get(
+  "/admin/ticket-codes/:id/redemptions",
+  requireAdmin,
+  requireAdminHeader,
+  async (req, res): Promise<void> => {
+    const id = parseInt(String(req.params["id"] ?? "0"), 10);
+    if (!id) { res.status(400).json({ error: "Invalid ID" }); return; }
+
+    const rows = await db
+      .select({
+        id: ticketCodeRedemptionsTable.id,
+        userId: ticketCodeRedemptionsTable.userId,
+        userEmail: usersTable.email,
+        ticketsGranted: ticketCodeRedemptionsTable.ticketsGranted,
+        context: ticketCodeRedemptionsTable.context,
+        redeemedAt: ticketCodeRedemptionsTable.redeemedAt,
+      })
+      .from(ticketCodeRedemptionsTable)
+      .leftJoin(usersTable, eq(ticketCodeRedemptionsTable.userId, usersTable.id))
+      .where(eq(ticketCodeRedemptionsTable.ticketCodeId, id))
+      .orderBy(desc(ticketCodeRedemptionsTable.redeemedAt));
+
+    res.json(rows);
+  },
+);
+
+router.patch(
+  "/admin/ticket-codes/:id",
+  requireAdmin,
+  requireAdminHeader,
+  async (req, res): Promise<void> => {
+    const id = parseInt(String(req.params["id"] ?? "0"), 10);
+    if (!id) { res.status(400).json({ error: "Invalid ID" }); return; }
+
+    const {
+      code, codeType, scope, bonusTickets, maxUses,
+      startsAt, expiresAt, instructions, termsAndConditions, isActive,
+    } = req.body as Record<string, unknown>;
+
+    const updates: Record<string, unknown> = { updatedAt: new Date() };
+    if (code !== undefined) updates["code"] = String(code).trim().toUpperCase();
+    if (codeType !== undefined) updates["codeType"] = codeType;
+    if (scope !== undefined) updates["scope"] = scope;
+    if (bonusTickets !== undefined) updates["bonusTickets"] = Number(bonusTickets);
+    if ("maxUses" in req.body) updates["maxUses"] = maxUses != null && maxUses !== "" ? Number(maxUses) : null;
+    if ("startsAt" in req.body) updates["startsAt"] = startsAt ? new Date(String(startsAt)) : null;
+    if ("expiresAt" in req.body) updates["expiresAt"] = expiresAt ? new Date(String(expiresAt)) : null;
+    if ("instructions" in req.body) updates["instructions"] = instructions ? String(instructions) : null;
+    if ("termsAndConditions" in req.body) updates["termsAndConditions"] = termsAndConditions ? String(termsAndConditions) : null;
+    if (isActive !== undefined) updates["isActive"] = isActive === true || isActive === "true";
+
+    const [row] = await db
+      .update(ticketCodesTable)
+      .set(updates)
+      .where(eq(ticketCodesTable.id, id))
+      .returning();
+    if (!row) { res.status(404).json({ error: "Not found" }); return; }
+    res.json(row);
+  },
+);
+
+router.delete(
+  "/admin/ticket-codes/:id",
+  requireAdmin,
+  requireAdminHeader,
+  async (req, res): Promise<void> => {
+    const id = parseInt(String(req.params["id"] ?? "0"), 10);
+    if (!id) { res.status(400).json({ error: "Invalid ID" }); return; }
+    await db.delete(ticketCodeRedemptionsTable).where(eq(ticketCodeRedemptionsTable.ticketCodeId, id));
+    await db.delete(ticketCodesTable).where(eq(ticketCodesTable.id, id));
     res.json({ ok: true });
   },
 );

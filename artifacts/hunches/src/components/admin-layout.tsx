@@ -1,11 +1,12 @@
 import { Link, useLocation } from "wouter";
-import { LayoutDashboard, ListChecks, Tag, Users, LogOut, ChevronRight } from "lucide-react";
+import { LayoutDashboard, ListChecks, Tag, Users, LogOut, ChevronRight, Ticket } from "lucide-react";
 
 const NAV = [
-  { href: "/backstage/dashboard",   label: "Dashboard",  icon: LayoutDashboard },
-  { href: "/backstage/hunches",     label: "Hunches",    icon: ListChecks },
-  { href: "/backstage/categories",  label: "Categories", icon: Tag },
-  { href: "/backstage/users",       label: "Users",      icon: Users },
+  { href: "/backstage/dashboard",     label: "Dashboard",     icon: LayoutDashboard },
+  { href: "/backstage/hunches",       label: "Hunches",       icon: ListChecks },
+  { href: "/backstage/categories",    label: "Categories",    icon: Tag },
+  { href: "/backstage/users",         label: "Users",         icon: Users },
+  { href: "/backstage/ticket-codes",  label: "Ticket Codes",  icon: Ticket },
 ];
 
 async function logout() {

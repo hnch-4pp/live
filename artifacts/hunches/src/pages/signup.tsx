@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
-import { ArrowLeft, Mail, Phone, MapPin, Calendar, Search, ChevronDown, Eye, EyeOff, Lock, AtSign, Check, X, Loader2 } from "lucide-react";
+import { ArrowLeft, Mail, Phone, MapPin, Calendar, Search, ChevronDown, Eye, EyeOff, Lock, AtSign, Check, X, Loader2, Ticket } from "lucide-react";
 import { AddressAutocomplete, type ParsedAddress } from "@/components/address-autocomplete";
 
 // ── Country data ─────────────────────────────────────────────────────────────
@@ -323,7 +323,7 @@ function CountryPicker({
 
 // ── Step definitions ──────────────────────────────────────────────────────────
 
-type Step = "email" | "email-otp" | "phone" | "phone-otp" | "password" | "username" | "address" | "dob";
+type Step = "email" | "email-otp" | "phone" | "phone-otp" | "password" | "username" | "address" | "dob" | "ticket-code";
 
 const STEP_TITLES: Record<Step, string> = {
   email: "Create your account",
@@ -334,6 +334,7 @@ const STEP_TITLES: Record<Step, string> = {
   username: "Choose a username",
   address: "Your address",
   dob: "Date of birth",
+  "ticket-code": "Promo code",
 };
 
 const STEP_SUBS: Record<Step, string> = {
@@ -345,9 +346,10 @@ const STEP_SUBS: Record<Step, string> = {
   username: "Pick a unique username for your profile",
   address: "Required to ship prizes",
   dob: "You must be 18 or older to participate",
+  "ticket-code": "Have a promotional code? Get bonus tickets",
 };
 
-const STEPS: Step[] = ["email", "email-otp", "phone", "phone-otp", "password", "username", "address", "dob"];
+const STEPS: Step[] = ["email", "email-otp", "phone", "phone-otp", "password", "username", "address", "dob", "ticket-code"];
 
 function StepDots({ current }: { current: Step }) {
   const idx = STEPS.indexOf(current);
@@ -358,6 +360,7 @@ function StepDots({ current }: { current: Step }) {
     ["username"],
     ["address"],
     ["dob"],
+    ["ticket-code"],
   ] as Step[][];
   return (
     <div className="flex items-center gap-1.5 justify-center mb-8">
@@ -441,6 +444,11 @@ export default function Signup() {
   const [dob, setDob] = useState("");
   const [agreedTerms, setAgreedTerms] = useState(false);
   const [agreedPrivacy, setAgreedPrivacy] = useState(false);
+  const [promoCode, setPromoCode] = useState("");
+  const [promoApplied, setPromoApplied] = useState(false);
+  const [promoInfo, setPromoInfo] = useState<{ bonusTickets: number; instructions?: string | null; termsAndConditions?: string | null } | null>(null);
+  const [promoError, setPromoError] = useState("");
+  const [promoLoading, setPromoLoading] = useState(false);
 
   const fullAddress = [addrStreet, addrApt, addrCity, addrState, addrPostal, addrCountry]
     .filter(Boolean).join(", ");
@@ -484,6 +492,28 @@ export default function Signup() {
     return data;
   };
 
+  const applyPromoCode = async () => {
+    if (!promoCode.trim()) return;
+    setPromoError("");
+    setPromoLoading(true);
+    try {
+      const res = await fetch("/api/auth/ticket-codes/redeem", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ code: promoCode.trim(), context: "registration" }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setPromoError(data.error ?? "Invalid code"); return; }
+      setPromoApplied(true);
+      setPromoInfo({ bonusTickets: data.ticketsGranted, instructions: null });
+    } catch {
+      setPromoError("Failed to apply code. Please try again.");
+    } finally {
+      setPromoLoading(false);
+    }
+  };
+
   const handle = async () => {
     setError("");
     setDevHint("");
@@ -513,6 +543,8 @@ export default function Signup() {
       } else if (step === "dob") {
         await post("/auth/signup/complete", { username: username.trim().toLowerCase(), address: fullAddress, dateOfBirth: dob });
         await refetch();
+        setStep("ticket-code");
+      } else if (step === "ticket-code") {
         setLocation("/");
       }
     } catch (e: any) {
@@ -522,7 +554,7 @@ export default function Signup() {
     }
   };
 
-  const canBack = step !== "email";
+  const canBack = step !== "email" && step !== "ticket-code";
   const back = () => {
     setError("");
     setDevHint("");
@@ -535,6 +567,7 @@ export default function Signup() {
       username: "password",
       address: "username",
       dob: "address",
+      "ticket-code": null,
     };
     const p = prev[step];
     if (p) setStep(p);
@@ -549,6 +582,7 @@ export default function Signup() {
     if (step === "username") return usernameStatus === "available";
     if (step === "address") return addrStreet.trim().length >= 3 && addrCity.trim().length >= 1 && addrCountry.trim().length >= 1;
     if (step === "dob") return dob.length > 0 && agreedTerms && agreedPrivacy;
+    if (step === "ticket-code") return true;
     return false;
   };
 
@@ -561,6 +595,7 @@ export default function Signup() {
     username: "Continue",
     address: "Continue",
     dob: loading ? "Creating account..." : "Create account",
+    "ticket-code": promoApplied ? "Continue to Hunch" : "Skip for now",
   };
 
   return (
@@ -574,6 +609,7 @@ export default function Signup() {
                step === "password" ? <Lock className="w-5 h-5 text-white" /> :
                step === "username" ? <AtSign className="w-5 h-5 text-white" /> :
                step === "address" ? <MapPin className="w-5 h-5 text-white" /> :
+               step === "ticket-code" ? <Ticket className="w-5 h-5 text-white" /> :
                <Calendar className="w-5 h-5 text-white" />}
             </div>
             <h1 className="font-display text-2xl font-bold text-foreground">{STEP_TITLES[step]}</h1>
@@ -912,6 +948,55 @@ export default function Signup() {
                     </span>
                   </label>
                 </div>
+              </div>
+            )}
+
+            {/* Ticket code */}
+            {step === "ticket-code" && (
+              <div className="space-y-4">
+                {promoApplied && promoInfo ? (
+                  <div className="text-center space-y-3">
+                    <div className="w-14 h-14 rounded-2xl bg-green-100 flex items-center justify-center mx-auto">
+                      <Check className="w-6 h-6 text-green-600" />
+                    </div>
+                    <div>
+                      <p className="font-bold text-foreground text-lg">+{promoInfo.bonusTickets} bonus tickets added</p>
+                      <p className="text-sm text-muted-foreground mt-0.5">Your account now starts with {3 + promoInfo.bonusTickets} tickets</p>
+                    </div>
+                    {promoInfo.instructions && (
+                      <p className="text-xs text-muted-foreground bg-muted/50 rounded-xl px-4 py-3 text-left">{promoInfo.instructions}</p>
+                    )}
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <div className="space-y-1.5">
+                      <Label htmlFor="promo-code">Promo code</Label>
+                      <div className="flex gap-2">
+                        <Input
+                          id="promo-code"
+                          autoFocus
+                          value={promoCode}
+                          onChange={(e) => { setPromoCode(e.target.value.toUpperCase()); setPromoError(""); }}
+                          onKeyDown={(e) => e.key === "Enter" && promoCode.trim() && applyPromoCode()}
+                          placeholder="NBA2026"
+                          className="rounded-xl h-11 bg-background border-border font-mono flex-1"
+                        />
+                        <button
+                          type="button"
+                          onClick={applyPromoCode}
+                          disabled={promoLoading || !promoCode.trim()}
+                          className="px-4 h-11 rounded-xl bg-primary text-white text-sm font-semibold hover:bg-primary/90 transition-colors disabled:opacity-50 whitespace-nowrap flex items-center gap-1.5"
+                        >
+                          {promoLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Apply"}
+                        </button>
+                      </div>
+                    </div>
+                    {promoError && (
+                      <p className="text-sm text-destructive bg-destructive/10 rounded-lg px-3 py-2 border border-destructive/20">{promoError}</p>
+                    )}
+                    <p className="text-xs text-muted-foreground">Optional. You can also redeem codes later from your account.</p>
+                  </div>
+                )}
               </div>
             )}
 

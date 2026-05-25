@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { eq, and, gt, isNull } from "drizzle-orm";
 import { db } from "@workspace/db";
-import { usersTable, otpsTable } from "@workspace/db";
+import { usersTable, otpsTable, ticketCodesTable, ticketCodeRedemptionsTable } from "@workspace/db";
 import { ReplitConnectors } from "@replit/connectors-sdk";
 import bcrypt from "bcryptjs";
 
@@ -411,6 +411,104 @@ router.post("/auth/logout", (req, res): void => {
     res.clearCookie("hunch.sid");
     res.json({ ok: true });
   });
+});
+
+// ── Ticket code validation & redemption ────────────────────────────────────
+
+async function lookupAndValidateCode(
+  code: string,
+  userId: number,
+  context: "registration" | "general",
+): Promise<{ ok: true; row: typeof ticketCodesTable.$inferSelect } | { ok: false; error: string }> {
+  const [row] = await db
+    .select()
+    .from(ticketCodesTable)
+    .where(eq(ticketCodesTable.code, code.trim().toUpperCase()))
+    .limit(1);
+
+  if (!row) return { ok: false, error: "Code not found." };
+  if (!row.isActive) return { ok: false, error: "This code is no longer active." };
+
+  const now = new Date();
+  if (row.startsAt && now < row.startsAt) return { ok: false, error: "This code is not active yet." };
+  if (row.expiresAt && now > row.expiresAt) return { ok: false, error: "This code has expired." };
+
+  const scopeOk =
+    row.scope === "both" ||
+    row.scope === context;
+  if (!scopeOk) {
+    return { ok: false, error: context === "registration" ? "This code can only be used by existing users." : "This code is only valid during registration." };
+  }
+
+  if (row.codeType === "generic" && row.maxUses != null && row.currentUses >= row.maxUses) {
+    return { ok: false, error: "This code has reached its maximum number of uses." };
+  }
+
+  const [existing] = await db
+    .select({ id: ticketCodeRedemptionsTable.id })
+    .from(ticketCodeRedemptionsTable)
+    .where(and(eq(ticketCodeRedemptionsTable.ticketCodeId, row.id), eq(ticketCodeRedemptionsTable.userId, userId)))
+    .limit(1);
+
+  if (existing) return { ok: false, error: "You have already redeemed this code." };
+
+  if (row.codeType === "unique" && row.currentUses >= 1) {
+    return { ok: false, error: "This code has already been used." };
+  }
+
+  return { ok: true, row };
+}
+
+router.post("/auth/ticket-codes/validate", async (req, res): Promise<void> => {
+  if (!req.session.userId) { res.status(401).json({ error: "Not authenticated" }); return; }
+  const { code, context } = req.body as { code?: string; context?: string };
+  if (!code) { res.status(400).json({ error: "Code required" }); return; }
+
+  const ctx = context === "registration" ? "registration" : "general";
+  const result = await lookupAndValidateCode(code, req.session.userId, ctx);
+  if (!result.ok) { res.status(400).json({ error: result.error }); return; }
+
+  res.json({
+    valid: true,
+    bonusTickets: result.row.bonusTickets,
+    instructions: result.row.instructions,
+    termsAndConditions: result.row.termsAndConditions,
+    scope: result.row.scope,
+    codeType: result.row.codeType,
+  });
+});
+
+router.post("/auth/ticket-codes/redeem", async (req, res): Promise<void> => {
+  if (!req.session.userId) { res.status(401).json({ error: "Not authenticated" }); return; }
+  const { code, context } = req.body as { code?: string; context?: string };
+  if (!code) { res.status(400).json({ error: "Code required" }); return; }
+
+  const ctx = context === "registration" ? "registration" : "general";
+  const result = await lookupAndValidateCode(code, req.session.userId, ctx);
+  if (!result.ok) { res.status(400).json({ error: result.error }); return; }
+
+  const { row } = result;
+  const dbContext: "registration" | "manual" = ctx === "registration" ? "registration" : "manual";
+
+  await db.insert(ticketCodeRedemptionsTable).values({
+    ticketCodeId: row.id,
+    userId: req.session.userId,
+    ticketsGranted: row.bonusTickets,
+    context: dbContext,
+  });
+
+  await db
+    .update(ticketCodesTable)
+    .set({ currentUses: row.currentUses + 1, updatedAt: new Date() })
+    .where(eq(ticketCodesTable.id, row.id));
+
+  const [updated] = await db
+    .update(usersTable)
+    .set({ tickets: (await db.select({ tickets: usersTable.tickets }).from(usersTable).where(eq(usersTable.id, req.session.userId)).limit(1))[0]!.tickets + row.bonusTickets })
+    .where(eq(usersTable.id, req.session.userId))
+    .returning({ tickets: usersTable.tickets });
+
+  res.json({ ok: true, ticketsGranted: row.bonusTickets, newTotal: updated?.tickets ?? null });
 });
 
 export default router;
