@@ -57,53 +57,6 @@ export default function Home() {
 
   return (
     <Layout>
-      {/* Hero */}
-      {!isFiltered && (
-        <section className="bg-white border-b border-border">
-          <div className="container mx-auto px-4 py-16 md:py-24">
-            <div className="max-w-2xl">
-              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/8 border border-primary/15 text-primary font-semibold text-xs mb-6 tracking-wide uppercase">
-                <Zap className="w-3.5 h-3.5" />
-                <span>{t("hero_badge")}</span>
-              </div>
-              <h1 className="text-5xl md:text-6xl font-display font-bold text-foreground leading-[1.08] tracking-tight mb-5">
-                {t("hero_headline_1")}<br />
-                <span className="text-primary">{t("hero_headline_2")}</span>
-              </h1>
-              <p className="text-lg text-muted-foreground leading-relaxed mb-8 max-w-xl">
-                {t("hero_sub")}
-              </p>
-              <div className="flex items-center gap-3">
-                <Button size="lg" className="bg-primary text-white font-semibold rounded-xl px-7 shadow-sm hover:bg-primary/90">
-                  {t("nav_signup")} <ArrowRight className="w-4 h-4 ml-1.5" />
-                </Button>
-                <Button size="lg" variant="outline" className="rounded-xl px-7 font-semibold border-border text-foreground hover:bg-muted">
-                  {t("all_hunches")}
-                </Button>
-              </div>
-            </div>
-          </div>
-
-          {/* Stats strip */}
-          <div className="border-t border-border bg-muted/30">
-            <div className="container mx-auto px-4 py-5">
-              {statsLoading ? (
-                <div className="flex gap-8">
-                  {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-10 w-32" />)}
-                </div>
-              ) : stats && (
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-6 divide-x divide-border">
-                  <StatItem icon={TrendingUp} label={t("stat_active")} value={stats.activeHunches.toLocaleString()} />
-                  <StatItem icon={Users} label={t("stat_participants")} value={stats.totalParticipants.toLocaleString()} />
-                  <StatItem icon={Gift} label={t("stat_prizes")} value={`$${stats.totalPrizesAwarded.toLocaleString()}`} />
-                  <StatItem icon={Zap} label={t("stat_total")} value={stats.totalHunches.toLocaleString()} />
-                </div>
-              )}
-            </div>
-          </div>
-        </section>
-      )}
-
       {/* Trending Hero */}
       {!isFiltered && (
         featuredLoading ? (
