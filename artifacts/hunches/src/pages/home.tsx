@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useListHunches, useGetFeaturedHunches, useGetHunchStats, useListCategories } from "@workspace/api-client-react";
 import { TrendingUp, Users, Gift, SlidersHorizontal, Zap, ArrowRight, Trophy, Music, Clapperboard, Flame, Globe, Gamepad2, FlaskConical, type LucideIcon } from "lucide-react";
+import { TrendingHero } from "@/components/trending-hero";
 import { useTranslation } from "react-i18next";
 
 const CATEGORY_ICON_MAP: Record<string, LucideIcon> = {
@@ -103,32 +104,13 @@ export default function Home() {
         </section>
       )}
 
-      {/* Featured */}
+      {/* Trending Hero */}
       {!isFiltered && (
-        <section className="py-12 bg-white border-b border-border">
-          <div className="container mx-auto px-4">
-            {featuredLoading ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <Skeleton className="h-[360px] rounded-2xl" />
-                <Skeleton className="h-[360px] rounded-2xl" />
-              </div>
-            ) : featuredHunches && featuredHunches.length > 0 && (
-              <>
-                <div className="flex items-center justify-between mb-7">
-                  <h2 className="text-xl font-display font-bold text-foreground flex items-center gap-2">
-                    <TrendingUp className="w-5 h-5 text-primary" />
-                    {t("trending_now")}
-                  </h2>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {featuredHunches.map(hunch => (
-                    <HunchCard key={hunch.id} hunch={hunch} featured />
-                  ))}
-                </div>
-              </>
-            )}
-          </div>
-        </section>
+        featuredLoading ? (
+          <div className="w-full bg-muted animate-pulse" style={{ height: "clamp(420px, 55vh, 600px)" }} />
+        ) : featuredHunches && featuredHunches.length > 0 ? (
+          <TrendingHero hunches={featuredHunches} />
+        ) : null
       )}
 
       {/* Main List */}
