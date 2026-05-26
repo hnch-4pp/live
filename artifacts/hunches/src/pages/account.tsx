@@ -66,9 +66,13 @@ function MyHunchesSection() {
 
   useEffect(() => {
     fetch("/api/auth/my-hunches", { credentials: "include" })
-      .then((r) => r.json())
-      .then((data: MyHunchRow[]) => { setHunches(data); setLoading(false); })
-      .catch(() => setLoading(false));
+      .then(async (r) => {
+        if (!r.ok) return;
+        const data: unknown = await r.json();
+        if (Array.isArray(data)) setHunches(data as MyHunchRow[]);
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
   }, []);
 
   const active = hunches.filter((h) => h.hunchStatus === "open");
