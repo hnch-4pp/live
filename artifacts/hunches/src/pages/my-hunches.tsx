@@ -26,6 +26,14 @@ interface MyHunchRow {
   categoryIcon: string;
 }
 
+function formatPredictionDate(iso: string): string {
+  const d = new Date(iso);
+  return d.toLocaleString("en-US", {
+    month: "short", day: "numeric", year: "numeric",
+    hour: "numeric", minute: "2-digit", hour12: true,
+  });
+}
+
 function timeLeft(iso: string): string {
   const diff = new Date(iso).getTime() - Date.now();
   if (diff <= 0) return "Ended";
@@ -209,6 +217,9 @@ export default function MyHunches() {
                             {h.hunchParticipantCount.toLocaleString()}
                           </span>
                         </div>
+                        <p className="text-[10px] text-muted-foreground/60 mt-0.5">
+                          Predicted {formatPredictionDate(h.predictionCreatedAt)}
+                        </p>
                       </div>
 
                       {/* Status badge */}
