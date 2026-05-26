@@ -1,7 +1,10 @@
 import { Router, type IRouter } from "express";
-import { eq, and, gt, isNull } from "drizzle-orm";
+import { eq, and, gt, isNull, desc } from "drizzle-orm";
 import { db } from "@workspace/db";
-import { usersTable, otpsTable, ticketCodesTable, ticketCodeRedemptionsTable, ticketTransactionsTable } from "@workspace/db";
+import {
+  usersTable, otpsTable, ticketCodesTable, ticketCodeRedemptionsTable,
+  ticketTransactionsTable, predictionsTable, optionsTable, hunchesTable, categoriesTable,
+} from "@workspace/db";
 import { ReplitConnectors } from "@replit/connectors-sdk";
 import bcrypt from "bcryptjs";
 
@@ -524,6 +527,39 @@ router.post("/auth/ticket-codes/redeem", async (req, res): Promise<void> => {
   });
 
   res.json({ ok: true, ticketsGranted: row.bonusTickets, newTotal: updated?.tickets ?? null });
+});
+
+// ── My Hunches ──────────────────────────────────────────────────────────────
+
+router.get("/auth/my-hunches", async (req, res): Promise<void> => {
+  if (!req.session.userId) { res.status(401).json({ error: "Not authenticated" }); return; }
+  const rows = await db
+    .select({
+      predictionId: predictionsTable.id,
+      predictionCreatedAt: predictionsTable.createdAt,
+      optionId: optionsTable.id,
+      optionLabel: optionsTable.label,
+      optionPercentage: optionsTable.percentage,
+      hunchId: hunchesTable.id,
+      hunchSlug: hunchesTable.slug,
+      hunchTitle: hunchesTable.title,
+      hunchStatus: hunchesTable.status,
+      hunchEndsAt: hunchesTable.endsAt,
+      hunchImageUrl: hunchesTable.imageUrl,
+      hunchWinnerOption: hunchesTable.winnerOption,
+      hunchParticipantCount: hunchesTable.participantCount,
+      hunchTicketCost: hunchesTable.ticketCost,
+      categoryName: categoriesTable.name,
+      categoryColor: categoriesTable.color,
+      categoryIcon: categoriesTable.icon,
+    })
+    .from(predictionsTable)
+    .innerJoin(hunchesTable, eq(hunchesTable.id, predictionsTable.hunchId))
+    .innerJoin(optionsTable, eq(optionsTable.id, predictionsTable.optionId))
+    .innerJoin(categoriesTable, eq(categoriesTable.id, hunchesTable.categoryId))
+    .where(eq(predictionsTable.userId, req.session.userId))
+    .orderBy(desc(hunchesTable.endsAt));
+  res.json(rows);
 });
 
 // ── Ticket activity ─────────────────────────────────────────────────────────
