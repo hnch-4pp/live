@@ -21,6 +21,7 @@ import AdminUsers from "@/pages/backstage/users";
 import AdminTicketCodes from "@/pages/backstage/ticket-codes";
 import Account from "@/pages/account";
 import Tickets from "@/pages/tickets";
+import MyHunches from "@/pages/my-hunches";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -43,6 +44,7 @@ function Router() {
       <Route path="/responsible" component={Responsible} />
       <Route path="/account" component={Account} />
       <Route path="/tickets" component={Tickets} />
+      <Route path="/my-hunches" component={MyHunches} />
       <Route path="/backstage/login" component={AdminLogin} />
       <Route path="/backstage/dashboard" component={AdminDashboard} />
       <Route path="/backstage/hunches" component={AdminHunches} />
