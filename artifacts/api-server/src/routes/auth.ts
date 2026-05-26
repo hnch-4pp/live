@@ -92,11 +92,15 @@ async function sendPhoneOtp(phone: string, code: string): Promise<void> {
   }
 
   // Send via Twilio (Replit connector — handles auth automatically)
-  const TWILIO_ACCOUNT_SID = "AC516fbae6880c25635411e4f4d18047a3";
+  const TWILIO_ACCOUNT_SID = process.env.TWILIO_ACCOUNT_SID;
+  const TWILIO_FROM_NUMBER = process.env.TWILIO_FROM_NUMBER;
+  if (!TWILIO_ACCOUNT_SID || !TWILIO_FROM_NUMBER) {
+    throw new Error("Twilio credentials not configured");
+  }
   const connectors = new ReplitConnectors();
   const body = new URLSearchParams({
     To: phone,
-    From: "+15069080313",
+    From: TWILIO_FROM_NUMBER,
     Body: `Your Hunch verification code is: ${code}. It expires in 10 minutes.`,
   });
 
