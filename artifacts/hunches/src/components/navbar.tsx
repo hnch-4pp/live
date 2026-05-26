@@ -1,7 +1,7 @@
 import { Link, useLocation, useSearch } from "wouter";
 import { Button } from "@/components/ui/button";
 import { useEffect, useRef, useState } from "react";
-import { Globe, ChevronDown, Heart, Search, X, Trophy, Music, Film, Clapperboard, TrendingUp, Star, Zap as ZapIcon, Globe2, Heart as HeartIcon, LogOut, Settings, Ticket } from "lucide-react";
+import { Globe, ChevronDown, Heart, Search, X, Trophy, Music, Film, Clapperboard, TrendingUp, Star, Zap as ZapIcon, Globe2, Heart as HeartIcon, LogOut, Settings, Ticket, Target } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import i18n from "@/i18n";
 import { useListCategories } from "@workspace/api-client-react";
@@ -170,10 +170,6 @@ function AuthButtons() {
             <div className="px-4 py-3 border-b border-border">
               <p className="text-xs text-muted-foreground">Signed in as</p>
               <p className="text-sm font-semibold text-foreground truncate">{user.username ? `@${user.username}` : user.email}</p>
-              <div className="flex items-center gap-1.5 mt-1.5">
-                <Ticket className="w-3.5 h-3.5 text-primary" />
-                <span className="text-xs font-semibold text-primary">{user.tickets} ticket{user.tickets !== 1 ? "s" : ""}</span>
-              </div>
             </div>
             <button
               onClick={() => { setMenuOpen(false); setLocation("/tickets"); }}
@@ -181,6 +177,13 @@ function AuthButtons() {
             >
               <Ticket className="w-4 h-4" />
               My tickets
+            </button>
+            <button
+              onClick={() => { setMenuOpen(false); setLocation("/account"); }}
+              className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+            >
+              <Target className="w-4 h-4" />
+              My Hunches
             </button>
             <button
               onClick={() => { setMenuOpen(false); setLocation("/account"); }}
