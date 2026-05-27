@@ -253,7 +253,8 @@ router.get("/hunches/featured", async (req, res): Promise<void> => {
     .select()
     .from(hunchesTable)
     .where(and(eq(hunchesTable.featured, true), eq(hunchesTable.status, "open")))
-    .limit(5);
+    .orderBy(hunchesTable.featuredOrder, hunchesTable.id)
+    .limit(8);
 
   const hunches = await Promise.all(rows.map(buildHunch));
   const translated = await withTranslations(hunches, lang);

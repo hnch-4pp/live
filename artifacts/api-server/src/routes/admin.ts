@@ -157,6 +157,7 @@ router.get(
         imageUrl: hunchesTable.imageUrl,
         status: hunchesTable.status,
         featured: hunchesTable.featured,
+        featuredOrder: hunchesTable.featuredOrder,
         endsAt: hunchesTable.endsAt,
         categoryId: hunchesTable.categoryId,
         prizeId: hunchesTable.prizeId,
@@ -188,6 +189,49 @@ router.get(
       .where(eq(hunchPrizeTiersTable.hunchId, id))
       .orderBy(hunchPrizeTiersTable.rank);
     res.json({ ...hunch, prizeTiers: tiers });
+  },
+);
+
+router.get(
+  "/admin/featured",
+  requireAdmin,
+  requireAdminHeader,
+  async (_req, res): Promise<void> => {
+    const rows = await db
+      .select({
+        id: hunchesTable.id,
+        title: hunchesTable.title,
+        status: hunchesTable.status,
+        imageUrl: hunchesTable.imageUrl,
+        featuredOrder: hunchesTable.featuredOrder,
+        endsAt: hunchesTable.endsAt,
+      })
+      .from(hunchesTable)
+      .where(eq(hunchesTable.featured, true))
+      .orderBy(hunchesTable.featuredOrder, hunchesTable.id);
+    res.json(rows);
+  },
+);
+
+router.patch(
+  "/admin/featured-order",
+  requireAdmin,
+  requireAdminHeader,
+  async (req, res): Promise<void> => {
+    const ids = req.body?.ids;
+    if (!Array.isArray(ids) || ids.some((x) => typeof x !== "number")) {
+      res.status(400).json({ error: "ids must be an array of numbers" });
+      return;
+    }
+    await Promise.all(
+      ids.map((id, idx) =>
+        db
+          .update(hunchesTable)
+          .set({ featuredOrder: idx })
+          .where(eq(hunchesTable.id, id)),
+      ),
+    );
+    res.json({ ok: true });
   },
 );
 

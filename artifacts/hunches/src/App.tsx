@@ -19,6 +19,7 @@ import HunchForm from "@/pages/backstage/hunch-form";
 import AdminCategories from "@/pages/backstage/categories";
 import AdminUsers from "@/pages/backstage/users";
 import AdminTicketCodes from "@/pages/backstage/ticket-codes";
+import AdminHero from "@/pages/backstage/hero";
 import Account from "@/pages/account";
 import Tickets from "@/pages/tickets";
 import MyHunches from "@/pages/my-hunches";
@@ -53,6 +54,7 @@ function Router() {
       <Route path="/backstage/categories" component={AdminCategories} />
       <Route path="/backstage/users" component={AdminUsers} />
       <Route path="/backstage/ticket-codes" component={AdminTicketCodes} />
+      <Route path="/backstage/hero" component={AdminHero} />
       <Route component={NotFound} />
     </Switch>
   );

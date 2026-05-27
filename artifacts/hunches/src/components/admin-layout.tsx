@@ -1,9 +1,10 @@
 import { Link, useLocation } from "wouter";
-import { LayoutDashboard, ListChecks, Tag, Users, LogOut, ChevronRight, Ticket } from "lucide-react";
+import { LayoutDashboard, ListChecks, Tag, Users, LogOut, ChevronRight, Ticket, Sparkles } from "lucide-react";
 
 const NAV = [
   { href: "/backstage/dashboard",     label: "Dashboard",     icon: LayoutDashboard },
   { href: "/backstage/hunches",       label: "Hunches",       icon: ListChecks },
+  { href: "/backstage/hero",          label: "Hero Order",    icon: Sparkles, sub: true },
   { href: "/backstage/categories",    label: "Categories",    icon: Tag },
   { href: "/backstage/users",         label: "Users",         icon: Users },
   { href: "/backstage/ticket-codes",  label: "Ticket Codes",  icon: Ticket },
@@ -30,19 +31,23 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
         </div>
 
         <nav className="flex-1 py-4 px-3 space-y-0.5">
-          {NAV.map(({ href, label, icon: Icon }) => {
+          {NAV.map(({ href, label, icon: Icon, sub }) => {
             const active = location === href || location.startsWith(href + "/");
             return (
               <Link
                 key={href}
                 href={href}
-                className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                className={`flex items-center gap-2.5 rounded-lg text-sm font-medium transition-colors ${
+                  sub ? "pl-7 pr-3 py-1.5" : "px-3 py-2"
+                } ${
                   active
                     ? "bg-violet-50 text-violet-700"
+                    : sub
+                    ? "text-gray-500 hover:bg-gray-100 hover:text-gray-800"
                     : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
                 }`}
               >
-                <Icon className="w-4 h-4 shrink-0" />
+                <Icon className={`shrink-0 ${sub ? "w-3.5 h-3.5" : "w-4 h-4"}`} />
                 {label}
                 {active && <ChevronRight className="w-3.5 h-3.5 ml-auto" />}
               </Link>
