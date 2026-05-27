@@ -1276,9 +1276,19 @@ const resources = {
   },
 };
 
+function detectBrowserLanguage(): string {
+  const supported = new Set(Object.keys(resources));
+  const preferred = Array.from(navigator.languages ?? [navigator.language ?? "en"]);
+  for (const lang of preferred) {
+    const base = lang.split("-")[0].toLowerCase();
+    if (supported.has(base)) return base;
+  }
+  return "en";
+}
+
 i18n.use(initReactI18next).init({
   resources,
-  lng: "en",
+  lng: detectBrowserLanguage(),
   fallbackLng: "en",
   interpolation: { escapeValue: false },
 });
