@@ -10,13 +10,8 @@ function ordinal(n: number): string {
   return n + (s[(v - 20) % 10] ?? s[v] ?? s[0]);
 }
 
-function parsePrizeAmount(value: string): number {
-  const m = value.match(/\$?(\d+(?:\.\d+)?)/);
-  return m ? parseFloat(m[1]) : 0;
-}
 
 interface Category { id: number; name: string; slug: string; }
-interface Prize    { id: number; label: string; value: string; }
 
 const ANSWER_TYPES = [
   { value: "integer", label: "Integer",       description: "Whole number (e.g. 42)",             Icon: Hash },
@@ -72,16 +67,14 @@ export default function HunchForm() {
   const isEditing = !!params.id;
 
   const [form, setForm]           = useState({ ...EMPTY });
-  const [prizeTiers, setPrizeTiers] = useState<{ rank: number; prizeId: number }[]>([{ rank: 1, prizeId: 0 }]);
+  const [prizeTiers, setPrizeTiers] = useState<{ rank: number; prizeLabel: string }[]>([{ rank: 1, prizeLabel: "" }]);
   const [categories, setCategories] = useState<Category[]>([]);
-  const [prizes, setPrizes]       = useState<Prize[]>([]);
   const [saving, setSaving]       = useState(false);
   const [loading, setLoading]     = useState(isEditing);
   const [error, setError]         = useState("");
 
   useEffect(() => {
     adminFetch("/admin/categories").then((r) => r.json() as Promise<Category[]>).then(setCategories).catch(() => {});
-    adminFetch("/admin/prizes").then((r) => r.json() as Promise<Prize[]>).then(setPrizes).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -105,9 +98,9 @@ export default function HunchForm() {
           ticketCost: h.ticketCost ?? 1,
         });
         if (Array.isArray(h.prizeTiers) && h.prizeTiers.length > 0) {
-          setPrizeTiers(h.prizeTiers);
-        } else if (h.prizeId) {
-          setPrizeTiers([{ rank: 1, prizeId: h.prizeId }]);
+          setPrizeTiers(h.prizeTiers.map((t: { rank: number; prizeLabel?: string }) => ({ rank: t.rank, prizeLabel: t.prizeLabel ?? "" })));
+        } else {
+          setPrizeTiers([{ rank: 1, prizeLabel: "" }]);
         }
       })
       .catch(() => setError("Failed to load hunch"))
@@ -119,14 +112,13 @@ export default function HunchForm() {
     setSaving(true);
     setError("");
     try {
-      const validTiers = prizeTiers.filter((t) => t.prizeId > 0);
+      const validTiers = prizeTiers.filter((t) => t.prizeLabel.trim());
       const body = {
         ...form,
         endsAt: new Date(form.endsAt).toISOString(),
         imageUrl: form.imageUrl || null,
         winnerOption: form.winnerOption || null,
         prizeTiers: validTiers,
-        prizeId: validTiers[0]?.prizeId ?? form.prizeId,
       };
       const res = isEditing
         ? await adminFetch(`/admin/hunches/${params.id}`, { method: "PATCH", body: JSON.stringify(body) })
@@ -301,19 +293,18 @@ export default function HunchForm() {
                   <span className="text-xs font-bold text-violet-600 bg-violet-50 border border-violet-200 rounded-lg px-2.5 py-1.5 w-20 text-center shrink-0">
                     {ordinal(tier.rank)} place
                   </span>
-                  <select
-                    value={tier.prizeId}
+                  <input
+                    type="text"
+                    value={tier.prizeLabel}
                     onChange={(e) => {
                       const updated = prizeTiers.map((t, i) =>
-                        i === idx ? { ...t, prizeId: Number(e.target.value) } : t
+                        i === idx ? { ...t, prizeLabel: e.target.value } : t
                       );
                       setPrizeTiers(updated);
                     }}
+                    placeholder="e.g. Amazon Gift Card $50"
                     className={`${inputCls} flex-1`}
-                  >
-                    <option value={0} disabled>Select prize...</option>
-                    {prizes.map((p) => <option key={p.id} value={p.id}>{p.label} ({p.value})</option>)}
-                  </select>
+                  />
                   {prizeTiers.length > 1 && (
                     <button
                       type="button"
@@ -334,26 +325,12 @@ export default function HunchForm() {
             <div className="flex items-center justify-between pt-1">
               <button
                 type="button"
-                onClick={() => setPrizeTiers([...prizeTiers, { rank: prizeTiers.length + 1, prizeId: 0 }])}
+                onClick={() => setPrizeTiers([...prizeTiers, { rank: prizeTiers.length + 1, prizeLabel: "" }])}
                 className="inline-flex items-center gap-1.5 text-sm text-violet-600 hover:text-violet-700 font-medium"
               >
                 <Plus className="w-4 h-4" />
                 Add prize tier
               </button>
-              {prizeTiers.filter((t) => t.prizeId > 0).length > 1 && (
-                <div className="text-sm font-semibold text-gray-700">
-                  Total:{" "}
-                  <span className="text-violet-700">
-                    ${prizeTiers
-                      .filter((t) => t.prizeId > 0)
-                      .reduce((sum, t) => {
-                        const p = prizes.find((p) => p.id === t.prizeId);
-                        return sum + (p ? parsePrizeAmount(p.value) : 0);
-                      }, 0)
-                      .toLocaleString()}
-                  </span>
-                </div>
-              )}
             </div>
           </section>
 

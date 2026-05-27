@@ -35,6 +35,17 @@ function toSlug(title: string): string {
 
 const router = Router();
 
+async function findOrCreatePrize(label: string): Promise<number> {
+  const trimmed = label.trim();
+  const existing = await db.select().from(prizesTable).where(eq(prizesTable.label, trimmed)).limit(1);
+  if (existing[0]) return existing[0].id;
+  const [created] = await db
+    .insert(prizesTable)
+    .values({ label: trimmed, type: "gift_card", value: trimmed })
+    .returning();
+  return created.id;
+}
+
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   limit: 15,
@@ -171,8 +182,9 @@ router.get(
     const [hunch] = await db.select().from(hunchesTable).where(eq(hunchesTable.id, id));
     if (!hunch) { res.status(404).json({ error: "Not found" }); return; }
     const tiers = await db
-      .select({ rank: hunchPrizeTiersTable.rank, prizeId: hunchPrizeTiersTable.prizeId })
+      .select({ rank: hunchPrizeTiersTable.rank, prizeLabel: prizesTable.label })
       .from(hunchPrizeTiersTable)
+      .leftJoin(prizesTable, eq(hunchPrizeTiersTable.prizeId, prizesTable.id))
       .where(eq(hunchPrizeTiersTable.hunchId, id))
       .orderBy(hunchPrizeTiersTable.rank);
     res.json({ ...hunch, prizeTiers: tiers });
@@ -189,25 +201,28 @@ router.post(
       description,
       imageUrl,
       categoryId,
-      prizeId,
       featured,
       endsAt,
       status,
       answerType,
     } = req.body as Record<string, string | boolean | number | undefined>;
 
-    if (!title || !description || !categoryId || !prizeId || !endsAt) {
+    const rawTiers = Array.isArray(req.body.prizeTiers)
+      ? (req.body.prizeTiers as { rank: number; prizeLabel: string }[]).filter((t) => t.prizeLabel?.trim())
+      : [];
+
+    if (!title || !description || !categoryId || rawTiers.length === 0 || !endsAt) {
       res.status(400).json({ error: "Missing required fields" });
       return;
     }
 
+    const resolvedTiers = await Promise.all(
+      rawTiers.map(async (t) => ({ rank: t.rank, prizeId: await findOrCreatePrize(t.prizeLabel) }))
+    );
+    const firstPrizeId = resolvedTiers[0].prizeId;
+
     const providedSlug = req.body.slug ? String(req.body.slug).trim() : null;
     const generatedSlug = toSlug(String(title));
-
-    const prizeTiers = Array.isArray(req.body.prizeTiers)
-      ? (req.body.prizeTiers as { rank: number; prizeId: number }[])
-      : [];
-    const firstPrizeId = prizeTiers.length > 0 ? prizeTiers[0].prizeId : Number(prizeId);
 
     const [hunch] = await db
       .insert(hunchesTable)
@@ -227,11 +242,9 @@ router.post(
       })
       .returning();
 
-    if (prizeTiers.length > 0) {
-      await db.insert(hunchPrizeTiersTable).values(
-        prizeTiers.map((t) => ({ hunchId: hunch.id, rank: t.rank, prizeId: t.prizeId })),
-      );
-    }
+    await db.insert(hunchPrizeTiersTable).values(
+      resolvedTiers.map((t) => ({ hunchId: hunch.id, rank: t.rank, prizeId: t.prizeId })),
+    );
 
     res.status(201).json(hunch);
   },
@@ -281,12 +294,15 @@ router.patch(
 
     // Prize tiers
     if (Array.isArray(req.body.prizeTiers)) {
-      const tiers = req.body.prizeTiers as { rank: number; prizeId: number }[];
-      if (tiers.length > 0) {
-        updates["prizeId"] = tiers[0].prizeId;
+      const rawTiers = (req.body.prizeTiers as { rank: number; prizeLabel: string }[]).filter((t) => t.prizeLabel?.trim());
+      if (rawTiers.length > 0) {
+        const resolvedTiers = await Promise.all(
+          rawTiers.map(async (t) => ({ rank: t.rank, prizeId: await findOrCreatePrize(t.prizeLabel) }))
+        );
+        updates["prizeId"] = resolvedTiers[0].prizeId;
         await db.delete(hunchPrizeTiersTable).where(eq(hunchPrizeTiersTable.hunchId, id));
         await db.insert(hunchPrizeTiersTable).values(
-          tiers.map((t) => ({ hunchId: id, rank: t.rank, prizeId: t.prizeId })),
+          resolvedTiers.map((t) => ({ hunchId: id, rank: t.rank, prizeId: t.prizeId })),
         );
       }
     }
