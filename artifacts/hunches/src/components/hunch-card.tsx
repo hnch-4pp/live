@@ -139,7 +139,7 @@ export function HunchCard({ hunch, featured = false }: HunchCardProps) {
 
         {/* ── Content ── */}
         <div className="flex flex-col flex-1 p-5">
-          <h3 className={`font-display font-bold text-foreground leading-snug group-hover:text-primary transition-colors mb-4 line-clamp-2 ${featured ? "text-xl" : "text-base"}`}>
+          <h3 className={`font-display font-bold text-foreground leading-snug group-hover:text-primary transition-colors mb-4 line-clamp-4 overflow-hidden ${featured ? "text-xl h-[7rem]" : "text-base h-[5.5rem]"}`}>
             {hunch.title}
           </h3>
 
