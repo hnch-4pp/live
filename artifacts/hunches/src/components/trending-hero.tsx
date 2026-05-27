@@ -332,11 +332,10 @@ export function TrendingHero({ hunches }: TrendingHeroProps) {
   return (
     <section
       className="relative w-full overflow-hidden"
-      style={{ height: "clamp(350px, 43vh, 490px)" }}
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
     >
-      {/* Background image */}
+      {/* Background image — absolute so it stretches to match section height */}
       <div
         key={`bg-${hunch.id}`}
         className={`absolute inset-0 transition-opacity duration-500 ${animating ? "opacity-0" : "opacity-100"}`}
@@ -353,11 +352,12 @@ export function TrendingHero({ hunches }: TrendingHeroProps) {
         <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
       </div>
 
-      {/* Content */}
+      {/* Content — in normal flow so section grows to fit all text */}
       <div
-        className={`absolute inset-0 flex items-end transition-all duration-320 ${animating ? (direction === "right" ? "translate-x-4 opacity-0" : "-translate-x-4 opacity-0") : "translate-x-0 opacity-100"}`}
+        className={`relative z-10 flex items-end transition-all duration-320 ${animating ? (direction === "right" ? "translate-x-4 opacity-0" : "-translate-x-4 opacity-0") : "translate-x-0 opacity-100"}`}
+        style={{ minHeight: "clamp(350px, 43vh, 490px)" }}
       >
-        <div className="container mx-auto px-6 pb-16 pt-8 flex flex-col md:flex-row gap-8 items-end justify-between w-full">
+        <div className="container mx-auto px-6 pb-12 pt-20 flex flex-col md:flex-row gap-8 items-end justify-between w-full">
 
           {/* Left — hunch info */}
           <div className="flex-1 min-w-0 max-w-xl">
