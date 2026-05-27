@@ -380,10 +380,7 @@ export default function HunchDetail() {
                           <span className="text-xs font-bold text-primary bg-primary/10 rounded-lg px-2.5 py-1 whitespace-nowrap shrink-0 min-w-[72px] text-center">
                             {ordinal(tier.rank)} place
                           </span>
-                          <div className="flex items-baseline gap-1.5 min-w-0">
-                            <span className="text-sm font-semibold text-foreground">{tier.prize.value}</span>
-                            <span className="text-xs text-muted-foreground truncate">{tier.prize.label}</span>
-                          </div>
+                          <span className="text-sm text-muted-foreground truncate">{tier.prize.label}</span>
                         </div>
                       ))}
                     </div>
