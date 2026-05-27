@@ -389,9 +389,17 @@ export function TrendingHero({ hunches }: TrendingHeroProps) {
             </h1>
 
             {/* Description */}
-            <p className="text-white/70 text-sm leading-relaxed mb-5 line-clamp-2 max-w-lg hidden sm:block">
-              {hunch.description}
-            </p>
+            <div className="mb-5 max-w-lg hidden sm:block">
+              <p className="text-white/70 text-sm leading-relaxed line-clamp-2">
+                {hunch.description}
+              </p>
+              <Link
+                href={`/hunch/${hunch.slug || hunch.id}`}
+                className="inline-block mt-1.5 text-xs text-white/50 hover:text-white/80 transition-colors"
+              >
+                View more
+              </Link>
+            </div>
 
             {/* Meta row */}
             <div className="flex items-center gap-4 mb-6 flex-wrap">
