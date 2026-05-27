@@ -109,6 +109,7 @@ export function HunchCard({ hunch, featured = false }: HunchCardProps) {
             src={imgSrc}
             alt={hunch.title}
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+            style={{ objectPosition: hunch.imageFocalPoint ?? "center" }}
             loading="lazy"
           />
           <div className={`absolute inset-0 bg-gradient-to-t ${gradient}`} />

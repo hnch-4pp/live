@@ -15,6 +15,7 @@ export const hunchesTable = pgTable("hunches", {
   participantCount: integer("participant_count").notNull().default(0),
   featured: boolean("featured").notNull().default(false),
   imageUrl: text("image_url"),
+  imageFocalPoint: text("image_focal_point"),
   winnerOption: text("winner_option"),
   rules: text("rules"),
   answerType: text("answer_type").notNull().default("integer"), // integer | decimal | date | time

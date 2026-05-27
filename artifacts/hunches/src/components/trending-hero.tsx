@@ -345,6 +345,7 @@ export function TrendingHero({ hunches }: TrendingHeroProps) {
           src={imgSrc}
           alt=""
           className="w-full h-full object-cover"
+          style={{ objectPosition: hunch.imageFocalPoint ?? "center" }}
           loading="eager"
         />
         {/* Gradient overlay — heavy left/bottom */}

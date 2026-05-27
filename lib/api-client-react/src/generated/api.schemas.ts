@@ -82,6 +82,8 @@ export interface Hunch {
   /** @nullable */
   imageUrl?: string | null;
   /** @nullable */
+  imageFocalPoint?: string | null;
+  /** @nullable */
   winnerOption?: string | null;
   /** @nullable */
   rules?: string | null;

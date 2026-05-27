@@ -182,7 +182,7 @@ export default function HunchDetail() {
           <div>
             {hunch.imageUrl && (
               <div className="rounded-2xl overflow-hidden border border-border bg-muted h-full">
-                <img src={hunch.imageUrl} alt={hunch.title} className="w-full h-full object-cover" />
+                <img src={hunch.imageUrl} alt={hunch.title} className="w-full h-full object-cover" style={{ objectPosition: hunch.imageFocalPoint ?? "center" }} />
               </div>
             )}
           </div>

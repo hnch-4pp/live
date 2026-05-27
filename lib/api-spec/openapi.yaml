@@ -340,6 +340,8 @@ components:
           type: boolean
         imageUrl:
           type: ["string", "null"]
+        imageFocalPoint:
+          type: ["string", "null"]
         winnerOption:
           type: ["string", "null"]
         rules:

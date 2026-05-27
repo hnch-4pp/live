@@ -25,6 +25,7 @@ const EMPTY = {
   slug: "",
   description: "",
   imageUrl: "",
+  imageFocalPoint: "50% 50%",
   rules: "",
   status: "open",
   featured: false,
@@ -87,6 +88,7 @@ export default function HunchForm() {
           slug: h.slug ?? "",
           description: h.description ?? "",
           imageUrl: h.imageUrl ?? "",
+          imageFocalPoint: h.imageFocalPoint ?? "50% 50%",
           status: h.status ?? "open",
           featured: h.featured ?? false,
           endsAt: new Date(h.endsAt).toISOString().slice(0, 16),
@@ -117,6 +119,7 @@ export default function HunchForm() {
         ...form,
         endsAt: new Date(form.endsAt).toISOString(),
         imageUrl: form.imageUrl || null,
+        imageFocalPoint: form.imageFocalPoint || null,
         winnerOption: form.winnerOption || null,
         prizeTiers: validTiers,
       };
@@ -232,6 +235,39 @@ export default function HunchForm() {
                 className={inputCls}
               />
             </Field>
+
+            {form.imageUrl && (
+              <Field label="Focal point" hint="Click on the image to set the crop focus point">
+                <div
+                  className="relative w-full h-40 rounded-xl overflow-hidden border border-gray-200 cursor-crosshair select-none"
+                  onClick={(e) => {
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    const x = Math.round(((e.clientX - rect.left) / rect.width) * 100);
+                    const y = Math.round(((e.clientY - rect.top) / rect.height) * 100);
+                    setForm({ ...form, imageFocalPoint: `${x}% ${y}%` });
+                  }}
+                >
+                  <img
+                    src={form.imageUrl}
+                    alt="preview"
+                    className="w-full h-full object-cover pointer-events-none"
+                    style={{ objectPosition: form.imageFocalPoint }}
+                  />
+                  {(() => {
+                    const [px, py] = (form.imageFocalPoint || "50% 50%").split(" ").map((v) => parseFloat(v));
+                    return (
+                      <div
+                        className="absolute w-5 h-5 rounded-full border-2 border-white shadow-lg bg-violet-500/60 -translate-x-1/2 -translate-y-1/2 pointer-events-none"
+                        style={{ left: `${px}%`, top: `${py}%` }}
+                      />
+                    );
+                  })()}
+                  <div className="absolute bottom-2 right-2 bg-black/50 text-white text-[10px] px-2 py-0.5 rounded-full font-mono">
+                    {form.imageFocalPoint}
+                  </div>
+                </div>
+              </Field>
+            )}
 
             <Field label="Rules" hint="Displayed on the hunch detail page where users can read how the prediction will be resolved">
               <textarea

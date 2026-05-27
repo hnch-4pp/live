@@ -231,6 +231,7 @@ router.post(
         title: String(title),
         description: String(description),
         imageUrl: imageUrl ? String(imageUrl) : null,
+        imageFocalPoint: req.body.imageFocalPoint ? String(req.body.imageFocalPoint) : null,
         categoryId: Number(categoryId),
         prizeId: firstPrizeId,
         featured: featured === true || featured === "true",
@@ -280,6 +281,8 @@ router.patch(
     if (description !== undefined) updates["description"] = String(description);
     if (imageUrl !== undefined)
       updates["imageUrl"] = imageUrl ? String(imageUrl) : null;
+    if ("imageFocalPoint" in req.body)
+      updates["imageFocalPoint"] = req.body.imageFocalPoint ? String(req.body.imageFocalPoint) : null;
     if (categoryId !== undefined) updates["categoryId"] = Number(categoryId);
     if (prizeId !== undefined) updates["prizeId"] = Number(prizeId);
     if (featured !== undefined)

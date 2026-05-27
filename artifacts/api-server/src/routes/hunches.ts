@@ -124,6 +124,7 @@ async function buildHunch(hunch: typeof hunchesTable.$inferSelect) {
     })),
     featured: hunch.featured,
     imageUrl: hunch.imageUrl ?? null,
+    imageFocalPoint: hunch.imageFocalPoint ?? null,
     winnerOption: hunch.winnerOption ?? null,
     rules: hunch.rules ?? null,
     answerType: hunch.answerType,
