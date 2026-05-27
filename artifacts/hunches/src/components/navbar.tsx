@@ -45,7 +45,9 @@ const LANGUAGES = [
 
 function LanguageSelector() {
   const [open, setOpen] = useState(false);
-  const [selected, setSelected] = useState(LANGUAGES[0]);
+  const [selected, setSelected] = useState(
+    () => LANGUAGES.find((l) => l.code === i18n.language) ?? LANGUAGES[0],
+  );
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
