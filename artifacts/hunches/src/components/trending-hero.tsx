@@ -398,7 +398,6 @@ export function TrendingHero({ hunches }: TrendingHeroProps) {
               <span className="inline-flex items-center gap-1.5 text-white/80 text-xs font-medium">
                 {getPrizeIcon(hunch.prize.type)}
                 <span className="font-bold text-white">{hunch.prize.value}</span>
-                <span className="text-white/60">{hunch.prize.label}</span>
               </span>
               <span className="inline-flex items-center gap-1.5 text-white/70 text-xs">
                 <Users className="w-3.5 h-3.5" />

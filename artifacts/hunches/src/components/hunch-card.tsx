@@ -125,7 +125,7 @@ export function HunchCard({ hunch, featured = false }: HunchCardProps) {
           <div className="absolute top-3 right-3">
             <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-white/90 backdrop-blur-sm text-foreground">
               {getPrizeIcon(hunch.prize.type)}
-              {hunch.prize.value} {hunch.prize.label}
+              {hunch.prize.value}
             </span>
           </div>
 
