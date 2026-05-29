@@ -236,11 +236,24 @@ export function Navbar() {
 
   const [searchValue, setSearchValue] = useState(activeQ);
   const [searchOpen, setSearchOpen] = useState(!!activeQ);
+  const [mobileCatOpen, setMobileCatOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const mobileCatRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (searchOpen) inputRef.current?.focus();
   }, [searchOpen]);
+
+  useEffect(() => {
+    if (!mobileCatOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (mobileCatRef.current && !mobileCatRef.current.contains(e.target as Node)) {
+        setMobileCatOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [mobileCatOpen]);
 
   const handleCategory = (slug: string) => {
     const params = new URLSearchParams(search);
@@ -291,11 +304,61 @@ export function Navbar() {
       <div className="border-t border-border bg-white">
         <div className="container mx-auto px-4">
           <div className="flex items-center gap-2 py-2.5">
-            {/* Scrollable pills */}
-            <div className="flex items-center gap-1 overflow-x-auto scrollbar-none flex-1 min-w-0">
+
+            {/* ── Mobile: categories dropdown ── */}
+            <div className="relative md:hidden shrink-0" ref={mobileCatRef}>
+              <button
+                onClick={() => setMobileCatOpen((o) => !o)}
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium border transition-all duration-150 ${
+                  activeCategory
+                    ? "bg-primary text-white border-primary shadow-sm"
+                    : "text-muted-foreground border-border hover:bg-muted hover:text-foreground"
+                }`}
+              >
+                <span>
+                  {activeCategory
+                    ? (categories.find((c) => c.slug === activeCategory)?.name ?? "Categories")
+                    : "Categories"}
+                </span>
+                <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-150 ${mobileCatOpen ? "rotate-180" : ""}`} />
+              </button>
+
+              {mobileCatOpen && (
+                <div className="absolute left-0 top-full mt-1.5 w-52 bg-white border border-border rounded-xl shadow-lg z-50 py-1.5 overflow-hidden">
+                  <button
+                    onClick={() => {
+                      const params = new URLSearchParams(search);
+                      params.delete("category");
+                      setLocation(`/?${params.toString()}`);
+                      setMobileCatOpen(false);
+                    }}
+                    className={`w-full text-left px-4 py-2 text-sm font-medium transition-colors ${
+                      !activeCategory ? "text-primary bg-primary/8" : "text-foreground hover:bg-muted"
+                    }`}
+                  >
+                    All Categories
+                  </button>
+                  {categories.map((cat) => (
+                    <button
+                      key={cat.slug}
+                      onClick={() => { handleCategory(cat.slug); setMobileCatOpen(false); }}
+                      className={`w-full text-left px-4 py-2 text-sm font-medium transition-colors ${
+                        activeCategory === cat.slug
+                          ? "text-primary bg-primary/8"
+                          : "text-foreground hover:bg-muted"
+                      }`}
+                    >
+                      {cat.name}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* ── Desktop: scrollable pills ── */}
+            <div className="hidden md:flex items-center gap-1 overflow-x-auto scrollbar-none flex-1 min-w-0">
               {categories.map((cat) => {
                 const isActive = activeCategory === cat.slug;
-                const Icon = ICON_MAP[cat.icon];
                 return (
                   <button
                     key={cat.slug}
@@ -313,7 +376,7 @@ export function Navbar() {
             </div>
 
             {/* Search — always visible */}
-            <div className="flex items-center gap-1 bg-muted rounded-full pl-3 pr-1 py-1 border border-border focus-within:border-primary/50 focus-within:ring-2 focus-within:ring-primary/15 transition-all shrink-0">
+            <div className="flex items-center gap-1 bg-muted rounded-full pl-3 pr-1 py-1 border border-border focus-within:border-primary/50 focus-within:ring-2 focus-within:ring-primary/15 transition-all flex-1 md:flex-none md:shrink-0">
               <Search className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
               <input
                 ref={inputRef}
@@ -325,7 +388,7 @@ export function Navbar() {
                   if (e.key === "Escape") clearSearch();
                 }}
                 placeholder="Search hunches..."
-                className="bg-transparent text-sm font-medium text-foreground placeholder:text-muted-foreground outline-none w-44"
+                className="bg-transparent text-sm font-medium text-foreground placeholder:text-muted-foreground outline-none w-full md:w-44"
               />
               {searchValue && (
                 <button
@@ -336,6 +399,7 @@ export function Navbar() {
                 </button>
               )}
             </div>
+
           </div>
         </div>
       </div>
