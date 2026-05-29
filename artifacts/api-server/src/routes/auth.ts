@@ -5,7 +5,6 @@ import {
   usersTable, otpsTable, ticketCodesTable, ticketCodeRedemptionsTable,
   ticketTransactionsTable, predictionsTable, optionsTable, hunchesTable, categoriesTable,
 } from "@workspace/db";
-import { ReplitConnectors } from "@replit/connectors-sdk";
 import bcrypt from "bcryptjs";
 
 const router: IRouter = Router();
@@ -45,15 +44,19 @@ async function verifyOtp(identifier: string, type: "email" | "phone", code: stri
 }
 
 async function sendEmailOtp(email: string, code: string): Promise<void> {
-  // Always log dev code for easy testing
   if (isDev) {
     console.log(`[AUTH DEV] Email OTP for ${email}: ${code}`);
   }
 
-  // Send via Resend (Replit connector — handles auth automatically)
-  const connectors = new ReplitConnectors();
-  const response = await connectors.proxy("resend", "/emails", {
+  const RESEND_API_KEY = process.env.RESEND_API_KEY;
+  if (!RESEND_API_KEY) throw new Error("RESEND_API_KEY not configured");
+
+  const response = await fetch("https://api.resend.com/emails", {
     method: "POST",
+    headers: {
+      "Authorization": `Bearer ${RESEND_API_KEY}`,
+      "Content-Type": "application/json",
+    },
     body: JSON.stringify({
       from: "Hunch <no-reply@hunch.fan>",
       to: [email],
@@ -86,30 +89,33 @@ async function sendEmailOtp(email: string, code: string): Promise<void> {
 }
 
 async function sendPhoneOtp(phone: string, code: string): Promise<void> {
-  // Always log dev code for easy testing
   if (isDev) {
     console.log(`[AUTH DEV] SMS OTP for ${phone}: ${code}`);
   }
 
-  // Send via Twilio (Replit connector — handles auth automatically)
   const TWILIO_ACCOUNT_SID = process.env.TWILIO_ACCOUNT_SID;
+  const TWILIO_AUTH_TOKEN  = process.env.TWILIO_AUTH_TOKEN;
   const TWILIO_FROM_NUMBER = process.env.TWILIO_FROM_NUMBER;
-  if (!TWILIO_ACCOUNT_SID || !TWILIO_FROM_NUMBER) {
+  if (!TWILIO_ACCOUNT_SID || !TWILIO_AUTH_TOKEN || !TWILIO_FROM_NUMBER) {
     throw new Error("Twilio credentials not configured");
   }
-  const connectors = new ReplitConnectors();
+
   const body = new URLSearchParams({
-    To: phone,
+    To:   phone,
     From: TWILIO_FROM_NUMBER,
     Body: `Your Hunch verification code is: ${code}. It expires in 10 minutes.`,
   });
 
-  const response = await connectors.proxy(
-    "twilio",
-    `/2010-04-01/Accounts/${TWILIO_ACCOUNT_SID}/Messages.json`,
+  const credentials = Buffer.from(`${TWILIO_ACCOUNT_SID}:${TWILIO_AUTH_TOKEN}`).toString("base64");
+
+  const response = await fetch(
+    `https://api.twilio.com/2010-04-01/Accounts/${TWILIO_ACCOUNT_SID}/Messages.json`,
     {
       method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      headers: {
+        "Authorization": `Basic ${credentials}`,
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
       body: body.toString(),
     },
   );
