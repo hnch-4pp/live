@@ -508,6 +508,7 @@ export default function Signup() {
       if (!res.ok) { setPromoError(data.error ?? "Invalid code"); return; }
       setPromoApplied(true);
       setPromoInfo({ bonusTickets: data.ticketsGranted, instructions: null });
+      await refetch();
     } catch {
       setPromoError("Failed to apply code. Please try again.");
     } finally {

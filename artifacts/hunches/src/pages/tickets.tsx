@@ -76,13 +76,17 @@ const PURCHASE_OPTIONS = [
 ];
 
 export default function TicketsPage() {
-  const { user, isLoading: authLoading } = useAuth();
+  const { user, isLoading: authLoading, refetch } = useAuth();
   const [, setLocation] = useLocation();
   const { data: activity, isLoading: activityLoading } = useTicketActivity();
 
   useEffect(() => {
     if (!authLoading && !user) setLocation("/login");
   }, [authLoading, user, setLocation]);
+
+  useEffect(() => {
+    refetch();
+  }, []);
 
   const isLoading = authLoading;
 
@@ -119,13 +123,6 @@ export default function TicketsPage() {
                 </div>
               </div>
 
-              <div className="w-full bg-muted rounded-full h-2 overflow-hidden">
-                <div
-                  className="bg-primary h-2 rounded-full transition-all"
-                  style={{ width: `${Math.min(100, (user.tickets / 10) * 100)}%` }}
-                />
-              </div>
-              <p className="text-xs text-muted-foreground mt-2">{user.tickets} of 10 shown</p>
             </div>
 
             {/* Activity timeline */}
