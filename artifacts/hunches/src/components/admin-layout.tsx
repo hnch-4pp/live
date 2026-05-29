@@ -1,4 +1,5 @@
 import { Link, useLocation } from "wouter";
+import { apiUrl } from "@/lib/apiFetch";
 import { LayoutDashboard, ListChecks, Tag, Users, LogOut, ChevronRight, Ticket, Sparkles } from "lucide-react";
 
 const NAV = [
@@ -11,7 +12,7 @@ const NAV = [
 ];
 
 async function logout() {
-  await fetch("/api/admin/logout", {
+  await fetch(apiUrl("/api/admin/logout"), {
     method: "POST",
     headers: { "X-Admin-Request": "1" },
     credentials: "include",

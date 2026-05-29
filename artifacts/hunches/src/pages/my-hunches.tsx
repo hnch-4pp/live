@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { apiUrl } from "@/lib/apiFetch";
 import { useLocation } from "wouter";
 import { Layout } from "@/components/layout";
 import { useAuth } from "@/hooks/use-auth";
@@ -58,7 +59,7 @@ export default function MyHunches() {
 
   useEffect(() => {
     if (!user) return;
-    fetch("/api/auth/my-hunches", { credentials: "include" })
+    fetch(apiUrl("/api/auth/my-hunches"), { credentials: "include" })
       .then(async (r) => {
         if (!r.ok) return;
         const data: unknown = await r.json();

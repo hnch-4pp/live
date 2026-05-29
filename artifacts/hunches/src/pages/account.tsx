@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { apiUrl } from "@/lib/apiFetch";
 import { useLocation } from "wouter";
 import { Layout } from "@/components/layout";
 import { Button } from "@/components/ui/button";
@@ -150,7 +151,7 @@ function UsernameSection({
     setStatus("checking");
     const timer = setTimeout(async () => {
       try {
-        const res = await fetch(`/api/auth/signup/check-username?username=${encodeURIComponent(raw)}`, { credentials: "include" });
+        const res = await fetch(apiUrl(`/api/auth/signup/check-username?username=${encodeURIComponent(raw)}`), { credentials: "include" });
         const data = await res.json();
         setStatus(data.available ? "available" : "taken");
       } catch {
@@ -166,7 +167,7 @@ function UsernameSection({
     setSaving(true);
     setError("");
     try {
-      const res = await fetch("/api/auth/me", {
+      const res = await fetch(apiUrl("/api/auth/me"), {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -251,7 +252,7 @@ function AddressSection({ current, onSaved }: { current: string | null; onSaved:
     setSaving(true);
     setError("");
     try {
-      const res = await fetch("/api/auth/me", {
+      const res = await fetch(apiUrl("/api/auth/me"), {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -356,7 +357,7 @@ function DeleteDialog({
     setLoading(true);
     setError("");
     try {
-      const res = await fetch("/api/auth/me", {
+      const res = await fetch(apiUrl("/api/auth/me"), {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -452,7 +453,7 @@ export default function Account() {
   const initials = (user.username ?? user.email).slice(0, 2).toUpperCase();
 
   const saveAvatarUrl = async (objectPath: string) => {
-    await fetch("/api/auth/me", {
+    await fetch(apiUrl("/api/auth/me"), {
       method: "PATCH",
       credentials: "include",
       headers: { "Content-Type": "application/json" },

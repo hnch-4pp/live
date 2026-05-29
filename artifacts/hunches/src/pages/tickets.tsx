@@ -1,4 +1,5 @@
 import { Link, useLocation } from "wouter";
+import { apiUrl } from "@/lib/apiFetch";
 import { Ticket, ArrowLeft, Info, Gift, Tag, ShoppingBag, MinusCircle, Sparkles, Package, RefreshCw } from "lucide-react";
 import { Layout } from "@/components/layout";
 import { useAuth } from "@/hooks/use-auth";
@@ -22,7 +23,7 @@ function useTicketActivity() {
   return useQuery<TicketTransaction[]>({
     queryKey: ["ticket-activity"],
     queryFn: async () => {
-      const res = await fetch("/api/auth/tickets/activity", { credentials: "include" });
+      const res = await fetch(apiUrl("/api/auth/tickets/activity"), { credentials: "include" });
       if (!res.ok) throw new Error("Failed to load activity");
       return res.json() as Promise<TicketTransaction[]>;
     },

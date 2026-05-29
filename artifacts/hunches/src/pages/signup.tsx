@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { apiUrl } from "@/lib/apiFetch";
 import { Layout } from "@/components/layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -470,7 +471,7 @@ export default function Signup() {
     setUsernameStatus("checking");
     const timer = setTimeout(async () => {
       try {
-        const res = await fetch(`/api/auth/signup/check-username?username=${encodeURIComponent(raw)}`, { credentials: "include" });
+        const res = await fetch(apiUrl(`/api/auth/signup/check-username?username=${encodeURIComponent(raw)}`), { credentials: "include" });
         const data = await res.json();
         setUsernameStatus(data.available ? "available" : "taken");
       } catch {
@@ -481,7 +482,7 @@ export default function Signup() {
   }, [username]);
 
   const post = async (path: string, body: object) => {
-    const res = await fetch(`/api${path}`, {
+    const res = await fetch(apiUrl(`/api${path}`), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       credentials: "include",
@@ -497,7 +498,7 @@ export default function Signup() {
     setPromoError("");
     setPromoLoading(true);
     try {
-      const res = await fetch("/api/auth/ticket-codes/redeem", {
+      const res = await fetch(apiUrl("/api/auth/ticket-codes/redeem"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",

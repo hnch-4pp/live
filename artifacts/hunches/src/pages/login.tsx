@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { apiUrl } from "@/lib/apiFetch";
 import { Layout } from "@/components/layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -56,7 +57,7 @@ export default function Login() {
   const [devHint, setDevHint] = useState("");
 
   const post = async (path: string, body: object) => {
-    const res = await fetch(`/api${path}`, {
+    const res = await fetch(apiUrl(`/api${path}`), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       credentials: "include",

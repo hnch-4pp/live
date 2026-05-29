@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { apiUrl } from "@/lib/apiFetch";
 import { useLocation } from "wouter";
 import { AdminLayout } from "@/components/admin-layout";
 import { ListChecks, Users, BarChart2 } from "lucide-react";
@@ -13,7 +14,7 @@ interface AdminHunch {
 }
 
 function adminFetch(path: string, opts?: RequestInit) {
-  return fetch(`/api${path}`, {
+  return fetch(apiUrl(`/api${path}`), {
     ...opts,
     credentials: "include",
     headers: {
@@ -27,7 +28,7 @@ function adminFetch(path: string, opts?: RequestInit) {
 export function useAdminAuth() {
   const [, setLocation] = useLocation();
   useEffect(() => {
-    fetch("/api/admin/me", { credentials: "include" })
+    fetch(apiUrl("/api/admin/me"), { credentials: "include" })
       .then((r) => r.json() as Promise<{ authenticated: boolean }>)
       .then((d) => { if (!d.authenticated) setLocation("/backstage/login"); })
       .catch(() => setLocation("/backstage/login"));
