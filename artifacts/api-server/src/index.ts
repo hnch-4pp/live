@@ -2,6 +2,15 @@ import app from "./app";
 import { logger } from "./lib/logger";
 import { runMigrations } from "stripe-replit-sync";
 import { getStripeSync } from "./stripeClient";
+import { db } from "@workspace/db";
+import { sql } from "drizzle-orm";
+
+async function runAppMigrations(): Promise<void> {
+  await db.execute(sql`
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS stripe_customer_id TEXT;
+  `);
+  logger.info("App schema migrations applied");
+}
 
 async function initStripe(): Promise<void> {
   const databaseUrl = process.env.DATABASE_URL;
@@ -43,6 +52,7 @@ if (Number.isNaN(port) || port <= 0) {
   throw new Error(`Invalid PORT value: "${rawPort}"`);
 }
 
+await runAppMigrations();
 await initStripe();
 
 app.listen(port, (err) => {
