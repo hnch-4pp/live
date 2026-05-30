@@ -192,6 +192,7 @@ export default function Login() {
                   id="password"
                   type="password"
                   autoFocus
+                  autoComplete="off"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && password && handlePassword()}
