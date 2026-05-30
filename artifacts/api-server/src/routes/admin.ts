@@ -389,8 +389,9 @@ router.patch(
       }
     }
 
-    // Questions (full replace when provided)
-    if (Array.isArray(req.body.questions)) {
+    // Questions (full replace when provided — only for multi-prediction hunches)
+    const isMultiReq = req.body.isMulti === true || req.body.isMulti === "true";
+    if (isMultiReq && Array.isArray(req.body.questions)) {
       await db.delete(hunchQuestionsTable).where(eq(hunchQuestionsTable.hunchId, id));
       const qs = req.body.questions as Array<{ prompt: string; answerType: string; placeholder?: string; sortOrder?: number }>;
       const validQs = qs.filter((q) => q.prompt?.trim());

@@ -77,6 +77,35 @@ async function runAppMigrations(): Promise<void> {
   await db.execute(sql`ALTER TABLE options ADD COLUMN IF NOT EXISTS question_id INTEGER REFERENCES hunch_questions(id)`);
   await db.execute(sql`ALTER TABLE predictions ADD COLUMN IF NOT EXISTS question_id INTEGER REFERENCES hunch_questions(id)`);
 
+  // Upgrade question_id FK constraints to ON DELETE SET NULL so deleting
+  // hunch_questions rows never blocks the PATCH handler.
+  await db.execute(sql`
+    DO $$ BEGIN
+      IF EXISTS (
+        SELECT 1 FROM information_schema.table_constraints
+        WHERE constraint_name = 'options_question_id_fkey'
+          AND constraint_type = 'FOREIGN KEY'
+      ) THEN
+        ALTER TABLE options DROP CONSTRAINT options_question_id_fkey;
+      END IF;
+      ALTER TABLE options ADD CONSTRAINT options_question_id_fkey
+        FOREIGN KEY (question_id) REFERENCES hunch_questions(id) ON DELETE SET NULL;
+    END $$;
+  `);
+  await db.execute(sql`
+    DO $$ BEGIN
+      IF EXISTS (
+        SELECT 1 FROM information_schema.table_constraints
+        WHERE constraint_name = 'predictions_question_id_fkey'
+          AND constraint_type = 'FOREIGN KEY'
+      ) THEN
+        ALTER TABLE predictions DROP CONSTRAINT predictions_question_id_fkey;
+      END IF;
+      ALTER TABLE predictions ADD CONSTRAINT predictions_question_id_fkey
+        FOREIGN KEY (question_id) REFERENCES hunch_questions(id) ON DELETE SET NULL;
+    END $$;
+  `);
+
   await db.execute(sql`
     CREATE TABLE IF NOT EXISTS top_notifications (
       id          SERIAL PRIMARY KEY,
