@@ -4,6 +4,7 @@ import { runMigrations } from "stripe-replit-sync";
 import { getStripeSync } from "./stripeClient";
 import { db } from "@workspace/db";
 import { sql } from "drizzle-orm";
+import { ensureTicketPacksExist } from "./seedTicketPacks";
 
 async function runAppMigrations(): Promise<void> {
   await db.execute(sql`
@@ -53,6 +54,7 @@ if (Number.isNaN(port) || port <= 0) {
 }
 
 await runAppMigrations();
+await ensureTicketPacksExist();
 await initStripe();
 
 app.listen(port, (err) => {

@@ -7,20 +7,25 @@ import type Stripe from "stripe";
 const router: IRouter = Router();
 
 // GET /stripe/ticket-packs — list one-time ticket packs via Stripe API
-router.get("/stripe/ticket-packs", async (_req, res): Promise<void> => {
+router.get("/stripe/ticket-packs", async (req, res): Promise<void> => {
+  const debug = req.query["debug"] === "1";
   try {
     const stripe = await getUncachableStripeClient();
 
-    const products = await stripe.products.search({
-      query: "metadata['type']:'ticket_pack' AND active:'true'",
-      expand: ["data.default_price"],
+    // Use list (not search) — search requires indexing which can take hours
+    const allProducts = await stripe.prices.list({
+      active: true,
+      expand: ["data.product"],
+      limit: 100,
     });
 
-    const packs = await Promise.all(
-      products.data.map(async (product) => {
-        const prices = await stripe.prices.list({ product: product.id, active: true, limit: 1 });
-        const price = prices.data[0];
-        if (!price) return null;
+    const packs = allProducts.data
+      .filter((price) => {
+        const product = price.product as Stripe.Product;
+        return product.active && product.metadata?.type === "ticket_pack";
+      })
+      .map((price) => {
+        const product = price.product as Stripe.Product;
         return {
           product_id: product.id,
           product_name: product.name,
@@ -29,16 +34,18 @@ router.get("/stripe/ticket-packs", async (_req, res): Promise<void> => {
           unit_amount: price.unit_amount ?? 0,
           currency: price.currency,
         };
-      }),
-    );
-
-    const sorted = packs
-      .filter((p): p is NonNullable<typeof p> => p !== null)
+      })
       .sort((a, b) => a.unit_amount - b.unit_amount);
 
-    res.json({ data: sorted });
-  } catch {
-    res.json({ data: [] });
+    res.json({ data: packs });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    req.log.error({ err }, "ticket-packs fetch failed");
+    if (debug) {
+      res.status(500).json({ data: [], error: message });
+    } else {
+      res.json({ data: [] });
+    }
   }
 });
 
