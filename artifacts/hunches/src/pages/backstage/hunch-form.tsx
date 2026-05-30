@@ -198,10 +198,17 @@ export default function HunchForm() {
     setSaving(true);
     setError("");
     try {
-      const validTiers = prizeTiers.filter((t) => t.prizeLabel.trim());
+      const parsedEndsAt = new Date(form.endsAt);
+      if (!form.endsAt || isNaN(parsedEndsAt.getTime())) {
+        setError("Please enter a valid end date.");
+        setSaving(false);
+        return;
+      }
+
+      const validTiers = prizeTiers.filter((t) => t.prizeLabel?.trim());
       const body: Record<string, unknown> = {
         ...form,
-        endsAt: new Date(form.endsAt).toISOString(),
+        endsAt: parsedEndsAt.toISOString(),
         imageUrl: form.imageUrl || null,
         imageFocalPoint: form.imageFocalPoint || null,
         winnerOption: form.isMulti ? null : (form.winnerOption || null),
@@ -223,11 +230,19 @@ export default function HunchForm() {
       if (res.ok) {
         setLocation("/backstage/hunches");
       } else {
-        const data = await res.json() as { error?: string };
-        setError(data.error ?? "Failed to save");
+        let errMsg = "Failed to save";
+        try {
+          const data = await res.json() as { error?: string };
+          errMsg = data.error ?? errMsg;
+        } catch {
+          errMsg = `Server error (HTTP ${res.status})`;
+        }
+        setError(errMsg);
       }
-    } catch {
-      setError("Network error");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error("handleSave failed:", err);
+      setError(msg || "Unexpected error — check console for details");
     } finally {
       setSaving(false);
     }
