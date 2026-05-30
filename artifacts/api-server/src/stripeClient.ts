@@ -1,6 +1,6 @@
 import Stripe from "stripe";
 
-async function getCredentials(): Promise<{ publishableKey: string; secretKey: string }> {
+async function getCredentialsFromReplit(): Promise<{ publishableKey: string; secretKey: string } | null> {
   const hostname = process.env.REPLIT_CONNECTORS_HOSTNAME;
   const xReplitToken = process.env.REPL_IDENTITY
     ? "repl " + process.env.REPL_IDENTITY
@@ -8,11 +8,7 @@ async function getCredentials(): Promise<{ publishableKey: string; secretKey: st
       ? "depl " + process.env.WEB_REPL_RENEWAL
       : null;
 
-  if (!hostname || !xReplitToken) {
-    throw new Error(
-      "Missing Replit environment variables. Ensure the Stripe integration is connected via the Integrations tab.",
-    );
-  }
+  if (!hostname || !xReplitToken) return null;
 
   const isProduction = process.env.REPLIT_DEPLOYMENT === "1";
   const targetEnvironment = isProduction ? "production" : "development";
@@ -22,25 +18,40 @@ async function getCredentials(): Promise<{ publishableKey: string; secretKey: st
   url.searchParams.set("connector_names", "stripe");
   url.searchParams.set("environment", targetEnvironment);
 
-  const resp = await fetch(url.toString(), {
-    headers: { Accept: "application/json", "X-Replit-Token": xReplitToken },
-    signal: AbortSignal.timeout(10_000),
-  });
+  try {
+    const resp = await fetch(url.toString(), {
+      headers: { Accept: "application/json", "X-Replit-Token": xReplitToken },
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (!resp.ok) return null;
 
-  if (!resp.ok) {
-    throw new Error(`Failed to fetch Stripe credentials: ${resp.status} ${resp.statusText}`);
+    const data = await resp.json() as { items?: Array<{ settings: { publishable: string; secret: string } }> };
+    const settings = data.items?.[0]?.settings;
+    if (!settings?.secret) return null;
+
+    return { publishableKey: settings.publishable, secretKey: settings.secret };
+  } catch {
+    return null;
+  }
+}
+
+async function getCredentials(): Promise<{ publishableKey: string; secretKey: string }> {
+  // 1. Direct env vars (Render, or any non-Replit deployment)
+  if (process.env.STRIPE_SECRET_KEY) {
+    return {
+      secretKey: process.env.STRIPE_SECRET_KEY,
+      publishableKey: process.env.STRIPE_PUBLISHABLE_KEY ?? "",
+    };
   }
 
-  const data = await resp.json() as { items?: Array<{ settings: { publishable: string; secret: string } }> };
-  const settings = data.items?.[0]?.settings;
+  // 2. Replit connector (dev environment)
+  const replit = await getCredentialsFromReplit();
+  if (replit) return replit;
 
-  if (!settings?.secret) {
-    throw new Error(
-      "Stripe integration not connected or missing secret key. Connect Stripe via the Integrations tab first.",
-    );
-  }
-
-  return { publishableKey: settings.publishable, secretKey: settings.secret };
+  throw new Error(
+    "No Stripe credentials found. Set STRIPE_SECRET_KEY (and optionally STRIPE_PUBLISHABLE_KEY) " +
+    "as environment variables, or connect the Stripe integration via the Replit Integrations tab.",
+  );
 }
 
 export async function getUncachableStripeClient(): Promise<Stripe> {
