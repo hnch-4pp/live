@@ -77,6 +77,20 @@ async function runAppMigrations(): Promise<void> {
   await db.execute(sql`ALTER TABLE options ADD COLUMN IF NOT EXISTS question_id INTEGER REFERENCES hunch_questions(id)`);
   await db.execute(sql`ALTER TABLE predictions ADD COLUMN IF NOT EXISTS question_id INTEGER REFERENCES hunch_questions(id)`);
 
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS top_notifications (
+      id          SERIAL PRIMARY KEY,
+      message     TEXT NOT NULL,
+      link_url    TEXT,
+      link_label  TEXT,
+      type        TEXT NOT NULL DEFAULT 'info',
+      is_active   BOOLEAN NOT NULL DEFAULT TRUE,
+      expires_at  TIMESTAMPTZ,
+      created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+
   logger.info("App schema migrations applied");
 }
 

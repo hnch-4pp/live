@@ -16,6 +16,7 @@ import {
   ticketTransactionsTable,
   subscriptionsTable,
   hunchQuestionsTable,
+  topNotificationsTable,
 } from "@workspace/db";
 import { eq, or, ilike, sql, desc, and } from "drizzle-orm";
 import { getUncachableStripeClient } from "../stripeClient";
@@ -1112,5 +1113,88 @@ router.delete(
     res.json({ ok: true });
   },
 );
+
+// ── Top Notifications ───────────────────────────────────────────────────────
+
+router.get("/admin/notifications", requireAdmin, requireAdminHeader, async (_req, res): Promise<void> => {
+  const rows = await db
+    .select()
+    .from(topNotificationsTable)
+    .orderBy(desc(topNotificationsTable.createdAt));
+  res.json(rows);
+});
+
+router.post("/admin/notifications", requireAdmin, requireAdminHeader, async (req, res): Promise<void> => {
+  const { message, linkUrl, linkLabel, type, isActive, expiresAt } = req.body as {
+    message?: string;
+    linkUrl?: string;
+    linkLabel?: string;
+    type?: string;
+    isActive?: boolean;
+    expiresAt?: string | null;
+  };
+
+  if (!message?.trim()) {
+    res.status(400).json({ error: "Message is required" });
+    return;
+  }
+
+  const VALID_TYPES = ["info", "warning", "success", "promo"];
+  const notifType = VALID_TYPES.includes(type ?? "") ? (type as string) : "info";
+
+  const [row] = await db
+    .insert(topNotificationsTable)
+    .values({
+      message: message.trim(),
+      linkUrl: linkUrl?.trim() || null,
+      linkLabel: linkLabel?.trim() || null,
+      type: notifType,
+      isActive: isActive !== false,
+      expiresAt: expiresAt ? new Date(expiresAt) : null,
+    })
+    .returning();
+
+  res.status(201).json(row);
+});
+
+router.patch("/admin/notifications/:id", requireAdmin, requireAdminHeader, async (req, res): Promise<void> => {
+  const id = parseInt(String(req.params["id"] ?? "0"), 10);
+  if (!id) { res.status(400).json({ error: "Invalid ID" }); return; }
+
+  const { message, linkUrl, linkLabel, type, isActive, expiresAt } = req.body as {
+    message?: string;
+    linkUrl?: string | null;
+    linkLabel?: string | null;
+    type?: string;
+    isActive?: boolean;
+    expiresAt?: string | null;
+  };
+
+  const VALID_TYPES = ["info", "warning", "success", "promo"];
+  const update: Record<string, unknown> = { updatedAt: new Date() };
+
+  if (message !== undefined) update.message = message.trim();
+  if (linkUrl !== undefined) update.linkUrl = linkUrl?.trim() || null;
+  if (linkLabel !== undefined) update.linkLabel = linkLabel?.trim() || null;
+  if (type !== undefined && VALID_TYPES.includes(type)) update.type = type;
+  if (isActive !== undefined) update.isActive = isActive;
+  if (expiresAt !== undefined) update.expiresAt = expiresAt ? new Date(expiresAt) : null;
+
+  const [row] = await db
+    .update(topNotificationsTable)
+    .set(update)
+    .where(eq(topNotificationsTable.id, id))
+    .returning();
+
+  if (!row) { res.status(404).json({ error: "Not found" }); return; }
+  res.json(row);
+});
+
+router.delete("/admin/notifications/:id", requireAdmin, requireAdminHeader, async (req, res): Promise<void> => {
+  const id = parseInt(String(req.params["id"] ?? "0"), 10);
+  if (!id) { res.status(400).json({ error: "Invalid ID" }); return; }
+  await db.delete(topNotificationsTable).where(eq(topNotificationsTable.id, id));
+  res.json({ ok: true });
+});
 
 export default router;

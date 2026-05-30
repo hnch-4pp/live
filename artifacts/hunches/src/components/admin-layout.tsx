@@ -1,14 +1,15 @@
 import { Link, useLocation } from "wouter";
 import { apiUrl } from "@/lib/apiFetch";
-import { LayoutDashboard, ListChecks, Tag, Users, LogOut, ChevronRight, Ticket, Sparkles } from "lucide-react";
+import { LayoutDashboard, ListChecks, Tag, Users, LogOut, ChevronRight, Ticket, Sparkles, Bell } from "lucide-react";
 
 const NAV = [
-  { href: "/backstage/dashboard",     label: "Dashboard",     icon: LayoutDashboard },
-  { href: "/backstage/hunches",       label: "Hunches",       icon: ListChecks },
-  { href: "/backstage/hero",          label: "Hero Order",    icon: Sparkles, sub: true },
-  { href: "/backstage/categories",    label: "Categories",    icon: Tag },
-  { href: "/backstage/users",         label: "Users",         icon: Users },
-  { href: "/backstage/ticket-codes",  label: "Ticket Codes",  icon: Ticket },
+  { href: "/backstage/dashboard",       label: "Dashboard",      icon: LayoutDashboard },
+  { href: "/backstage/hunches",         label: "Hunches",        icon: ListChecks },
+  { href: "/backstage/hero",            label: "Hero Order",     icon: Sparkles, sub: true },
+  { href: "/backstage/categories",      label: "Categories",     icon: Tag },
+  { href: "/backstage/users",           label: "Users",          icon: Users },
+  { href: "/backstage/ticket-codes",    label: "Ticket Codes",   icon: Ticket },
+  { href: "/backstage/notifications",   label: "Notifications",  icon: Bell },
 ];
 
 async function logout() {
