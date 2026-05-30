@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from "react";
+import { useLocation } from "wouter";
 import { AdminLayout } from "@/components/admin-layout";
 import { useAdminAuth, adminFetch } from "./dashboard";
 import { Search, X, Trash2, User, Calendar, Phone, MapPin, Mail, ShieldAlert, Ban } from "lucide-react";
@@ -34,10 +35,10 @@ const STATUS_BADGE: Record<UserStatus, { label: string; className: string }> = {
 };
 
 export default function AdminUsers() {
+  const [, setLocation] = useLocation();
   const [data, setData] = useState<UsersResponse | null>(null);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
-  const [selected, setSelected] = useState<AdminUserDetail | null>(null);
   const [deleteId, setDeleteId] = useState<number | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [modAction, setModAction] = useState<{ id: number; action: ModAction } | null>(null);
@@ -66,10 +67,8 @@ export default function AdminUsers() {
     searchRef.current = setTimeout(() => load(val, 1), 300);
   };
 
-  const openDetail = async (id: number) => {
-    const r = await adminFetch(`/admin/users/${id}`);
-    const user = await r.json() as AdminUserDetail;
-    setSelected(user);
+  const openDetail = (id: number) => {
+    setLocation(`/backstage/users/${id}`);
   };
 
   const handleDelete = async () => {
@@ -78,7 +77,6 @@ export default function AdminUsers() {
     await adminFetch(`/admin/users/${deleteId}`, { method: "DELETE" });
     setDeleting(false);
     setDeleteId(null);
-    setSelected(null);
     load(search, page);
   };
 
@@ -96,8 +94,6 @@ export default function AdminUsers() {
       body: JSON.stringify({ status: statusMap[modAction.action] }),
     });
     if (r.ok) {
-      const updated = await r.json() as AdminUserDetail;
-      setSelected(updated);
       load(search, page);
     }
     setModding(false);
@@ -228,105 +224,6 @@ export default function AdminUsers() {
           </div>
         )}
       </div>
-
-      {/* Detail slide-over */}
-      {selected && (
-        <div className="fixed inset-0 z-40 flex">
-          <div className="flex-1 bg-black/30" onClick={() => setSelected(null)} />
-          <div className="w-full max-w-md bg-white shadow-2xl flex flex-col animate-in slide-in-from-right duration-200">
-            {/* Header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-full bg-violet-100 flex items-center justify-center">
-                  <User className="w-4.5 h-4.5 text-violet-600" />
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <p className="font-semibold text-gray-900 text-sm leading-tight">{selected.email}</p>
-                    {(() => {
-                      const badge = STATUS_BADGE[selected.status] ?? STATUS_BADGE.active;
-                      return (
-                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold ${badge.className}`}>
-                          {badge.label}
-                        </span>
-                      );
-                    })()}
-                  </div>
-                  <p className="text-xs text-gray-400">User #{selected.id}</p>
-                </div>
-              </div>
-              <button
-                onClick={() => setSelected(null)}
-                className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-700 transition-colors"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            {/* Fields */}
-            <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
-              <Field icon={Mail} label="Email" value={selected.email} />
-              <Field icon={Phone} label="Phone" value={selected.phone ?? "Not provided"} muted={!selected.phone} />
-              <Field icon={MapPin} label="Address" value={selected.address ?? "Not provided"} muted={!selected.address} />
-              <Field
-                icon={Calendar}
-                label="Date of birth"
-                value={selected.dateOfBirth
-                  ? new Date(selected.dateOfBirth + "T00:00:00").toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" })
-                  : "Not provided"}
-                muted={!selected.dateOfBirth}
-              />
-              <Field
-                icon={Calendar}
-                label="Joined"
-                value={new Date(selected.createdAt).toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" })}
-              />
-            </div>
-
-            {/* Footer */}
-            <div className="px-6 py-4 border-t border-gray-100 space-y-2">
-              {/* Moderation actions */}
-              <div className="flex gap-2">
-                {selected.status !== "suspended" && selected.status !== "banned" && (
-                  <button
-                    onClick={() => setModAction({ id: selected.id, action: "suspend" })}
-                    className="flex-1 flex items-center justify-center gap-2 border border-yellow-200 text-yellow-700 hover:bg-yellow-50 font-semibold text-sm py-2.5 rounded-xl transition-colors"
-                  >
-                    <ShieldAlert className="w-4 h-4" />
-                    Suspend
-                  </button>
-                )}
-                {selected.status !== "banned" && (
-                  <button
-                    onClick={() => setModAction({ id: selected.id, action: "ban" })}
-                    className="flex-1 flex items-center justify-center gap-2 border border-red-200 text-red-600 hover:bg-red-50 font-semibold text-sm py-2.5 rounded-xl transition-colors"
-                  >
-                    <Ban className="w-4 h-4" />
-                    Ban
-                  </button>
-                )}
-                {(selected.status === "suspended" || selected.status === "banned") && (
-                  <button
-                    onClick={() => setModAction({ id: selected.id, action: "reactivate" })}
-                    className="flex-1 flex items-center justify-center gap-2 border border-green-200 text-green-700 hover:bg-green-50 font-semibold text-sm py-2.5 rounded-xl transition-colors"
-                  >
-                    <User className="w-4 h-4" />
-                    Reactivate
-                  </button>
-                )}
-              </div>
-              {/* Delete */}
-              <button
-                onClick={() => setDeleteId(selected.id)}
-                className="w-full flex items-center justify-center gap-2 border border-red-200 text-red-600 hover:bg-red-50 font-semibold text-sm py-2.5 rounded-xl transition-colors"
-              >
-                <Trash2 className="w-4 h-4" />
-                Delete account
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Moderation confirm */}
       {modAction && (

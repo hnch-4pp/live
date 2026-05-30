@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, and, gt, isNull, desc } from "drizzle-orm";
+import { eq, and, gt, isNull, desc, sql } from "drizzle-orm";
 import { db } from "@workspace/db";
 import {
   usersTable, otpsTable, ticketCodesTable, ticketCodeRedemptionsTable,
@@ -362,6 +362,10 @@ router.get("/auth/me", async (req, res): Promise<void> => {
     res.status(401).json({ error: "Not authenticated" });
     return;
   }
+  // Track last access (fire and forget)
+  void db.execute(
+    sql`UPDATE users SET last_access_at = NOW() WHERE id = ${req.session.userId}`
+  );
   res.json({ id: user.id, email: user.email, phone: user.phone, username: user.username, address: user.address, dateOfBirth: user.dateOfBirth, avatarUrl: user.avatarUrl, tickets: user.tickets });
 });
 

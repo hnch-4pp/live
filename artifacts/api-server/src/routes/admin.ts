@@ -13,8 +13,11 @@ import {
   ticketCodeRedemptionsTable,
   campaignsTable,
   predictionsTable,
+  ticketTransactionsTable,
+  subscriptionsTable,
 } from "@workspace/db";
 import { eq, or, ilike, sql, desc, and } from "drizzle-orm";
+import { getUncachableStripeClient } from "../stripeClient";
 
 function parsePrizeAmount(value: string): number {
   const m = value.match(/\$?(\d+(?:\.\d+)?)/);
@@ -560,6 +563,180 @@ router.get(
     const [user] = await db.select().from(usersTable).where(eq(usersTable.id, id)).limit(1);
     if (!user) { res.status(404).json({ error: "User not found" }); return; }
     res.json(user);
+  },
+);
+
+// ── User detail (rich) ─────────────────────────────────────────────────────
+
+function extractCountry(address: string | null): string | null {
+  if (!address) return null;
+  const parts = address.split(",").map((p) => p.trim()).filter(Boolean);
+  return parts[parts.length - 1] ?? null;
+}
+
+router.get(
+  "/admin/users/:id/detail",
+  requireAdmin,
+  requireAdminHeader,
+  async (req, res): Promise<void> => {
+    const id = parseInt(String(req.params["id"] ?? "0"), 10);
+    if (!id) { res.status(400).json({ error: "Invalid ID" }); return; }
+
+    const [user] = await db
+      .select()
+      .from(usersTable)
+      .where(eq(usersTable.id, id))
+      .limit(1);
+    if (!user) { res.status(404).json({ error: "User not found" }); return; }
+
+    // ── Ticket stats ─────────────────────────────────────────────────────
+    const txRows = await db
+      .select({ amount: ticketTransactionsTable.amount })
+      .from(ticketTransactionsTable)
+      .where(eq(ticketTransactionsTable.userId, id));
+
+    const totalReceived = txRows
+      .filter((r) => r.amount > 0)
+      .reduce((s, r) => s + r.amount, 0);
+    const totalSpent = Math.abs(
+      txRows.filter((r) => r.amount < 0).reduce((s, r) => s + r.amount, 0),
+    );
+
+    // ── Hunch participation ───────────────────────────────────────────────
+    const preds = await db
+      .select({
+        hunchId: predictionsTable.hunchId,
+        optionId: predictionsTable.optionId,
+        hunchTitle: hunchesTable.title,
+        hunchSlug: hunchesTable.slug,
+        hunchStatus: hunchesTable.status,
+        hunchWinnerOption: hunchesTable.winnerOption,
+        hunchEndsAt: hunchesTable.endsAt,
+        optionLabel: optionsTable.label,
+      })
+      .from(predictionsTable)
+      .leftJoin(hunchesTable, eq(predictionsTable.hunchId, hunchesTable.id))
+      .leftJoin(optionsTable, eq(predictionsTable.optionId, optionsTable.id))
+      .where(eq(predictionsTable.userId, id));
+
+    const hunchMap = new Map<number, {
+      hunchId: number; title: string; slug: string;
+      status: string; endsAt: Date | null;
+      predictions: number; won: boolean; prizeLabel: string | null;
+    }>();
+
+    for (const p of preds) {
+      if (!p.hunchId) continue;
+      if (!hunchMap.has(p.hunchId)) {
+        hunchMap.set(p.hunchId, {
+          hunchId: p.hunchId,
+          title: p.hunchTitle ?? "",
+          slug: p.hunchSlug ?? "",
+          status: p.hunchStatus ?? "open",
+          endsAt: p.hunchEndsAt,
+          predictions: 0,
+          won: false,
+          prizeLabel: null,
+        });
+      }
+      const entry = hunchMap.get(p.hunchId)!;
+      entry.predictions++;
+      if (p.hunchWinnerOption && String(p.optionId) === p.hunchWinnerOption) {
+        entry.won = true;
+      }
+    }
+
+    // Fetch prize labels for won hunches
+    const wonHunchIds = [...hunchMap.values()].filter((h) => h.won).map((h) => h.hunchId);
+    if (wonHunchIds.length > 0) {
+      const wonPrizes = await db
+        .select({
+          hunchId: hunchPrizeTiersTable.hunchId,
+          prizeLabel: prizesTable.label,
+        })
+        .from(hunchPrizeTiersTable)
+        .leftJoin(prizesTable, eq(hunchPrizeTiersTable.prizeId, prizesTable.id))
+        .where(and(
+          eq(hunchPrizeTiersTable.rank, 1),
+        ));
+      for (const wp of wonPrizes) {
+        const entry = hunchMap.get(wp.hunchId);
+        if (entry?.won) entry.prizeLabel = wp.prizeLabel ?? null;
+      }
+    }
+
+    const hunchParticipation = [...hunchMap.values()];
+    const activeHunches = hunchParticipation.filter((h) => h.status === "open");
+    const prizesWon = hunchParticipation.filter((h) => h.won);
+
+    // ── Active subscription ───────────────────────────────────────────────
+    const [subscription] = await db
+      .select()
+      .from(subscriptionsTable)
+      .where(and(eq(subscriptionsTable.userId, id), eq(subscriptionsTable.status, "active")))
+      .limit(1);
+
+    // ── Stripe data ───────────────────────────────────────────────────────
+    let lifetimeSpendCents = 0;
+    let subscriptionSpendCents = 0;
+    let paymentMethods: Array<{
+      id: string; brand: string; last4: string; expMonth: number; expYear: number;
+    }> = [];
+
+    if (user.stripeCustomerId) {
+      try {
+        const stripe = await getUncachableStripeClient();
+        const [charges, invoices, pms] = await Promise.all([
+          stripe.charges.list({ customer: user.stripeCustomerId, limit: 100 }),
+          stripe.invoices.list({ customer: user.stripeCustomerId, status: "paid", limit: 100 }),
+          stripe.paymentMethods.list({ customer: user.stripeCustomerId, type: "card" }),
+        ]);
+
+        lifetimeSpendCents = charges.data
+          .filter((c) => c.status === "succeeded")
+          .reduce((s, c) => s + c.amount, 0);
+
+        subscriptionSpendCents = invoices.data
+          .reduce((s, i) => s + i.amount_paid, 0);
+
+        paymentMethods = pms.data.map((pm) => ({
+          id: pm.id,
+          brand: pm.card?.brand ?? "unknown",
+          last4: pm.card?.last4 ?? "????",
+          expMonth: pm.card?.exp_month ?? 0,
+          expYear: pm.card?.exp_year ?? 0,
+        }));
+      } catch {
+        // Stripe errors are non-fatal — return partial data
+      }
+    }
+
+    res.json({
+      id: user.id,
+      email: user.email,
+      phone: user.phone,
+      username: user.username,
+      address: user.address,
+      dateOfBirth: user.dateOfBirth,
+      avatarUrl: user.avatarUrl,
+      status: user.status,
+      createdAt: user.createdAt,
+      stripeCustomerId: user.stripeCustomerId,
+      country: extractCountry(user.address),
+      lastAccessAt: (user as unknown as Record<string, unknown>)["last_access_at"] ?? null,
+      ticketStats: {
+        currentBalance: user.tickets,
+        totalReceived,
+        totalSpent,
+      },
+      lifetimeSpendCents,
+      subscriptionSpendCents,
+      hunchParticipation,
+      activeHunches,
+      prizesWon,
+      subscription: subscription ?? null,
+      paymentMethods,
+    });
   },
 );
 
