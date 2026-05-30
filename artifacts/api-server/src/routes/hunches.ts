@@ -10,6 +10,7 @@ import {
   hunchTranslationsTable,
   hunchPrizeTiersTable,
   usersTable,
+  hunchQuestionsTable,
 } from "@workspace/db";
 import {
   ListHunchesQueryParams,
@@ -91,10 +92,50 @@ async function buildHunch(hunch: typeof hunchesTable.$inferSelect) {
     ? "$" + prizeTiers.reduce((sum, t) => sum + parsePrizeAmount(t.prize.value), 0).toLocaleString()
     : null;
 
-  const options = await db
+  const allOptions = await db
     .select()
     .from(optionsTable)
     .where(eq(optionsTable.hunchId, hunch.id));
+
+  // Fetch questions for multi-prediction hunches
+  const isMulti = hunch.isMulti ?? false;
+  let questions: Array<{
+    id: number;
+    sortOrder: number;
+    prompt: string;
+    answerType: string;
+    placeholder: string | null;
+    options: Array<{ id: number; label: string; percentage: number }>;
+  }> = [];
+
+  if (isMulti) {
+    const rawQuestions = await db
+      .select()
+      .from(hunchQuestionsTable)
+      .where(eq(hunchQuestionsTable.hunchId, hunch.id))
+      .orderBy(hunchQuestionsTable.sortOrder);
+
+    questions = rawQuestions.map((q) => ({
+      id: q.id,
+      sortOrder: q.sortOrder,
+      prompt: q.prompt,
+      answerType: q.answerType,
+      placeholder: q.placeholder ?? null,
+      options: allOptions
+        .filter((o) => o.questionId === q.id)
+        .map((o) => ({ id: o.id, label: o.label, percentage: o.percentage })),
+    }));
+  }
+
+  // Parse winnerAnswers for multi hunches
+  let winnerAnswers: Array<{ questionId: number; answer: string }> | null = null;
+  if (isMulti && hunch.winnerAnswers) {
+    try {
+      winnerAnswers = JSON.parse(hunch.winnerAnswers) as Array<{ questionId: number; answer: string }>;
+    } catch {
+      winnerAnswers = null;
+    }
+  }
 
   return {
     id: hunch.id,
@@ -117,15 +158,16 @@ async function buildHunch(hunch: typeof hunchesTable.$inferSelect) {
     },
     prizeTiers,
     prizePoolTotal,
-    options: options.map((o) => ({
-      id: o.id,
-      label: o.label,
-      percentage: o.percentage,
-    })),
+    options: isMulti
+      ? []
+      : allOptions.map((o) => ({ id: o.id, label: o.label, percentage: o.percentage })),
+    questions,
+    isMulti,
     featured: hunch.featured,
     imageUrl: hunch.imageUrl ?? null,
     imageFocalPoint: hunch.imageFocalPoint ?? null,
     winnerOption: hunch.winnerOption ?? null,
+    winnerAnswers,
     rules: hunch.rules ?? null,
     answerType: hunch.answerType,
     ticketCost: hunch.ticketCost,
@@ -306,6 +348,8 @@ router.get("/hunches/:id", async (req, res): Promise<void> => {
   res.json(translated);
 });
 
+// ─── Prediction submission (single & multi) ──────────────────────────────────
+
 router.post("/hunches/:id/predict", async (req, res): Promise<void> => {
   if (!req.session?.userId) {
     res.status(401).json({ error: "You must be signed in to make a prediction." });
@@ -356,7 +400,111 @@ router.post("/hunches/:id/predict", async (req, res): Promise<void> => {
     return;
   }
 
-  const normalizedLabel = body.data.freeText.trim();
+  const isMulti = hunch.isMulti ?? false;
+
+  // ── Multi-prediction path ─────────────────────────────────────────────────
+  if (isMulti) {
+    const answers = body.data.answers;
+    if (!answers || answers.length === 0) {
+      res.status(400).json({ error: "Answers are required for multi-prediction hunches." });
+      return;
+    }
+
+    // Validate all questions are answered
+    const questionRows = await db
+      .select()
+      .from(hunchQuestionsTable)
+      .where(eq(hunchQuestionsTable.hunchId, hunch.id));
+
+    if (questionRows.length === 0) {
+      res.status(400).json({ error: "This hunch has no questions configured." });
+      return;
+    }
+
+    const answeredIds = new Set(answers.map((a) => a.questionId));
+    const missing = questionRows.filter((q) => !answeredIds.has(q.id));
+    if (missing.length > 0) {
+      res.status(400).json({ error: `Missing answers for: ${missing.map((q) => q.prompt).join(", ")}` });
+      return;
+    }
+
+    // Process each answer — find/create option per question
+    const createdPredictions: Array<{ questionId: number; optionId: number; label: string }> = [];
+
+    for (const answer of answers) {
+      const normalizedLabel = answer.freeText.trim();
+      if (!normalizedLabel) continue;
+
+      const existingOptions = await db
+        .select()
+        .from(optionsTable)
+        .where(and(eq(optionsTable.hunchId, hunch.id), eq(optionsTable.questionId, answer.questionId)));
+
+      const matchedOption = existingOptions.find(
+        (o) => o.label.trim().toLowerCase() === normalizedLabel.toLowerCase()
+      );
+
+      let optionId: number;
+      let allOptionsForQ = existingOptions;
+
+      if (matchedOption) {
+        optionId = matchedOption.id;
+      } else {
+        const [newOption] = await db
+          .insert(optionsTable)
+          .values({ hunchId: hunch.id, questionId: answer.questionId, label: normalizedLabel, percentage: 0 })
+          .returning();
+        optionId = newOption.id;
+        allOptionsForQ = [...existingOptions, { id: optionId, label: normalizedLabel, percentage: 0, hunchId: hunch.id, questionId: answer.questionId }];
+      }
+
+      await db
+        .insert(predictionsTable)
+        .values({ hunchId: hunch.id, optionId, questionId: answer.questionId, userId: req.session.userId })
+        .returning();
+
+      // Recalculate percentages for this question
+      const predCounts = await db
+        .select({ optionId: predictionsTable.optionId, cnt: count() })
+        .from(predictionsTable)
+        .where(and(eq(predictionsTable.hunchId, hunch.id), eq(predictionsTable.questionId, answer.questionId)))
+        .groupBy(predictionsTable.optionId);
+
+      const total = predCounts.reduce((s, r) => s + Number(r.cnt), 0);
+      if (total > 0) {
+        const countMap = new Map(predCounts.map((r) => [r.optionId, Number(r.cnt)]));
+        await Promise.all(
+          allOptionsForQ.map((o) => {
+            const pct = ((countMap.get(o.id) ?? 0) / total) * 100;
+            return db.update(optionsTable).set({ percentage: pct }).where(eq(optionsTable.id, o.id));
+          })
+        );
+      }
+
+      createdPredictions.push({ questionId: answer.questionId, optionId, label: normalizedLabel });
+    }
+
+    // Increment participant count and deduct tickets once
+    await db
+      .update(hunchesTable)
+      .set({ participantCount: hunch.participantCount + 1 })
+      .where(eq(hunchesTable.id, hunch.id));
+
+    await db
+      .update(usersTable)
+      .set({ tickets: currentUser.tickets - cost })
+      .where(eq(usersTable.id, req.session.userId));
+
+    res.status(201).json({ hunchId: hunch.id, predictions: createdPredictions });
+    return;
+  }
+
+  // ── Single-prediction path (unchanged) ────────────────────────────────────
+  const normalizedLabel = (body.data.freeText ?? "").trim();
+  if (!normalizedLabel) {
+    res.status(400).json({ error: "Answer cannot be empty." });
+    return;
+  }
 
   const existingOptions = await db
     .select()
@@ -406,7 +554,7 @@ router.post("/hunches/:id/predict", async (req, res): Promise<void> => {
     const countMap = new Map(predictionCounts.map((r) => [r.optionId, Number(r.cnt)]));
     const allOptions = matchedOption
       ? existingOptions
-      : [...existingOptions, { id: optionId, label: normalizedLabel, percentage: 0, hunchId: params.data.id }];
+      : [...existingOptions, { id: optionId, label: normalizedLabel, percentage: 0, hunchId: params.data.id, questionId: null }];
 
     await Promise.all(
       allOptions.map((o) => {

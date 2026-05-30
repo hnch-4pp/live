@@ -15,6 +15,7 @@ import {
   predictionsTable,
   ticketTransactionsTable,
   subscriptionsTable,
+  hunchQuestionsTable,
 } from "@workspace/db";
 import { eq, or, ilike, sql, desc, and } from "drizzle-orm";
 import { getUncachableStripeClient } from "../stripeClient";
@@ -191,7 +192,12 @@ router.get(
       .leftJoin(prizesTable, eq(hunchPrizeTiersTable.prizeId, prizesTable.id))
       .where(eq(hunchPrizeTiersTable.hunchId, id))
       .orderBy(hunchPrizeTiersTable.rank);
-    res.json({ ...hunch, prizeTiers: tiers });
+    const questions = await db
+      .select()
+      .from(hunchQuestionsTable)
+      .where(eq(hunchQuestionsTable.hunchId, id))
+      .orderBy(hunchQuestionsTable.sortOrder);
+    res.json({ ...hunch, prizeTiers: tiers, questions });
   },
 );
 
@@ -287,12 +293,31 @@ router.post(
         answerType: (answerType as string) ?? "integer",
         ticketCost: req.body.ticketCost !== undefined ? Number(req.body.ticketCost) : 1,
         rules: req.body.rules ? String(req.body.rules) : null,
+        isMulti: req.body.isMulti === true || req.body.isMulti === "true",
       })
       .returning();
 
     await db.insert(hunchPrizeTiersTable).values(
       resolvedTiers.map((t) => ({ hunchId: hunch.id, rank: t.rank, prizeId: t.prizeId })),
     );
+
+    // Save questions for multi-prediction hunches
+    const isMulti = req.body.isMulti === true || req.body.isMulti === "true";
+    if (isMulti && Array.isArray(req.body.questions)) {
+      const qs = req.body.questions as Array<{ prompt: string; answerType: string; placeholder?: string; sortOrder?: number }>;
+      const validQs = qs.filter((q) => q.prompt?.trim());
+      if (validQs.length > 0) {
+        await db.insert(hunchQuestionsTable).values(
+          validQs.map((q, i) => ({
+            hunchId: hunch.id,
+            sortOrder: q.sortOrder ?? i,
+            prompt: q.prompt.trim(),
+            answerType: q.answerType ?? "integer",
+            placeholder: q.placeholder?.trim() || null,
+          }))
+        );
+      }
+    }
 
     res.status(201).json(hunch);
   },
@@ -341,6 +366,12 @@ router.patch(
     if (answerType !== undefined) updates["answerType"] = String(answerType);
     if (req.body.ticketCost !== undefined) updates["ticketCost"] = Number(req.body.ticketCost);
     if ("rules" in req.body) updates["rules"] = req.body.rules ? String(req.body.rules) : null;
+    if ("isMulti" in req.body) updates["isMulti"] = req.body.isMulti === true || req.body.isMulti === "true";
+    if ("winnerAnswers" in req.body) {
+      updates["winnerAnswers"] = req.body.winnerAnswers
+        ? (typeof req.body.winnerAnswers === "string" ? req.body.winnerAnswers : JSON.stringify(req.body.winnerAnswers))
+        : null;
+    }
 
     // Prize tiers
     if (Array.isArray(req.body.prizeTiers)) {
@@ -354,6 +385,28 @@ router.patch(
         await db.insert(hunchPrizeTiersTable).values(
           resolvedTiers.map((t) => ({ hunchId: id, rank: t.rank, prizeId: t.prizeId })),
         );
+      }
+    }
+
+    // Questions (full replace when provided)
+    if (Array.isArray(req.body.questions)) {
+      await db.delete(hunchQuestionsTable).where(eq(hunchQuestionsTable.hunchId, id));
+      const qs = req.body.questions as Array<{ prompt: string; answerType: string; placeholder?: string; sortOrder?: number }>;
+      const validQs = qs.filter((q) => q.prompt?.trim());
+      if (validQs.length > 0) {
+        await db.insert(hunchQuestionsTable).values(
+          validQs.map((q, i) => ({
+            hunchId: id,
+            sortOrder: q.sortOrder ?? i,
+            prompt: q.prompt.trim(),
+            answerType: q.answerType ?? "integer",
+            placeholder: q.placeholder?.trim() || null,
+          }))
+        );
+      }
+      // isMulti flag follows question count when questions are provided
+      if (!("isMulti" in req.body)) {
+        updates["isMulti"] = validQs.length >= 2;
       }
     }
 

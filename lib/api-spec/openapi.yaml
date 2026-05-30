@@ -386,14 +386,28 @@ components:
         activeHunches:
           type: integer
 
+    PredictionAnswer:
+      type: object
+      required: [questionId, freeText]
+      properties:
+        questionId:
+          type: integer
+        freeText:
+          type: string
+          minLength: 1
+          maxLength: 200
+
     PredictionInput:
       type: object
-      required: [freeText]
       properties:
         freeText:
           type: string
           minLength: 1
           maxLength: 200
+        answers:
+          type: array
+          items:
+            $ref: '#/components/schemas/PredictionAnswer'
 
     UploadUrlRequest:
       type: object

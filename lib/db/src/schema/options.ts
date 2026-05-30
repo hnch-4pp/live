@@ -6,6 +6,7 @@ import { hunchesTable } from "./hunches";
 export const optionsTable = pgTable("options", {
   id: serial("id").primaryKey(),
   hunchId: integer("hunch_id").notNull().references(() => hunchesTable.id),
+  questionId: integer("question_id"), // null = single-question hunch
   label: text("label").notNull(),
   percentage: real("percentage").notNull().default(50),
 });

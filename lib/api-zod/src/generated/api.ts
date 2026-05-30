@@ -248,10 +248,14 @@ export const SubmitPredictionParams = zod.object({
 
 export const submitPredictionBodyFreeTextMax = 200;
 
-
+export const PredictionAnswer = zod.object({
+  "questionId": zod.number(),
+  "freeText": zod.string().min(1).max(submitPredictionBodyFreeTextMax),
+});
 
 export const SubmitPredictionBody = zod.object({
-  "freeText": zod.string().min(1).max(submitPredictionBodyFreeTextMax)
+  "freeText": zod.string().min(1).max(submitPredictionBodyFreeTextMax).optional(),
+  "answers": zod.array(PredictionAnswer).optional(),
 })
 
 

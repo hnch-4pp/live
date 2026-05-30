@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useLocation, useParams } from "wouter";
 import { AdminLayout } from "@/components/admin-layout";
 import { useAdminAuth, adminFetch } from "./dashboard";
-import { Check, ChevronLeft, Hash, Percent, Calendar, Clock, Plus, Trash2, Gift } from "lucide-react";
+import { Check, ChevronLeft, Hash, Percent, Calendar, Clock, Plus, Trash2, Gift, Layers, List } from "lucide-react";
 
 function ordinal(n: number): string {
   const s = ["th", "st", "nd", "rd"];
@@ -10,15 +10,27 @@ function ordinal(n: number): string {
   return n + (s[(v - 20) % 10] ?? s[v] ?? s[0]);
 }
 
-
 interface Category { id: number; name: string; slug: string; }
 
 const ANSWER_TYPES = [
-  { value: "integer", label: "Integer",       description: "Whole number (e.g. 42)",             Icon: Hash },
-  { value: "decimal", label: "Decimal",        description: "Number with decimals (e.g. 3.14)",   Icon: Percent },
-  { value: "date",    label: "Date",           description: "Date in dd/mm/yyyy format",           Icon: Calendar },
-  { value: "time",    label: "Time",           description: "Duration in hh:mm:ss format",         Icon: Clock },
+  { value: "integer", label: "Integer",  description: "Whole number (e.g. 42)",            Icon: Hash },
+  { value: "decimal", label: "Decimal",  description: "With decimals (e.g. 3.14)",          Icon: Percent },
+  { value: "date",    label: "Date",     description: "Date in dd/mm/yyyy",                 Icon: Calendar },
+  { value: "time",    label: "Time",     description: "Duration in hh:mm:ss",               Icon: Clock },
 ];
+
+interface Question {
+  prompt: string;
+  answerType: string;
+  placeholder: string;
+  sortOrder: number;
+}
+
+interface WinnerAnswer {
+  questionId: number;
+  prompt: string;
+  answer: string;
+}
 
 const EMPTY = {
   title: "",
@@ -35,6 +47,7 @@ const EMPTY = {
   winnerOption: "",
   answerType: "integer",
   ticketCost: 1,
+  isMulti: false,
 };
 
 function toSlug(title: string): string {
@@ -60,6 +73,34 @@ function Field({ label, required, hint, children }: { label: string; required?: 
   );
 }
 
+function AnswerTypePicker({ value, onChange, compact = false }: { value: string; onChange: (v: string) => void; compact?: boolean }) {
+  return (
+    <div className={`grid gap-2 ${compact ? "grid-cols-4" : "grid-cols-2"}`}>
+      {ANSWER_TYPES.map(({ value: v, label, description, Icon }) => {
+        const active = value === v;
+        return (
+          <button
+            key={v}
+            type="button"
+            onClick={() => onChange(v)}
+            className={`flex items-start gap-2 p-3 rounded-xl border-2 text-left transition-all ${
+              active ? "border-violet-500 bg-violet-50" : "border-gray-200 hover:border-gray-300 bg-white"
+            }`}
+          >
+            <div className={`mt-0.5 p-1.5 rounded-lg shrink-0 ${active ? "bg-violet-100" : "bg-gray-100"}`}>
+              <Icon className={`w-3.5 h-3.5 ${active ? "text-violet-600" : "text-gray-500"}`} />
+            </div>
+            <div className="min-w-0">
+              <p className={`text-xs font-semibold ${active ? "text-violet-700" : "text-gray-700"}`}>{label}</p>
+              {!compact && <p className="text-xs text-gray-400 mt-0.5 leading-tight">{description}</p>}
+            </div>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function HunchForm() {
   useAdminAuth();
 
@@ -69,6 +110,11 @@ export default function HunchForm() {
 
   const [form, setForm]           = useState({ ...EMPTY });
   const [prizeTiers, setPrizeTiers] = useState<{ rank: number; prizeLabel: string }[]>([{ rank: 1, prizeLabel: "" }]);
+  const [questions, setQuestions] = useState<Question[]>([
+    { prompt: "", answerType: "integer", placeholder: "", sortOrder: 0 },
+    { prompt: "", answerType: "integer", placeholder: "", sortOrder: 1 },
+  ]);
+  const [winnerAnswers, setWinnerAnswers] = useState<WinnerAnswer[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [saving, setSaving]       = useState(false);
   const [loading, setLoading]     = useState(isEditing);
@@ -98,16 +144,54 @@ export default function HunchForm() {
           rules: h.rules ?? "",
           answerType: h.answerType ?? "integer",
           ticketCost: h.ticketCost ?? 1,
+          isMulti: h.isMulti ?? false,
         });
         if (Array.isArray(h.prizeTiers) && h.prizeTiers.length > 0) {
           setPrizeTiers(h.prizeTiers.map((t: { rank: number; prizeLabel?: string }) => ({ rank: t.rank, prizeLabel: t.prizeLabel ?? "" })));
-        } else {
-          setPrizeTiers([{ rank: 1, prizeLabel: "" }]);
+        }
+        if (Array.isArray(h.questions) && h.questions.length > 0) {
+          setQuestions(h.questions.map((q: { id: number; prompt: string; answerType: string; placeholder?: string; sortOrder: number }) => ({
+            prompt: q.prompt,
+            answerType: q.answerType,
+            placeholder: q.placeholder ?? "",
+            sortOrder: q.sortOrder,
+          })));
+          // Pre-fill winner answers for resolved multi hunches
+          if (h.status === "resolved" && h.isMulti) {
+            const existingWA: Array<{ questionId: number; answer: string }> = (() => {
+              try { return h.winnerAnswers ? JSON.parse(h.winnerAnswers) : []; } catch { return []; }
+            })();
+            const waMap = new Map(existingWA.map((wa: { questionId: number; answer: string }) => [wa.questionId, wa.answer]));
+            setWinnerAnswers(h.questions.map((q: { id: number; prompt: string }) => ({
+              questionId: q.id,
+              prompt: q.prompt,
+              answer: waMap.get(q.id) ?? "",
+            })));
+          }
+        } else if (h.isMulti) {
+          setQuestions([
+            { prompt: "", answerType: "integer", placeholder: "", sortOrder: 0 },
+            { prompt: "", answerType: "integer", placeholder: "", sortOrder: 1 },
+          ]);
         }
       })
       .catch(() => setError("Failed to load hunch"))
       .finally(() => setLoading(false));
   }, [isEditing, params.id]);
+
+  // Update winnerAnswers list when questions change (for resolved multi hunches)
+  useEffect(() => {
+    if (form.status === "resolved" && form.isMulti) {
+      setWinnerAnswers((prev) => {
+        const prevMap = new Map(prev.map((wa) => [wa.prompt, wa.answer]));
+        return questions.map((q, i) => ({
+          questionId: i,
+          prompt: q.prompt,
+          answer: prevMap.get(q.prompt) ?? "",
+        }));
+      });
+    }
+  }, [form.status, form.isMulti, questions]);
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -115,14 +199,23 @@ export default function HunchForm() {
     setError("");
     try {
       const validTiers = prizeTiers.filter((t) => t.prizeLabel.trim());
-      const body = {
+      const body: Record<string, unknown> = {
         ...form,
         endsAt: new Date(form.endsAt).toISOString(),
         imageUrl: form.imageUrl || null,
         imageFocalPoint: form.imageFocalPoint || null,
-        winnerOption: form.winnerOption || null,
+        winnerOption: form.isMulti ? null : (form.winnerOption || null),
         prizeTiers: validTiers,
+        isMulti: form.isMulti,
       };
+
+      if (form.isMulti) {
+        body["questions"] = questions.map((q, i) => ({ ...q, sortOrder: i }));
+        if (form.status === "resolved" && winnerAnswers.length > 0) {
+          body["winnerAnswers"] = JSON.stringify(winnerAnswers);
+        }
+      }
+
       const res = isEditing
         ? await adminFetch(`/admin/hunches/${params.id}`, { method: "PATCH", body: JSON.stringify(body) })
         : await adminFetch("/admin/hunches", { method: "POST", body: JSON.stringify(body) });
@@ -138,6 +231,19 @@ export default function HunchForm() {
     } finally {
       setSaving(false);
     }
+  };
+
+  const updateQuestion = (idx: number, field: keyof Question, value: string) => {
+    setQuestions((prev) => prev.map((q, i) => i === idx ? { ...q, [field]: value } : q));
+  };
+
+  const addQuestion = () => {
+    setQuestions((prev) => [...prev, { prompt: "", answerType: "integer", placeholder: "", sortOrder: prev.length }]);
+  };
+
+  const removeQuestion = (idx: number) => {
+    if (questions.length <= 2) return;
+    setQuestions((prev) => prev.filter((_, i) => i !== idx).map((q, i) => ({ ...q, sortOrder: i })));
   };
 
   if (loading) {
@@ -187,18 +293,14 @@ export default function HunchForm() {
                 value={form.title}
                 onChange={(e) => {
                   const title = e.target.value;
-                  setForm((f) => ({
-                    ...f,
-                    title,
-                    slug: f.slug || toSlug(title),
-                  }));
+                  setForm((f) => ({ ...f, title, slug: f.slug || toSlug(title) }));
                 }}
                 placeholder="e.g. Will the Warriors win their next home game?"
                 className={inputCls}
               />
             </Field>
 
-            <Field label="URL slug" hint="Used in the public URL: /hunch/your-slug-here. Auto-generated from title — editable.">
+            <Field label="URL slug" hint="Used in the public URL: /hunch/your-slug-here">
               <div className="flex gap-2">
                 <input
                   value={form.slug}
@@ -247,12 +349,7 @@ export default function HunchForm() {
                     setForm({ ...form, imageFocalPoint: `${x}% ${y}%` });
                   }}
                 >
-                  <img
-                    src={form.imageUrl}
-                    alt="preview"
-                    className="w-full h-full object-cover pointer-events-none"
-                    style={{ objectPosition: form.imageFocalPoint }}
-                  />
+                  <img src={form.imageUrl} alt="preview" className="w-full h-full object-cover pointer-events-none" style={{ objectPosition: form.imageFocalPoint }} />
                   {(() => {
                     const [px, py] = (form.imageFocalPoint || "50% 50%").split(" ").map((v) => parseFloat(v));
                     return (
@@ -269,7 +366,7 @@ export default function HunchForm() {
               </Field>
             )}
 
-            <Field label="Rules" hint="Displayed on the hunch detail page where users can read how the prediction will be resolved">
+            <Field label="Rules" hint="How will this hunch be resolved?">
               <textarea
                 rows={5}
                 value={form.rules}
@@ -280,37 +377,107 @@ export default function HunchForm() {
             </Field>
           </section>
 
-          {/* Answer type section */}
-          <section className="bg-white border border-gray-200 rounded-2xl p-6 space-y-4">
+          {/* Prediction mode section */}
+          <section className="bg-white border border-gray-200 rounded-2xl p-6 space-y-5">
             <div>
-              <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Answer type</h2>
-              <p className="text-xs text-gray-400 mt-0.5">Determines what kind of input users will see when submitting their prediction</p>
+              <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Prediction type</h2>
+              <p className="text-xs text-gray-400 mt-0.5">Choose between a single question or multiple criteria to win</p>
             </div>
+
             <div className="grid grid-cols-2 gap-3">
-              {ANSWER_TYPES.map(({ value, label, description, Icon }) => {
-                const active = form.answerType === value;
+              {[
+                { value: false, Icon: List, label: "Single question", desc: "One prediction to make — classic hunch format." },
+                { value: true,  Icon: Layers, label: "Multi-prediction", desc: "Two or more criteria — users answer each one. Must get all right to win." },
+              ].map(({ value, Icon, label, desc }) => {
+                const active = form.isMulti === value;
                 return (
                   <button
-                    key={value}
+                    key={String(value)}
                     type="button"
-                    onClick={() => setForm({ ...form, answerType: value })}
+                    onClick={() => setForm((f) => ({ ...f, isMulti: value }))}
                     className={`flex items-start gap-3 p-4 rounded-xl border-2 text-left transition-all ${
-                      active
-                        ? "border-violet-500 bg-violet-50"
-                        : "border-gray-200 hover:border-gray-300 bg-white"
+                      active ? "border-violet-500 bg-violet-50" : "border-gray-200 hover:border-gray-300 bg-white"
                     }`}
                   >
-                    <div className={`mt-0.5 p-1.5 rounded-lg ${active ? "bg-violet-100" : "bg-gray-100"}`}>
+                    <div className={`mt-0.5 p-1.5 rounded-lg shrink-0 ${active ? "bg-violet-100" : "bg-gray-100"}`}>
                       <Icon className={`w-4 h-4 ${active ? "text-violet-600" : "text-gray-500"}`} />
                     </div>
                     <div>
                       <p className={`text-sm font-semibold ${active ? "text-violet-700" : "text-gray-700"}`}>{label}</p>
-                      <p className="text-xs text-gray-400 mt-0.5">{description}</p>
+                      <p className="text-xs text-gray-400 mt-0.5">{desc}</p>
                     </div>
                   </button>
                 );
               })}
             </div>
+
+            {/* Single question answer type */}
+            {!form.isMulti && (
+              <div>
+                <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">Answer type</p>
+                <p className="text-xs text-gray-400 mb-3">Determines what kind of input users will see when submitting</p>
+                <AnswerTypePicker value={form.answerType} onChange={(v) => setForm({ ...form, answerType: v })} />
+              </div>
+            )}
+
+            {/* Multi-prediction question editor */}
+            {form.isMulti && (
+              <div className="space-y-4">
+                <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Prediction criteria</p>
+                <p className="text-xs text-gray-400">Each criterion is a separate question the user must answer. They need to get all of them right to win.</p>
+                <div className="space-y-4">
+                  {questions.map((q, idx) => (
+                    <div key={idx} className="border border-gray-200 rounded-xl p-4 space-y-3 bg-gray-50">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs font-bold text-violet-600 bg-violet-50 border border-violet-200 rounded-lg px-2.5 py-1">
+                          Criterion {idx + 1}
+                        </span>
+                        {questions.length > 2 && (
+                          <button
+                            type="button"
+                            onClick={() => removeQuestion(idx)}
+                            className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Question / prompt <span className="text-red-500">*</span></label>
+                        <input
+                          required={form.isMulti}
+                          value={q.prompt}
+                          onChange={(e) => updateQuestion(idx, "prompt", e.target.value)}
+                          placeholder={`e.g. How many yellow cards in the match?`}
+                          className={inputCls}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-2">Answer type</label>
+                        <AnswerTypePicker value={q.answerType} onChange={(v) => updateQuestion(idx, "answerType", v)} compact />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Placeholder hint <span className="text-gray-400 font-normal">(optional)</span></label>
+                        <input
+                          value={q.placeholder}
+                          onChange={(e) => updateQuestion(idx, "placeholder", e.target.value)}
+                          placeholder="e.g. Enter a whole number..."
+                          className={inputCls}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <button
+                  type="button"
+                  onClick={addQuestion}
+                  className="inline-flex items-center gap-1.5 text-sm text-violet-600 hover:text-violet-700 font-medium"
+                >
+                  <Plus className="w-4 h-4" />
+                  Add criterion
+                </button>
+              </div>
+            )}
           </section>
 
           {/* Prize Pool section */}
@@ -333,9 +500,7 @@ export default function HunchForm() {
                     type="text"
                     value={tier.prizeLabel}
                     onChange={(e) => {
-                      const updated = prizeTiers.map((t, i) =>
-                        i === idx ? { ...t, prizeLabel: e.target.value } : t
-                      );
+                      const updated = prizeTiers.map((t, i) => i === idx ? { ...t, prizeLabel: e.target.value } : t);
                       setPrizeTiers(updated);
                     }}
                     placeholder="e.g. Amazon Gift Card $50"
@@ -345,9 +510,7 @@ export default function HunchForm() {
                     <button
                       type="button"
                       onClick={() => setPrizeTiers(
-                        prizeTiers
-                          .filter((_, i) => i !== idx)
-                          .map((t, i) => ({ ...t, rank: i + 1 }))
+                        prizeTiers.filter((_, i) => i !== idx).map((t, i) => ({ ...t, rank: i + 1 }))
                       )}
                       className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
                     >
@@ -357,17 +520,14 @@ export default function HunchForm() {
                 </div>
               ))}
             </div>
-
-            <div className="flex items-center justify-between pt-1">
-              <button
-                type="button"
-                onClick={() => setPrizeTiers([...prizeTiers, { rank: prizeTiers.length + 1, prizeLabel: "" }])}
-                className="inline-flex items-center gap-1.5 text-sm text-violet-600 hover:text-violet-700 font-medium"
-              >
-                <Plus className="w-4 h-4" />
-                Add prize tier
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={() => setPrizeTiers([...prizeTiers, { rank: prizeTiers.length + 1, prizeLabel: "" }])}
+              className="inline-flex items-center gap-1.5 text-sm text-violet-600 hover:text-violet-700 font-medium"
+            >
+              <Plus className="w-4 h-4" />
+              Add prize tier
+            </button>
           </section>
 
           {/* Settings section */}
@@ -423,7 +583,8 @@ export default function HunchForm() {
               </Field>
             </div>
 
-            {form.status === "resolved" && (
+            {/* Winner resolution */}
+            {form.status === "resolved" && !form.isMulti && (
               <Field label="Winner option" hint="Exact text of the winning answer">
                 <input
                   value={form.winnerOption}
@@ -432,6 +593,29 @@ export default function HunchForm() {
                   className={inputCls}
                 />
               </Field>
+            )}
+
+            {form.status === "resolved" && form.isMulti && winnerAnswers.length > 0 && (
+              <div className="space-y-3">
+                <label className="block text-sm font-medium text-gray-700">Correct answers per criterion</label>
+                {winnerAnswers.map((wa, idx) => (
+                  <div key={idx} className="flex items-center gap-3">
+                    <span className="text-xs text-gray-500 w-40 shrink-0 truncate" title={wa.prompt}>
+                      {wa.prompt || `Criterion ${idx + 1}`}
+                    </span>
+                    <input
+                      value={wa.answer}
+                      onChange={(e) => {
+                        const updated = [...winnerAnswers];
+                        updated[idx] = { ...updated[idx], answer: e.target.value };
+                        setWinnerAnswers(updated);
+                      }}
+                      placeholder="Exact correct answer..."
+                      className={`${inputCls} flex-1`}
+                    />
+                  </div>
+                ))}
+              </div>
             )}
 
             <label className="flex items-center gap-3 cursor-pointer select-none">

@@ -18,8 +18,10 @@ export const hunchesTable = pgTable("hunches", {
   imageUrl: text("image_url"),
   imageFocalPoint: text("image_focal_point"),
   winnerOption: text("winner_option"),
+  winnerAnswers: text("winner_answers"), // JSON: Array<{ questionId: number; answer: string }>
   rules: text("rules"),
   answerType: text("answer_type").notNull().default("integer"), // integer | decimal | date | time
+  isMulti: boolean("is_multi").notNull().default(false),
   ticketCost: integer("ticket_cost").notNull().default(1),
   endsAt: timestamp("ends_at", { withTimezone: true }).notNull(),
   resolvedAt: timestamp("resolved_at", { withTimezone: true }),

@@ -61,6 +61,22 @@ async function runAppMigrations(): Promise<void> {
     )
   `);
 
+  // Multi-prediction columns
+  await db.execute(sql`ALTER TABLE hunches ADD COLUMN IF NOT EXISTS is_multi BOOLEAN NOT NULL DEFAULT false`);
+  await db.execute(sql`ALTER TABLE hunches ADD COLUMN IF NOT EXISTS winner_answers TEXT`);
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS hunch_questions (
+      id          SERIAL PRIMARY KEY,
+      hunch_id    INTEGER NOT NULL REFERENCES hunches(id) ON DELETE CASCADE,
+      sort_order  INTEGER NOT NULL DEFAULT 0,
+      prompt      TEXT NOT NULL,
+      answer_type TEXT NOT NULL DEFAULT 'integer',
+      placeholder TEXT
+    )
+  `);
+  await db.execute(sql`ALTER TABLE options ADD COLUMN IF NOT EXISTS question_id INTEGER REFERENCES hunch_questions(id)`);
+  await db.execute(sql`ALTER TABLE predictions ADD COLUMN IF NOT EXISTS question_id INTEGER REFERENCES hunch_questions(id)`);
+
   logger.info("App schema migrations applied");
 }
 
