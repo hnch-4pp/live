@@ -356,8 +356,8 @@ router.patch(
       updates["imageUrl"] = imageUrl ? String(imageUrl) : null;
     if ("imageFocalPoint" in req.body)
       updates["imageFocalPoint"] = req.body.imageFocalPoint ? String(req.body.imageFocalPoint) : null;
-    if (categoryId !== undefined) updates["categoryId"] = Number(categoryId);
-    if (prizeId !== undefined) updates["prizeId"] = Number(prizeId);
+    if (categoryId !== undefined && Number(categoryId) > 0) updates["categoryId"] = Number(categoryId);
+    if (prizeId !== undefined && Number(prizeId) > 0) updates["prizeId"] = Number(prizeId);
     if (featured !== undefined)
       updates["featured"] = featured === true || featured === "true";
     if (endsAt !== undefined) updates["endsAt"] = new Date(String(endsAt));
