@@ -10,6 +10,8 @@ export interface AuthUser {
   dateOfBirth: string | null;
   avatarUrl: string | null;
   tickets: number;
+  loginMethod: "password" | "otp";
+  hasPassword: boolean;
 }
 
 interface AuthContextValue {

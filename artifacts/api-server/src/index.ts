@@ -24,6 +24,7 @@ async function runAppMigrations(): Promise<void> {
 
   await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS stripe_customer_id TEXT`);
   await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS last_access_at TIMESTAMPTZ`);
+  await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS login_method TEXT NOT NULL DEFAULT 'password'`);
 
   await db.execute(sql`
     DO $$ BEGIN

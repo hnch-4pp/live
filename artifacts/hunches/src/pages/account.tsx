@@ -11,6 +11,7 @@ import { useUpload } from "@workspace/object-storage-web";
 import {
   Check, X, Loader2, Mail, Phone, Calendar,
   MapPin, Lock, Trash2, AlertTriangle, Camera,
+  KeyRound, MessageSquare, Eye, EyeOff,
 } from "lucide-react";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -337,6 +338,244 @@ function AddressSection({ current, onSaved }: { current: string | null; onSaved:
   );
 }
 
+// ── Login method section ───────────────────────────────────────────────────────
+
+function LoginMethodSection({
+  current,
+  hasPassword,
+  onSaved,
+}: {
+  current: "password" | "otp";
+  hasPassword: boolean;
+  onSaved: () => void;
+}) {
+  const [selected, setSelected] = useState<"password" | "otp">(current);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [saved, setSaved] = useState(false);
+
+  // Password-change form (shown when switching to password without one, or for changing pwd)
+  const [showPwdForm, setShowPwdForm] = useState(false);
+  const [currentPwd, setCurrentPwd] = useState("");
+  const [newPwd, setNewPwd] = useState("");
+  const [confirmPwd, setConfirmPwd] = useState("");
+  const [showNew, setShowNew] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [pwdSaving, setPwdSaving] = useState(false);
+  const [pwdError, setPwdError] = useState("");
+  const [pwdSaved, setPwdSaved] = useState(false);
+
+  const changed = selected !== current;
+
+  const saveMethod = async () => {
+    setSaving(true);
+    setError("");
+    try {
+      const res = await fetch(apiUrl("/api/auth/me"), {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ loginMethod: selected }),
+      });
+      const data = await res.json() as { error?: string };
+      if (!res.ok) throw new Error(data.error ?? "Failed to save");
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2500);
+      onSaved();
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Failed to save");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const savePassword = async () => {
+    if (newPwd !== confirmPwd) { setPwdError("Passwords do not match."); return; }
+    if (newPwd.length < 8) { setPwdError("Password must be at least 8 characters."); return; }
+    setPwdSaving(true);
+    setPwdError("");
+    try {
+      const res = await fetch(apiUrl("/api/auth/me/set-password"), {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ currentPassword: currentPwd || undefined, newPassword: newPwd }),
+      });
+      const data = await res.json() as { error?: string };
+      if (!res.ok) throw new Error(data.error ?? "Failed to set password");
+      setPwdSaved(true);
+      setCurrentPwd(""); setNewPwd(""); setConfirmPwd("");
+      setTimeout(() => { setPwdSaved(false); setShowPwdForm(false); }, 2000);
+      onSaved();
+    } catch (e: unknown) {
+      setPwdError(e instanceof Error ? e.message : "Failed to save");
+    } finally {
+      setPwdSaving(false);
+    }
+  };
+
+  const options: Array<{
+    id: "password" | "otp";
+    icon: React.ElementType;
+    title: string;
+    desc: string;
+  }> = [
+    {
+      id: "password",
+      icon: KeyRound,
+      title: "Password",
+      desc: "Sign in with your email and a password you set.",
+    },
+    {
+      id: "otp",
+      icon: MessageSquare,
+      title: "One-time code",
+      desc: "Receive a temporary code by SMS or email each time you log in.",
+    },
+  ];
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-3">
+        {options.map((opt) => {
+          const Icon = opt.icon;
+          const active = selected === opt.id;
+          return (
+            <button
+              key={opt.id}
+              onClick={() => { setSelected(opt.id); setError(""); setSaved(false); }}
+              className={`relative text-left rounded-xl border p-4 transition-all ${
+                active
+                  ? "border-primary bg-primary/5 ring-2 ring-primary/20"
+                  : "border-border bg-background hover:border-muted-foreground/30"
+              }`}
+            >
+              {active && (
+                <span className="absolute top-2.5 right-2.5">
+                  <Check className="w-3.5 h-3.5 text-primary" />
+                </span>
+              )}
+              <div className={`w-8 h-8 rounded-lg flex items-center justify-center mb-2.5 ${
+                active ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
+              }`}>
+                <Icon className="w-4 h-4" />
+              </div>
+              <p className={`text-sm font-semibold ${active ? "text-foreground" : "text-foreground"}`}>{opt.title}</p>
+              <p className="text-xs text-muted-foreground mt-1 leading-snug">{opt.desc}</p>
+            </button>
+          );
+        })}
+      </div>
+
+      {error && <p className="text-xs text-destructive">{error}</p>}
+
+      {changed && (
+        <Button
+          onClick={saveMethod}
+          disabled={saving || saved}
+          className="w-full rounded-xl h-11 bg-primary text-white hover:bg-primary/90 font-semibold"
+        >
+          {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+          {saved ? "Saved" : "Save login method"}
+        </Button>
+      )}
+
+      {/* Change password */}
+      <div className="border-t border-border pt-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium text-foreground">
+              {hasPassword ? "Change password" : "Set a password"}
+            </p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              {hasPassword
+                ? "Update the password you use to log in."
+                : "Add a password to enable password-based login."}
+            </p>
+          </div>
+          <Button
+            variant="outline"
+            onClick={() => { setShowPwdForm((v) => !v); setPwdError(""); setPwdSaved(false); }}
+            className="shrink-0 rounded-xl text-sm font-semibold"
+          >
+            {showPwdForm ? "Cancel" : hasPassword ? "Change" : "Set password"}
+          </Button>
+        </div>
+
+        {showPwdForm && (
+          <div className="mt-4 space-y-3">
+            {hasPassword && (
+              <div className="space-y-1.5">
+                <Label htmlFor="current-pwd">Current password</Label>
+                <Input
+                  id="current-pwd"
+                  type="password"
+                  autoComplete="current-password"
+                  value={currentPwd}
+                  onChange={(e) => setCurrentPwd(e.target.value)}
+                  placeholder="Your current password"
+                  className="rounded-xl h-11 bg-background border-border"
+                />
+              </div>
+            )}
+            <div className="space-y-1.5">
+              <Label htmlFor="new-pwd">New password</Label>
+              <div className="relative">
+                <Input
+                  id="new-pwd"
+                  type={showNew ? "text" : "password"}
+                  autoComplete="new-password"
+                  value={newPwd}
+                  onChange={(e) => setNewPwd(e.target.value)}
+                  placeholder="At least 8 characters"
+                  className="rounded-xl h-11 bg-background border-border pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowNew((v) => !v)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                >
+                  {showNew ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="confirm-pwd">Confirm new password</Label>
+              <div className="relative">
+                <Input
+                  id="confirm-pwd"
+                  type={showConfirm ? "text" : "password"}
+                  autoComplete="new-password"
+                  value={confirmPwd}
+                  onChange={(e) => setConfirmPwd(e.target.value)}
+                  placeholder="Repeat new password"
+                  className="rounded-xl h-11 bg-background border-border pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirm((v) => !v)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                >
+                  {showConfirm ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+            </div>
+            {pwdError && <p className="text-xs text-destructive">{pwdError}</p>}
+            <Button
+              onClick={savePassword}
+              disabled={pwdSaving || pwdSaved || !newPwd || !confirmPwd}
+              className="w-full rounded-xl h-11 bg-primary text-white hover:bg-primary/90 font-semibold"
+            >
+              {pwdSaving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+              {pwdSaved ? "Password updated" : hasPassword ? "Update password" : "Set password"}
+            </Button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ── Delete account dialog ──────────────────────────────────────────────────────
 
 function DeleteDialog({
@@ -503,6 +742,16 @@ export default function Account() {
               icon={Calendar}
               label="Date of birth"
               value={formatDate(user.dateOfBirth)}
+            />
+          </SectionCard>
+
+          {/* Security */}
+          <SectionCard title="Security">
+            <p className="text-xs text-muted-foreground -mt-1">Choose how you sign in to your account.</p>
+            <LoginMethodSection
+              current={user.loginMethod ?? "password"}
+              hasPassword={user.hasPassword ?? false}
+              onSaved={async () => { await refetch(); }}
             />
           </SectionCard>
 

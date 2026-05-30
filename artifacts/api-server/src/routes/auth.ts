@@ -366,12 +366,13 @@ router.get("/auth/me", async (req, res): Promise<void> => {
   void db.execute(
     sql`UPDATE users SET last_access_at = NOW() WHERE id = ${req.session.userId}`
   );
-  res.json({ id: user.id, email: user.email, phone: user.phone, username: user.username, address: user.address, dateOfBirth: user.dateOfBirth, avatarUrl: user.avatarUrl, tickets: user.tickets });
+  const loginMethod = (user as unknown as Record<string, unknown>)["login_method"] as string ?? "password";
+  res.json({ id: user.id, email: user.email, phone: user.phone, username: user.username, address: user.address, dateOfBirth: user.dateOfBirth, avatarUrl: user.avatarUrl, tickets: user.tickets, loginMethod, hasPassword: !!user.passwordHash });
 });
 
 router.patch("/auth/me", async (req, res): Promise<void> => {
   if (!req.session.userId) { res.status(401).json({ error: "Not authenticated" }); return; }
-  const { username, address, avatarUrl } = req.body as { username?: string; address?: string; avatarUrl?: string | null };
+  const { username, address, avatarUrl, loginMethod } = req.body as { username?: string; address?: string; avatarUrl?: string | null; loginMethod?: string };
 
   const updates: Partial<typeof usersTable.$inferInsert> = {};
 
@@ -404,18 +405,60 @@ router.patch("/auth/me", async (req, res): Promise<void> => {
     updates.avatarUrl = avatarUrl;
   }
 
-  if (Object.keys(updates).length === 0) {
+  if (loginMethod !== undefined) {
+    if (loginMethod !== "password" && loginMethod !== "otp") {
+      res.status(400).json({ error: "loginMethod must be 'password' or 'otp'." });
+      return;
+    }
+  }
+
+  if (Object.keys(updates).length === 0 && loginMethod === undefined) {
     res.status(400).json({ error: "Nothing to update." });
     return;
   }
 
-  const [updated] = await db
-    .update(usersTable)
-    .set(updates)
-    .where(eq(usersTable.id, req.session.userId))
-    .returning();
+  if (loginMethod !== undefined) {
+    await db.execute(
+      sql`UPDATE users SET login_method = ${loginMethod} WHERE id = ${req.session.userId}`
+    );
+  }
 
-  res.json({ id: updated.id, email: updated.email, phone: updated.phone, username: updated.username, address: updated.address, dateOfBirth: updated.dateOfBirth, avatarUrl: updated.avatarUrl, tickets: updated.tickets });
+  if (Object.keys(updates).length > 0) {
+    await db.update(usersTable).set(updates).where(eq(usersTable.id, req.session.userId));
+  }
+
+  const [updated] = await db.select().from(usersTable).where(eq(usersTable.id, req.session.userId)).limit(1);
+  const updatedLoginMethod = (updated as unknown as Record<string, unknown>)["login_method"] as string ?? "password";
+  res.json({ id: updated.id, email: updated.email, phone: updated.phone, username: updated.username, address: updated.address, dateOfBirth: updated.dateOfBirth, avatarUrl: updated.avatarUrl, tickets: updated.tickets, loginMethod: updatedLoginMethod, hasPassword: !!updated.passwordHash });
+});
+
+router.post("/auth/me/set-password", async (req, res): Promise<void> => {
+  if (!req.session.userId) { res.status(401).json({ error: "Not authenticated" }); return; }
+  const { currentPassword, newPassword } = req.body as { currentPassword?: string; newPassword?: string };
+
+  if (!newPassword || newPassword.length < 8) {
+    res.status(400).json({ error: "New password must be at least 8 characters." });
+    return;
+  }
+
+  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, req.session.userId)).limit(1);
+  if (!user) { res.status(401).json({ error: "Not authenticated" }); return; }
+
+  if (user.passwordHash) {
+    if (!currentPassword) {
+      res.status(400).json({ error: "Current password is required to set a new one." });
+      return;
+    }
+    const match = await bcrypt.compare(currentPassword, user.passwordHash);
+    if (!match) {
+      res.status(403).json({ error: "Current password is incorrect." });
+      return;
+    }
+  }
+
+  const newHash = await bcrypt.hash(newPassword, 12);
+  await db.execute(sql`UPDATE users SET password_hash = ${newHash} WHERE id = ${req.session.userId}`);
+  res.json({ ok: true });
 });
 
 router.delete("/auth/me", async (req, res): Promise<void> => {
