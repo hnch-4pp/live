@@ -1,6 +1,6 @@
 import { Link, useLocation } from "wouter";
 import { apiUrl } from "@/lib/apiFetch";
-import { Ticket, ArrowLeft, Info, Gift, Tag, ShoppingBag, MinusCircle, Sparkles, Package, RefreshCw } from "lucide-react";
+import { Ticket, ArrowLeft, Info, Gift, Tag, ShoppingBag, MinusCircle, Sparkles, Package, RefreshCw, Star, Zap, Crown } from "lucide-react";
 import { Layout } from "@/components/layout";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
@@ -68,11 +68,18 @@ function formatDate(iso: string): string {
   return d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: diffDays > 365 ? "numeric" : undefined });
 }
 
-const PURCHASE_OPTIONS = [
-  { id: "single", icon: <Ticket className="w-5 h-5" />, label: "Single ticket", price: "$0.99", tickets: 1, badge: null },
-  { id: "starter", icon: <Package className="w-5 h-5" />, label: "Starter pack", price: "$3.99", tickets: 5, badge: "Most popular" },
-  { id: "pro", icon: <Sparkles className="w-5 h-5" />, label: "Pro pack", price: "$6.99", tickets: 10, badge: "Best value" },
-  { id: "sub", icon: <RefreshCw className="w-5 h-5" />, label: "Monthly pass", price: "$9.99/mo", tickets: 15, badge: "Subscription" },
+const TICKET_PACKS = [
+  { id: "single",  icon: <Ticket className="w-5 h-5" />,  label: "Single",  tickets: 1,  price: "$0.99" },
+  { id: "five",    icon: <Package className="w-5 h-5" />,  label: "5-Pack",  tickets: 5,  price: "$4.49" },
+  { id: "ten",     icon: <Sparkles className="w-5 h-5" />, label: "10-Pack", tickets: 10, price: "$7.99", badge: "Best value" },
+];
+
+const MONTHLY_PASSES = [
+  { id: "free",    icon: <Ticket className="w-4 h-4" />,   label: "Free",    tickets: 15,   price: null,    priceSuffix: "Free",    featured: false },
+  { id: "starter", icon: <Package className="w-4 h-4" />,  label: "Starter", tickets: 50,   price: "$4.99", priceSuffix: "/mo",     featured: false },
+  { id: "plus",    icon: <Star className="w-4 h-4" />,     label: "Plus",    tickets: 5,    price: "$12.99",priceSuffix: "/mo",     featured: false },
+  { id: "pro",     icon: <Zap className="w-4 h-4" />,      label: "Pro",     tickets: 400,  price: "$24.99",priceSuffix: "/mo",     featured: true  },
+  { id: "elite",   icon: <Crown className="w-4 h-4" />,    label: "Elite",   tickets: 1000, price: "$49.99",priceSuffix: "/mo",     featured: false },
 ];
 
 export default function TicketsPage() {
@@ -92,24 +99,26 @@ export default function TicketsPage() {
 
   return (
     <Layout>
-      <div className="container mx-auto px-4 py-10 max-w-lg">
-        <Link href="/" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground mb-6 transition-colors">
-          <ArrowLeft className="w-4 h-4" />
-          Back to hunches
-        </Link>
+      <div className="container mx-auto px-4 py-10 max-w-5xl">
+        <div className="max-w-lg">
+          <Link href="/" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground mb-6 transition-colors">
+            <ArrowLeft className="w-4 h-4" />
+            Back to hunches
+          </Link>
 
-        <h1 className="font-display font-bold text-3xl text-foreground mb-1">My Tickets</h1>
-        <p className="text-muted-foreground text-sm mb-8">Tickets let you enter predictions and compete for prizes.</p>
+          <h1 className="font-display font-bold text-3xl text-foreground mb-1">My Tickets</h1>
+          <p className="text-muted-foreground text-sm mb-8">Tickets let you enter predictions and compete for prizes.</p>
+        </div>
 
         {isLoading ? (
-          <div className="space-y-4">
+          <div className="space-y-4 max-w-lg">
             <div className="h-32 bg-muted rounded-2xl animate-pulse" />
             <div className="h-48 bg-muted rounded-2xl animate-pulse" />
           </div>
         ) : user ? (
           <>
             {/* Balance card */}
-            <div className="bg-card border border-primary/20 rounded-2xl p-6 card-shadow mb-6">
+            <div className="bg-card border border-primary/20 rounded-2xl p-6 card-shadow mb-6 max-w-lg">
               <div className="flex items-center gap-3 mb-4">
                 <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
                   <Ticket className="w-5 h-5 text-primary" />
@@ -122,11 +131,10 @@ export default function TicketsPage() {
                   </p>
                 </div>
               </div>
-
             </div>
 
             {/* Activity timeline */}
-            <div className="mb-6">
+            <div className="mb-8 max-w-lg">
               <h2 className="text-sm font-semibold text-foreground uppercase tracking-wide mb-4">Activity</h2>
 
               {activityLoading ? (
@@ -137,21 +145,16 @@ export default function TicketsPage() {
                 </div>
               ) : activity && activity.length > 0 ? (
                 <div className="relative">
-                  {/* Vertical line */}
                   <div className="absolute left-[19px] top-6 bottom-6 w-px bg-border" />
-
                   <div className="space-y-0">
                     {activity.map((tx, idx) => {
                       const c = txColors(tx.type);
                       const isLast = idx === activity.length - 1;
                       return (
                         <div key={tx.id} className="relative flex gap-3 pb-4">
-                          {/* Dot */}
                           <div className={`relative z-10 w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${c.icon}`}>
                             {txIcon(tx.type)}
                           </div>
-
-                          {/* Content */}
                           <div className="flex-1 min-w-0 pt-1">
                             <div className="flex items-start justify-between gap-2">
                               <div className="min-w-0">
@@ -178,37 +181,79 @@ export default function TicketsPage() {
               )}
             </div>
 
-            {/* Get more tickets */}
-            <div className="mb-6">
-              <div className="flex items-center justify-between mb-3">
+            {/* ── Get more tickets ── */}
+            <div className="mb-8">
+              <div className="flex items-center justify-between mb-5">
                 <h2 className="text-sm font-semibold text-foreground uppercase tracking-wide">Get more tickets</h2>
                 <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full">Coming soon</span>
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                {PURCHASE_OPTIONS.map((opt) => (
+
+              {/* Ticket Packs */}
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-3">Ticket Packs</p>
+              <div className="grid grid-cols-3 gap-3 mb-8">
+                {TICKET_PACKS.map((pack) => (
                   <div
-                    key={opt.id}
-                    className="relative bg-muted/60 border border-border rounded-xl p-4 opacity-60 select-none"
+                    key={pack.id}
+                    className="relative bg-muted/50 border border-border rounded-xl p-4 opacity-60 select-none flex flex-col gap-2"
                   >
-                    {opt.badge && (
+                    {pack.badge && (
                       <span className="absolute -top-2 left-3 text-[10px] font-bold bg-primary text-white px-2 py-0.5 rounded-full">
-                        {opt.badge}
+                        {pack.badge}
                       </span>
                     )}
-                    <div className="text-muted-foreground mb-2">{opt.icon}</div>
-                    <p className="text-sm font-semibold text-foreground leading-tight">{opt.label}</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">{opt.tickets} ticket{opt.tickets !== 1 ? "s" : ""}</p>
-                    <p className="text-sm font-bold text-primary mt-2">{opt.price}</p>
+                    <div className="text-muted-foreground">{pack.icon}</div>
+                    <div>
+                      <p className="text-sm font-bold text-foreground">{pack.label}</p>
+                      <p className="text-xs text-muted-foreground">{pack.tickets} ticket{pack.tickets !== 1 ? "s" : ""}</p>
+                    </div>
+                    <p className="text-base font-bold text-primary mt-auto">{pack.price}</p>
                   </div>
                 ))}
               </div>
-              <p className="text-xs text-muted-foreground text-center mt-3">
+
+              {/* Monthly Passes */}
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-3">Monthly Passes</p>
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+                {MONTHLY_PASSES.map((pass) => (
+                  <div
+                    key={pass.id}
+                    className={`relative rounded-xl p-4 opacity-60 select-none flex flex-col gap-2 ${
+                      pass.featured
+                        ? "bg-primary/8 border-2 border-primary shadow-sm"
+                        : "bg-muted/50 border border-border"
+                    }`}
+                  >
+                    {pass.featured && (
+                      <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 text-[10px] font-bold bg-primary text-white px-2.5 py-0.5 rounded-full whitespace-nowrap">
+                        Top Choice
+                      </span>
+                    )}
+                    <div className={pass.featured ? "text-primary" : "text-muted-foreground"}>
+                      {pass.icon}
+                    </div>
+                    <div>
+                      <p className={`text-sm font-bold ${pass.featured ? "text-primary" : "text-foreground"}`}>
+                        {pass.label}
+                      </p>
+                      <p className="text-xs text-muted-foreground">{pass.tickets} tickets/mo</p>
+                    </div>
+                    <p className={`text-base font-bold mt-auto ${pass.featured ? "text-primary" : "text-primary"}`}>
+                      {pass.price
+                        ? <>{pass.price}<span className="text-xs font-medium text-muted-foreground">{pass.priceSuffix}</span></>
+                        : <span className="text-foreground">Free</span>
+                      }
+                    </p>
+                  </div>
+                ))}
+              </div>
+
+              <p className="text-xs text-muted-foreground text-center mt-4">
                 Tickets are never required — you can always play with your free tickets.
               </p>
             </div>
 
             {/* How tickets work */}
-            <div className="bg-muted/60 border border-border rounded-2xl p-5 space-y-3">
+            <div className="bg-muted/60 border border-border rounded-2xl p-5 space-y-3 max-w-lg">
               <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
                 <Info className="w-4 h-4 text-primary" />
                 How tickets work
@@ -221,7 +266,7 @@ export default function TicketsPage() {
               </ul>
             </div>
 
-            <div className="mt-6">
+            <div className="mt-6 max-w-lg">
               <Button
                 className="w-full bg-primary text-white hover:bg-primary/90 font-bold rounded-xl h-12"
                 onClick={() => setLocation("/")}
