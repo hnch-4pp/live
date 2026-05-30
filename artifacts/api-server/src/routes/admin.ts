@@ -18,7 +18,7 @@ import {
   hunchQuestionsTable,
   topNotificationsTable,
 } from "@workspace/db";
-import { eq, or, ilike, sql, desc, and } from "drizzle-orm";
+import { eq, or, ilike, sql, desc, and, asc } from "drizzle-orm";
 import { getUncachableStripeClient } from "../stripeClient";
 
 function parsePrizeAmount(value: string): number {
@@ -1197,5 +1197,59 @@ router.delete("/admin/notifications/:id", requireAdmin, requireAdminHeader, asyn
   await db.delete(topNotificationsTable).where(eq(topNotificationsTable.id, id));
   res.json({ ok: true });
 });
+
+router.get(
+  "/admin/hunches/:id/predictions",
+  requireAdmin,
+  requireAdminHeader,
+  async (req, res): Promise<void> => {
+    const id = parseInt(String(req.params["id"] ?? "0"), 10);
+    if (!id) { res.status(400).json({ error: "Invalid ID" }); return; }
+
+    const preds = await db
+      .select({
+        id: predictionsTable.id,
+        userId: predictionsTable.userId,
+        optionId: predictionsTable.optionId,
+        optionLabel: optionsTable.label,
+        createdAt: predictionsTable.createdAt,
+        username: usersTable.username,
+        phone: usersTable.phone,
+      })
+      .from(predictionsTable)
+      .leftJoin(optionsTable, eq(predictionsTable.optionId, optionsTable.id))
+      .leftJoin(usersTable, eq(predictionsTable.userId, usersTable.id))
+      .where(eq(predictionsTable.hunchId, id))
+      .orderBy(asc(predictionsTable.createdAt));
+
+    const total = preds.length;
+    const groupMap = new Map<string, {
+      participants: Array<{ id: number; userId: number | null; username: string | null; phone: string | null; createdAt: Date }>;
+    }>();
+
+    for (const p of preds) {
+      const label = p.optionLabel ?? "?";
+      if (!groupMap.has(label)) groupMap.set(label, { participants: [] });
+      groupMap.get(label)!.participants.push({
+        id: p.id,
+        userId: p.userId,
+        username: p.username ?? null,
+        phone: p.phone ?? null,
+        createdAt: p.createdAt,
+      });
+    }
+
+    const byOption = Array.from(groupMap.entries())
+      .map(([label, g]) => ({
+        label,
+        count: g.participants.length,
+        pct: total > 0 ? Math.round((g.participants.length / total) * 100) : 0,
+        participants: g.participants,
+      }))
+      .sort((a, b) => b.count - a.count);
+
+    res.json({ total, byOption });
+  },
+);
 
 export default router;

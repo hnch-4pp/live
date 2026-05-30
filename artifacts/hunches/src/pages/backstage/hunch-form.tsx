@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useLocation, useParams } from "wouter";
 import { AdminLayout } from "@/components/admin-layout";
 import { useAdminAuth, adminFetch } from "./dashboard";
-import { Check, ChevronLeft, Hash, Percent, Calendar, Clock, Plus, Trash2, Gift, Layers, List } from "lucide-react";
+import { Check, ChevronLeft, Hash, Percent, Calendar, Clock, Plus, Trash2, Gift, Layers, List, Users, Trophy, ChevronDown, ChevronUp } from "lucide-react";
 
 function ordinal(n: number): string {
   const s = ["th", "st", "nd", "rd"];
@@ -31,6 +31,10 @@ interface WinnerAnswer {
   prompt: string;
   answer: string;
 }
+
+interface PredParticipant { id: number; userId: number | null; username: string | null; phone: string | null; createdAt: string; }
+interface PredGroup { label: string; count: number; pct: number; participants: PredParticipant[]; }
+interface PredData { total: number; byOption: PredGroup[]; }
 
 const EMPTY = {
   title: "",
@@ -119,10 +123,22 @@ export default function HunchForm() {
   const [saving, setSaving]       = useState(false);
   const [loading, setLoading]     = useState(isEditing);
   const [error, setError]         = useState("");
+  const [predData, setPredData]   = useState<PredData | null>(null);
+  const [predLoading, setPredLoading] = useState(false);
+  const [expandedOption, setExpandedOption] = useState<string | null>(null);
 
   useEffect(() => {
     adminFetch("/admin/categories").then((r) => r.json() as Promise<Category[]>).then(setCategories).catch(() => {});
   }, []);
+
+  useEffect(() => {
+    if (!isEditing || !params.id) return;
+    setPredLoading(true);
+    adminFetch(`/admin/hunches/${params.id}/predictions`)
+      .then((r) => r.json() as Promise<PredData>)
+      .then((d) => { setPredData(d); setPredLoading(false); })
+      .catch(() => setPredLoading(false));
+  }, [isEditing, params.id]);
 
   useEffect(() => {
     if (!isEditing) return;
@@ -544,6 +560,92 @@ export default function HunchForm() {
               Add prize tier
             </button>
           </section>
+
+          {/* Participants section — editing only */}
+          {isEditing && (
+            <section className="bg-white border border-gray-200 rounded-2xl p-6 space-y-4">
+              <div className="flex items-center justify-between">
+                <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide flex items-center gap-2">
+                  <Users className="w-4 h-4" />
+                  Participants
+                  {predData && (
+                    <span className="text-gray-400 font-normal normal-case tracking-normal text-xs">
+                      — {predData.total} total
+                    </span>
+                  )}
+                </h2>
+                {predLoading && <span className="text-xs text-gray-400">Loading...</span>}
+              </div>
+
+              {!predLoading && predData?.total === 0 && (
+                <p className="text-sm text-gray-400">No predictions yet.</p>
+              )}
+
+              {predData && predData.byOption.map((group) => (
+                <div key={group.label} className="border border-gray-100 rounded-xl overflow-hidden">
+                  <div className="flex items-center gap-3 px-4 py-3 bg-gray-50/60">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1.5">
+                        <span className="text-sm font-semibold text-gray-900">{group.label}</span>
+                        <span className="text-xs text-gray-400">
+                          {group.count} {group.count === 1 ? "vote" : "votes"} · {group.pct}%
+                        </span>
+                      </div>
+                      <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-violet-400 rounded-full transition-all"
+                          style={{ width: `${group.pct}%` }}
+                        />
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      {form.winnerOption === group.label ? (
+                        <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg">
+                          <Trophy className="w-3 h-3" /> Winner
+                        </span>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => setForm((f) => ({ ...f, winnerOption: group.label, status: "resolved" }))}
+                          className="text-xs font-semibold text-violet-600 border border-violet-200 bg-white px-2.5 py-1 rounded-lg hover:bg-violet-50 transition-colors"
+                        >
+                          Set as winner
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => setExpandedOption((v) => (v === group.label ? null : group.label))}
+                        className="text-gray-400 hover:text-gray-600 transition-colors p-0.5"
+                        aria-label={expandedOption === group.label ? "Collapse" : "Expand"}
+                      >
+                        {expandedOption === group.label
+                          ? <ChevronUp className="w-4 h-4" />
+                          : <ChevronDown className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  {expandedOption === group.label && (
+                    <div className="divide-y divide-gray-50">
+                      {group.participants.map((p) => (
+                        <div key={p.id} className="flex items-center gap-3 px-4 py-2.5">
+                          <div className="w-6 h-6 rounded-full bg-violet-100 flex items-center justify-center shrink-0">
+                            <Users className="w-3 h-3 text-violet-500" />
+                          </div>
+                          <span className="text-sm text-gray-800 font-medium flex-1 truncate">
+                            {p.username ?? p.phone ?? (p.userId != null ? `User ${p.userId}` : "Anonymous")}
+                          </span>
+                          <span className="text-xs text-gray-400 shrink-0">
+                            {new Date(p.createdAt).toLocaleString()}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </section>
+          )}
 
           {/* Settings section */}
           <section className="bg-white border border-gray-200 rounded-2xl p-6 space-y-5">
