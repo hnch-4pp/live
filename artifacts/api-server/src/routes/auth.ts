@@ -349,6 +349,77 @@ router.post("/auth/login/verify-otp", async (req, res): Promise<void> => {
   res.json({ ok: true, user: { id: user.id, email: user.email } });
 });
 
+// ── Login with password ─────────────────────────────────────────────────────
+
+router.post("/auth/login/check-method", async (req, res): Promise<void> => {
+  const { email } = req.body as { email?: string };
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    res.status(400).json({ error: "Valid email required" });
+    return;
+  }
+
+  const [user] = await db
+    .select()
+    .from(usersTable)
+    .where(eq(usersTable.email, email.toLowerCase()))
+    .limit(1);
+
+  if (!user) {
+    res.status(404).json({ error: "No account found with this email." });
+    return;
+  }
+
+  const loginMethod =
+    (user as unknown as Record<string, unknown>)["login_method"] as string ?? "password";
+
+  res.json({
+    loginMethod,
+    hasPassword: !!user.passwordHash,
+  });
+});
+
+router.post("/auth/login/password", async (req, res): Promise<void> => {
+  const { email, password } = req.body as { email?: string; password?: string };
+  if (!email || !password) {
+    res.status(400).json({ error: "Email and password required" });
+    return;
+  }
+
+  const [user] = await db
+    .select()
+    .from(usersTable)
+    .where(eq(usersTable.email, email.toLowerCase()))
+    .limit(1);
+
+  if (!user) {
+    res.status(401).json({ error: "Invalid email or password." });
+    return;
+  }
+
+  if (!user.passwordHash) {
+    res.status(401).json({ error: "This account does not have a password set. Use one-time code instead." });
+    return;
+  }
+
+  const match = await bcrypt.compare(password, user.passwordHash);
+  if (!match) {
+    res.status(401).json({ error: "Invalid email or password." });
+    return;
+  }
+
+  if (user.status === "suspended") {
+    res.status(403).json({ error: "Your account has been suspended. Please contact support." });
+    return;
+  }
+  if (user.status === "banned") {
+    res.status(403).json({ error: "Your account has been permanently banned." });
+    return;
+  }
+
+  req.session.userId = user.id;
+  res.json({ ok: true, user: { id: user.id, email: user.email } });
+});
+
 // ── Session ────────────────────────────────────────────────────────────────
 
 router.get("/auth/me", async (req, res): Promise<void> => {
