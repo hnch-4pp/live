@@ -26,6 +26,7 @@ import Tickets from "@/pages/tickets";
 import TicketActivity from "@/pages/ticket-activity";
 import CheckoutSuccess from "@/pages/checkout-success";
 import MyHunches from "@/pages/my-hunches";
+import Pricing from "@/pages/pricing";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -51,6 +52,7 @@ function Router() {
       <Route path="/tickets/activity" component={TicketActivity} />
       <Route path="/tickets/success" component={CheckoutSuccess} />
       <Route path="/my-hunches" component={MyHunches} />
+      <Route path="/pricing" component={Pricing} />
       <Route path="/backstage/login" component={AdminLogin} />
       <Route path="/backstage/dashboard" component={AdminDashboard} />
       <Route path="/backstage/hunches" component={AdminHunches} />
