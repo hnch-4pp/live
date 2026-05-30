@@ -1,11 +1,14 @@
 import { Link, useLocation } from "wouter";
 import { apiUrl } from "@/lib/apiFetch";
-import { Ticket, ArrowLeft, Info, Gift, Tag, ShoppingBag, MinusCircle, Sparkles, Package, RefreshCw, Star, Zap, Crown } from "lucide-react";
+import {
+  Ticket, ArrowLeft, Info, Gift, Tag, ShoppingBag, MinusCircle,
+  Sparkles, Package, RefreshCw, Star, Zap, Crown, Loader2,
+} from "lucide-react";
 import { Layout } from "@/components/layout";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 type TxType = "welcome" | "promo" | "purchase" | "spent";
 
@@ -17,6 +20,15 @@ interface TicketTransaction {
   label: string;
   reference: string | null;
   createdAt: string;
+}
+
+interface TicketPack {
+  product_id: string;
+  product_name: string;
+  metadata: Record<string, string>;
+  price_id: string;
+  unit_amount: number;
+  currency: string;
 }
 
 function useTicketActivity() {
@@ -31,28 +43,41 @@ function useTicketActivity() {
   });
 }
 
+function useTicketPacks() {
+  return useQuery<TicketPack[]>({
+    queryKey: ["ticket-packs"],
+    queryFn: async () => {
+      const res = await fetch(apiUrl("/api/stripe/ticket-packs"));
+      if (!res.ok) return [];
+      const data = await res.json() as { data: TicketPack[] };
+      return data.data ?? [];
+    },
+    staleTime: 5 * 60_000,
+  });
+}
+
 function txIcon(type: TxType) {
   switch (type) {
-    case "welcome": return <Gift className="w-4 h-4" />;
-    case "promo":   return <Tag className="w-4 h-4" />;
+    case "welcome":  return <Gift className="w-4 h-4" />;
+    case "promo":    return <Tag className="w-4 h-4" />;
     case "purchase": return <ShoppingBag className="w-4 h-4" />;
-    case "spent":   return <MinusCircle className="w-4 h-4" />;
+    case "spent":    return <MinusCircle className="w-4 h-4" />;
   }
 }
 
-function txColors(type: TxType): { dot: string; icon: string; badge: string } {
+function txColors(type: TxType): { icon: string; badge: string } {
   switch (type) {
-    case "welcome":  return { dot: "bg-violet-500", icon: "text-violet-600 bg-violet-100", badge: "bg-violet-100 text-violet-700" };
-    case "promo":    return { dot: "bg-emerald-500", icon: "text-emerald-600 bg-emerald-100", badge: "bg-emerald-100 text-emerald-700" };
-    case "purchase": return { dot: "bg-sky-500", icon: "text-sky-600 bg-sky-100", badge: "bg-sky-100 text-sky-700" };
-    case "spent":    return { dot: "bg-slate-400", icon: "text-slate-500 bg-slate-100", badge: "bg-slate-100 text-slate-600" };
+    case "welcome":  return { icon: "text-violet-600 bg-violet-100", badge: "bg-violet-100 text-violet-700" };
+    case "promo":    return { icon: "text-emerald-600 bg-emerald-100", badge: "bg-emerald-100 text-emerald-700" };
+    case "purchase": return { icon: "text-sky-600 bg-sky-100", badge: "bg-sky-100 text-sky-700" };
+    case "spent":    return { icon: "text-slate-500 bg-slate-100", badge: "bg-slate-100 text-slate-600" };
   }
 }
 
 function txSubtitle(tx: TicketTransaction): string {
-  if (tx.type === "welcome")  return "3 tickets added to your account at signup";
+  if (tx.type === "welcome")  return "Tickets added to your account at signup";
   if (tx.type === "promo")    return tx.reference ? `Code: ${tx.reference}` : "Promotional code redeemed";
-  if (tx.type === "purchase") return tx.reference ? `Order #${tx.reference}` : "Ticket purchase";
+  if (tx.type === "purchase") return tx.reference ? `Session: ${tx.reference.slice(0, 20)}…` : "Ticket purchase";
   if (tx.type === "spent")    return "Used for a prediction";
   return "";
 }
@@ -60,42 +85,71 @@ function txSubtitle(tx: TicketTransaction): string {
 function formatDate(iso: string): string {
   const d = new Date(iso);
   const now = new Date();
-  const diffMs = now.getTime() - d.getTime();
-  const diffDays = Math.floor(diffMs / 86_400_000);
+  const diffDays = Math.floor((now.getTime() - d.getTime()) / 86_400_000);
   if (diffDays === 0) return "Today";
   if (diffDays === 1) return "Yesterday";
   if (diffDays < 7)  return `${diffDays} days ago`;
   return d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: diffDays > 365 ? "numeric" : undefined });
 }
 
-const TICKET_PACKS = [
-  { id: "single",  icon: <Ticket className="w-5 h-5" />,  label: "Single",  tickets: 1,  price: "$0.99" },
-  { id: "five",    icon: <Package className="w-5 h-5" />,  label: "5-Pack",  tickets: 5,  price: "$4.49" },
-  { id: "ten",     icon: <Sparkles className="w-5 h-5" />, label: "10-Pack", tickets: 10, price: "$7.99", badge: "Best value" },
+function formatPrice(cents: number): string {
+  return `$${(cents / 100).toFixed(2)}`;
+}
+
+const PACK_ICONS: Record<string, React.ReactNode> = {
+  single: <Ticket className="w-5 h-5" />,
+  five:   <Package className="w-5 h-5" />,
+  ten:    <Sparkles className="w-5 h-5" />,
+};
+
+const FALLBACK_PACKS = [
+  { label: "Single",  tickets: 1,  price: "$0.99" },
+  { label: "5-Pack",  tickets: 5,  price: "$4.49" },
+  { label: "10-Pack", tickets: 10, price: "$7.99", badge: "Best value" },
 ];
 
 const MONTHLY_PASSES = [
-  { id: "free",    icon: <Ticket className="w-4 h-4" />,   label: "Free",    tickets: 15,   price: null,    priceSuffix: "Free",    featured: false },
-  { id: "starter", icon: <Package className="w-4 h-4" />,  label: "Starter", tickets: 50,   price: "$4.99", priceSuffix: "/mo",     featured: false },
-  { id: "plus",    icon: <Star className="w-4 h-4" />,     label: "Plus",    tickets: 5,    price: "$12.99",priceSuffix: "/mo",     featured: false },
-  { id: "pro",     icon: <Zap className="w-4 h-4" />,      label: "Pro",     tickets: 400,  price: "$24.99",priceSuffix: "/mo",     featured: true  },
-  { id: "elite",   icon: <Crown className="w-4 h-4" />,    label: "Elite",   tickets: 1000, price: "$49.99",priceSuffix: "/mo",     featured: false },
+  { id: "free",    icon: <Ticket className="w-4 h-4" />,   label: "Free",    tickets: 15,   price: null,     featured: false },
+  { id: "starter", icon: <Package className="w-4 h-4" />,  label: "Starter", tickets: 50,   price: "$4.99",  featured: false },
+  { id: "plus",    icon: <Star className="w-4 h-4" />,     label: "Plus",    tickets: 5,    price: "$12.99", featured: false },
+  { id: "pro",     icon: <Zap className="w-4 h-4" />,      label: "Pro",     tickets: 400,  price: "$24.99", featured: true  },
+  { id: "elite",   icon: <Crown className="w-4 h-4" />,    label: "Elite",   tickets: 1000, price: "$49.99", featured: false },
 ];
 
 export default function TicketsPage() {
   const { user, isLoading: authLoading, refetch } = useAuth();
   const [, setLocation] = useLocation();
   const { data: activity, isLoading: activityLoading } = useTicketActivity();
+  const { data: packs = [], isLoading: packsLoading } = useTicketPacks();
+  const [checkingOut, setCheckingOut] = useState<string | null>(null);
 
   useEffect(() => {
     if (!authLoading && !user) setLocation("/login");
   }, [authLoading, user, setLocation]);
 
-  useEffect(() => {
-    refetch();
-  }, []);
+  useEffect(() => { refetch(); }, []);
 
   const isLoading = authLoading;
+  const packsReady = !packsLoading && packs.length > 0;
+
+  async function handleBuyPack(priceId: string) {
+    if (!user) { setLocation("/login"); return; }
+    setCheckingOut(priceId);
+    try {
+      const res = await fetch(apiUrl("/api/stripe/checkout"), {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ priceId, returnUrl: window.location.origin }),
+      });
+      const data = await res.json() as { url?: string; error?: string };
+      if (data.url) {
+        window.location.href = data.url;
+      }
+    } catch {
+      setCheckingOut(null);
+    }
+  }
 
   return (
     <Layout>
@@ -105,7 +159,6 @@ export default function TicketsPage() {
             <ArrowLeft className="w-4 h-4" />
             Back to hunches
           </Link>
-
           <h1 className="font-display font-bold text-3xl text-foreground mb-1">My Tickets</h1>
           <p className="text-muted-foreground text-sm mb-8">Tickets let you enter predictions and compete for prizes.</p>
         </div>
@@ -119,7 +172,7 @@ export default function TicketsPage() {
           <>
             {/* Balance card */}
             <div className="bg-card border border-primary/20 rounded-2xl p-6 card-shadow mb-6 max-w-lg">
-              <div className="flex items-center gap-3 mb-4">
+              <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
                   <Ticket className="w-5 h-5 text-primary" />
                 </div>
@@ -127,7 +180,9 @@ export default function TicketsPage() {
                   <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Current balance</p>
                   <p className="text-4xl font-display font-bold text-foreground leading-none mt-0.5">
                     {user.tickets}
-                    <span className="text-lg font-medium text-muted-foreground ml-2">ticket{user.tickets !== 1 ? "s" : ""}</span>
+                    <span className="text-lg font-medium text-muted-foreground ml-2">
+                      ticket{user.tickets !== 1 ? "s" : ""}
+                    </span>
                   </p>
                 </div>
               </div>
@@ -136,20 +191,16 @@ export default function TicketsPage() {
             {/* Activity timeline */}
             <div className="mb-8 max-w-lg">
               <h2 className="text-sm font-semibold text-foreground uppercase tracking-wide mb-4">Activity</h2>
-
               {activityLoading ? (
                 <div className="space-y-3">
-                  {[0, 1, 2].map((i) => (
-                    <div key={i} className="h-16 bg-muted rounded-xl animate-pulse" />
-                  ))}
+                  {[0, 1, 2].map((i) => <div key={i} className="h-16 bg-muted rounded-xl animate-pulse" />)}
                 </div>
               ) : activity && activity.length > 0 ? (
                 <div className="relative">
                   <div className="absolute left-[19px] top-6 bottom-6 w-px bg-border" />
                   <div className="space-y-0">
-                    {activity.map((tx, idx) => {
+                    {activity.map((tx) => {
                       const c = txColors(tx.type);
-                      const isLast = idx === activity.length - 1;
                       return (
                         <div key={tx.id} className="relative flex gap-3 pb-4">
                           <div className={`relative z-10 w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${c.icon}`}>
@@ -185,31 +236,79 @@ export default function TicketsPage() {
             <div className="mb-8">
               <div className="flex items-center justify-between mb-5">
                 <h2 className="text-sm font-semibold text-foreground uppercase tracking-wide">Get more tickets</h2>
-                <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full">Coming soon</span>
+                {!packsReady && (
+                  <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full">Coming soon</span>
+                )}
               </div>
 
               {/* Ticket Packs */}
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-3">Ticket Packs</p>
-              <div className="grid grid-cols-3 gap-3 mb-8">
-                {TICKET_PACKS.map((pack) => (
-                  <div
-                    key={pack.id}
-                    className="relative bg-muted/50 border border-border rounded-xl p-4 opacity-60 select-none flex flex-col gap-2"
-                  >
-                    {pack.badge && (
-                      <span className="absolute -top-2 left-3 text-[10px] font-bold bg-primary text-white px-2 py-0.5 rounded-full">
-                        {pack.badge}
-                      </span>
-                    )}
-                    <div className="text-muted-foreground">{pack.icon}</div>
-                    <div>
-                      <p className="text-sm font-bold text-foreground">{pack.label}</p>
-                      <p className="text-xs text-muted-foreground">{pack.tickets} ticket{pack.tickets !== 1 ? "s" : ""}</p>
+
+              {packsLoading ? (
+                <div className="grid grid-cols-3 gap-3 mb-8">
+                  {[0, 1, 2].map((i) => <div key={i} className="h-28 bg-muted rounded-xl animate-pulse" />)}
+                </div>
+              ) : packsReady ? (
+                <div className="grid grid-cols-3 gap-3 mb-8">
+                  {packs.map((pack) => {
+                    const packId = pack.metadata?.packId ?? "single";
+                    const ticketAmount = Number(pack.metadata?.ticketAmount ?? 1);
+                    const isLoading = checkingOut === pack.price_id;
+                    const anyLoading = !!checkingOut;
+                    return (
+                      <button
+                        key={pack.price_id}
+                        onClick={() => handleBuyPack(pack.price_id)}
+                        disabled={anyLoading}
+                        className={`relative bg-card border rounded-xl p-4 flex flex-col gap-2 text-left transition-all duration-150 group ${
+                          anyLoading
+                            ? "opacity-60 cursor-not-allowed"
+                            : "hover:border-primary/50 hover:shadow-sm cursor-pointer"
+                        } ${isLoading ? "border-primary/50 shadow-sm" : "border-border"}`}
+                      >
+                        {pack.metadata?.packId === "ten" && (
+                          <span className="absolute -top-2 left-3 text-[10px] font-bold bg-primary text-white px-2 py-0.5 rounded-full">
+                            Best value
+                          </span>
+                        )}
+                        <div className={`transition-colors ${isLoading ? "text-primary" : "text-muted-foreground group-hover:text-primary"}`}>
+                          {isLoading
+                            ? <Loader2 className="w-5 h-5 animate-spin" />
+                            : (PACK_ICONS[packId] ?? <Ticket className="w-5 h-5" />)
+                          }
+                        </div>
+                        <div>
+                          <p className="text-sm font-bold text-foreground">{pack.product_name}</p>
+                          <p className="text-xs text-muted-foreground">{ticketAmount} ticket{ticketAmount !== 1 ? "s" : ""}</p>
+                        </div>
+                        <p className="text-base font-bold text-primary mt-auto">{formatPrice(pack.unit_amount)}</p>
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : (
+                /* Fallback: static greyed-out cards when not seeded yet */
+                <div className="grid grid-cols-3 gap-3 mb-8">
+                  {FALLBACK_PACKS.map((pack) => (
+                    <div
+                      key={pack.label}
+                      className="relative bg-muted/50 border border-border rounded-xl p-4 opacity-50 select-none flex flex-col gap-2"
+                    >
+                      {pack.badge && (
+                        <span className="absolute -top-2 left-3 text-[10px] font-bold bg-primary text-white px-2 py-0.5 rounded-full">
+                          {pack.badge}
+                        </span>
+                      )}
+                      <div className="text-muted-foreground"><Ticket className="w-5 h-5" /></div>
+                      <div>
+                        <p className="text-sm font-bold text-foreground">{pack.label}</p>
+                        <p className="text-xs text-muted-foreground">{pack.tickets} ticket{pack.tickets !== 1 ? "s" : ""}</p>
+                      </div>
+                      <p className="text-base font-bold text-primary mt-auto">{pack.price}</p>
                     </div>
-                    <p className="text-base font-bold text-primary mt-auto">{pack.price}</p>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
 
               {/* Monthly Passes */}
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-3">Monthly Passes</p>
@@ -228,19 +327,15 @@ export default function TicketsPage() {
                         Top Choice
                       </span>
                     )}
-                    <div className={pass.featured ? "text-primary" : "text-muted-foreground"}>
-                      {pass.icon}
-                    </div>
+                    <div className={pass.featured ? "text-primary" : "text-muted-foreground"}>{pass.icon}</div>
                     <div>
-                      <p className={`text-sm font-bold ${pass.featured ? "text-primary" : "text-foreground"}`}>
-                        {pass.label}
-                      </p>
+                      <p className={`text-sm font-bold ${pass.featured ? "text-primary" : "text-foreground"}`}>{pass.label}</p>
                       <p className="text-xs text-muted-foreground">{pass.tickets} tickets/mo</p>
                     </div>
-                    <p className={`text-base font-bold mt-auto ${pass.featured ? "text-primary" : "text-primary"}`}>
+                    <p className="text-base font-bold text-primary mt-auto">
                       {pass.price
-                        ? <>{pass.price}<span className="text-xs font-medium text-muted-foreground">{pass.priceSuffix}</span></>
-                        : <span className="text-foreground">Free</span>
+                        ? <>{pass.price}<span className="text-xs font-medium text-muted-foreground">/mo</span></>
+                        : <span className="text-foreground font-bold">Free</span>
                       }
                     </p>
                   </div>
@@ -259,7 +354,7 @@ export default function TicketsPage() {
                 How tickets work
               </div>
               <ul className="space-y-2 text-sm text-muted-foreground list-none">
-                <li className="flex gap-2"><span className="text-primary font-bold mt-0.5">–</span>Every new account starts with 3 tickets.</li>
+                <li className="flex gap-2"><span className="text-primary font-bold mt-0.5">–</span>Every new account starts with 15 tickets.</li>
                 <li className="flex gap-2"><span className="text-primary font-bold mt-0.5">–</span>Each prediction you make costs at least 1 ticket.</li>
                 <li className="flex gap-2"><span className="text-primary font-bold mt-0.5">–</span>Higher-stakes hunches may cost more tickets to enter.</li>
                 <li className="flex gap-2"><span className="text-primary font-bold mt-0.5">–</span>Tickets are not money — no purchase is ever required.</li>

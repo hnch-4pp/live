@@ -285,15 +285,15 @@ router.post("/auth/signup/complete", async (req, res): Promise<void> => {
       address: address.trim(),
       dateOfBirth,
       passwordHash: pending.passwordHash,
-      tickets: 3,
+      tickets: 15,
     })
     .returning();
 
   await db.insert(ticketTransactionsTable).values({
     userId: user.id,
     type: "welcome",
-    amount: 3,
-    label: "Welcome bonus",
+    amount: 15,
+    label: "Welcome bonus — 15 tickets",
   });
 
   req.session.pendingSignup = undefined;

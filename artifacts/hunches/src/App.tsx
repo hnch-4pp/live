@@ -22,6 +22,7 @@ import AdminTicketCodes from "@/pages/backstage/ticket-codes";
 import AdminHero from "@/pages/backstage/hero";
 import Account from "@/pages/account";
 import Tickets from "@/pages/tickets";
+import CheckoutSuccess from "@/pages/checkout-success";
 import MyHunches from "@/pages/my-hunches";
 
 const queryClient = new QueryClient({
@@ -45,6 +46,7 @@ function Router() {
       <Route path="/responsible" component={Responsible} />
       <Route path="/account" component={Account} />
       <Route path="/tickets" component={Tickets} />
+      <Route path="/tickets/success" component={CheckoutSuccess} />
       <Route path="/my-hunches" component={MyHunches} />
       <Route path="/backstage/login" component={AdminLogin} />
       <Route path="/backstage/dashboard" component={AdminDashboard} />

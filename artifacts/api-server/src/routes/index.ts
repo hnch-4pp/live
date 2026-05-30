@@ -6,11 +6,13 @@ import adminRouter from "./admin";
 import authRouter from "./auth";
 import placesRouter from "./places";
 import storageRouter from "./storage";
+import stripeRouter from "./stripe";
 
 const router: IRouter = Router();
 
 router.use(healthRouter);
 router.use(authRouter);
+router.use(stripeRouter);
 router.use(placesRouter);
 router.use(storageRouter);
 router.use(hunchesRouter);

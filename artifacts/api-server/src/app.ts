@@ -4,6 +4,7 @@ import pinoHttp from "pino-http";
 import session from "express-session";
 import router from "./routes";
 import { logger } from "./lib/logger";
+import { WebhookHandlers } from "./webhookHandlers";
 
 const app: Express = express();
 app.set("trust proxy", 1);
@@ -11,6 +12,29 @@ app.set("trust proxy", 1);
 const sessionSecret = process.env["SESSION_SECRET"];
 if (!sessionSecret) throw new Error("SESSION_SECRET env var is required");
 
+// ── Stripe webhook ─────────────────────────────────────────────────────────
+// MUST be registered BEFORE express.json() so req.body stays a raw Buffer.
+app.post(
+  "/api/stripe/webhook",
+  express.raw({ type: "application/json" }),
+  async (req, res) => {
+    const signature = req.headers["stripe-signature"];
+    if (!signature) {
+      res.status(400).json({ error: "Missing stripe-signature header" });
+      return;
+    }
+    const sig = Array.isArray(signature) ? signature[0] : signature;
+    try {
+      await WebhookHandlers.processWebhook(req.body as Buffer, sig);
+      res.status(200).json({ received: true });
+    } catch (err: unknown) {
+      logger.error({ err }, "Stripe webhook error");
+      res.status(400).json({ error: "Webhook processing error" });
+    }
+  },
+);
+
+// ── Standard middleware ────────────────────────────────────────────────────
 app.use(
   session({
     name: "hunch.sid",
@@ -45,6 +69,7 @@ app.use(
     },
   }),
 );
+
 app.use(
   cors({
     origin(origin, cb) {
@@ -61,6 +86,7 @@ app.use(
     credentials: true,
   }),
 );
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
