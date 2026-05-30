@@ -21,18 +21,41 @@ export async function ensureSubscriptionProductsExist(): Promise<void> {
       limit: 100,
     });
 
-    const existingTierIds = new Set(
+    // Map tierId → existing price
+    const existingByTier = new Map<string, Stripe.Price>(
       existing.data
-        .map((p) => (p.product as Stripe.Product).metadata?.tierId)
-        .filter(Boolean),
+        .filter((p) => (p.product as Stripe.Product).metadata?.tierId)
+        .map((p) => [(p.product as Stripe.Product).metadata.tierId, p]),
     );
 
     for (const tier of PAID_TIERS) {
-      if (existingTierIds.has(tier.id)) {
-        logger.info({ tierId: tier.id }, "Subscription product already exists — skipping");
+      const existing = existingByTier.get(tier.id);
+
+      if (existing) {
+        if (existing.unit_amount === tier.amountCents) {
+          logger.info({ tierId: tier.id }, "Subscription product already exists — skipping");
+          continue;
+        }
+
+        // Price changed — archive old price and create new one on same product
+        logger.info(
+          { tierId: tier.id, oldCents: existing.unit_amount, newCents: tier.amountCents },
+          "Subscription price changed — archiving old price and creating new one",
+        );
+        await stripe.prices.update(existing.id, { active: false });
+        await stripe.prices.create({
+          product: (existing.product as Stripe.Product).id,
+          unit_amount: tier.amountCents,
+          currency: "usd",
+          recurring: { interval: "month" },
+          metadata: { tierId: tier.id },
+        });
+
+        logger.info({ tierId: tier.id }, "Subscription price updated in Stripe");
         continue;
       }
 
+      // No product yet — create product + price from scratch
       const product = await stripe.products.create({
         name: tier.name,
         description: tier.description,

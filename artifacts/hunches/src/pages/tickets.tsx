@@ -143,11 +143,11 @@ const FALLBACK_PACKS = [
 ];
 
 const MONTHLY_PASSES = [
-  { id: "free",    icon: <Ticket className="w-4 h-4" />,   label: "Free",    tickets: 15,  amountCents: 0,    featured: false },
-  { id: "starter", icon: <Package className="w-4 h-4" />,  label: "Starter", tickets: 50,  amountCents: 499,  featured: false },
-  { id: "plus",    icon: <Star className="w-4 h-4" />,     label: "Plus",    tickets: 150, amountCents: 1299, featured: false },
-  { id: "pro",     icon: <Zap className="w-4 h-4" />,      label: "Pro",     tickets: 400, amountCents: 2499, featured: true  },
-  { id: "elite",   icon: <Crown className="w-4 h-4" />,    label: "Elite",   tickets: 1000,amountCents: 4999, featured: false },
+  { id: "free",    icon: <Ticket className="w-4 h-4" />,   label: "Free",    tickets: 5,   amountCents: 0,    featured: false },
+  { id: "starter", icon: <Package className="w-4 h-4" />,  label: "Starter", tickets: 10,  amountCents: 699,  featured: false },
+  { id: "plus",    icon: <Star className="w-4 h-4" />,     label: "Plus",    tickets: 25,  amountCents: 1399, featured: false },
+  { id: "pro",     icon: <Zap className="w-4 h-4" />,      label: "Pro",     tickets: 100, amountCents: 2999, featured: true  },
+  { id: "elite",   icon: <Crown className="w-4 h-4" />,    label: "Elite",   tickets: 250, amountCents: 4999, featured: false },
 ];
 
 export default function TicketsPage() {
