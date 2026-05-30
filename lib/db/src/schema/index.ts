@@ -10,3 +10,5 @@ export * from "./otps";
 export * from "./campaigns";
 export * from "./ticketCodes";
 export * from "./ticketTransactions";
+export * from "./subscriptions";
+export * from "./appSettings";

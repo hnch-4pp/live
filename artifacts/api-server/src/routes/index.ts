@@ -7,12 +7,14 @@ import authRouter from "./auth";
 import placesRouter from "./places";
 import storageRouter from "./storage";
 import stripeRouter from "./stripe";
+import subscriptionsRouter from "./subscriptions";
 
 const router: IRouter = Router();
 
 router.use(healthRouter);
 router.use(authRouter);
 router.use(stripeRouter);
+router.use(subscriptionsRouter);
 router.use(placesRouter);
 router.use(storageRouter);
 router.use(hunchesRouter);
