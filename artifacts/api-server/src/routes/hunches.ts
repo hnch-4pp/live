@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, and, count, sql, inArray, ilike } from "drizzle-orm";
+import { eq, and, count, sql, inArray, ilike, isNotNull, asc } from "drizzle-orm";
 import { db } from "@workspace/db";
 import {
   hunchesTable,
@@ -346,6 +346,127 @@ router.get("/hunches/:id", async (req, res): Promise<void> => {
   const [translated] = await withTranslations([built], lang);
 
   res.json(translated);
+});
+
+// ─── Winners ─────────────────────────────────────────────────────────────────
+
+router.get("/hunches/:id/winners", async (req, res): Promise<void> => {
+  const rawId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  const isNumeric = /^\d+$/.test(rawId);
+  const [hunch] = await db
+    .select()
+    .from(hunchesTable)
+    .where(isNumeric ? eq(hunchesTable.id, parseInt(rawId, 10)) : eq(hunchesTable.slug, rawId));
+
+  if (!hunch) {
+    res.status(404).json({ error: "Hunch not found" });
+    return;
+  }
+
+  if (hunch.status !== "resolved") {
+    res.json({ winners: [] });
+    return;
+  }
+
+  const isMulti = hunch.isMulti ?? false;
+
+  // For each winning questionId → collect valid optionIds (case-insensitive label match)
+  async function winningOptionIds(questionId: number | null, answerLabel: string): Promise<number[]> {
+    const opts = await db
+      .select({ id: optionsTable.id })
+      .from(optionsTable)
+      .where(
+        and(
+          eq(optionsTable.hunchId, hunch.id),
+          questionId !== null ? eq(optionsTable.questionId, questionId) : isNotNull(optionsTable.id),
+          sql`lower(${optionsTable.label}) = lower(${answerLabel})`,
+        ),
+      );
+    return opts.map((o) => o.id);
+  }
+
+  // Build a map: questionId (null for single) → valid optionIds[]
+  const winnerMap = new Map<number | null, number[]>();
+
+  if (!isMulti) {
+    if (!hunch.winnerOption) { res.json({ winners: [] }); return; }
+    const ids = await winningOptionIds(null, hunch.winnerOption);
+    if (ids.length === 0) { res.json({ winners: [] }); return; }
+    winnerMap.set(null, ids);
+  } else {
+    if (!hunch.winnerAnswers) { res.json({ winners: [] }); return; }
+    let answers: Array<{ questionId: number; answer: string }>;
+    try { answers = JSON.parse(hunch.winnerAnswers) as Array<{ questionId: number; answer: string }>; }
+    catch { res.json({ winners: [] }); return; }
+    for (const wa of answers) {
+      const ids = await winningOptionIds(wa.questionId, wa.answer);
+      winnerMap.set(wa.questionId, ids);
+    }
+  }
+
+  // Fetch all predictions for this hunch, ordered by time
+  const allPreds = await db
+    .select()
+    .from(predictionsTable)
+    .where(and(eq(predictionsTable.hunchId, hunch.id), isNotNull(predictionsTable.userId)))
+    .orderBy(asc(predictionsTable.createdAt));
+
+  // Group by userId: questionId → optionId
+  const userAnswers = new Map<number, Map<number | null, number>>();
+  const userFirstTime = new Map<number, Date>();
+  for (const p of allPreds) {
+    if (p.userId === null) continue;
+    if (!userAnswers.has(p.userId)) userAnswers.set(p.userId, new Map());
+    userAnswers.get(p.userId)!.set(p.questionId, p.optionId);
+    if (!userFirstTime.has(p.userId)) userFirstTime.set(p.userId, p.createdAt);
+  }
+
+  // Determine winners: users who match ALL entries in winnerMap
+  const winnerEntries: Array<{ userId: number; firstPredAt: Date }> = [];
+  for (const [userId, predMap] of userAnswers.entries()) {
+    let correct = true;
+    for (const [qId, validIds] of winnerMap.entries()) {
+      const userOptionId = predMap.get(qId);
+      if (userOptionId === undefined || !validIds.includes(userOptionId)) { correct = false; break; }
+    }
+    if (correct) winnerEntries.push({ userId, firstPredAt: userFirstTime.get(userId) ?? new Date() });
+  }
+
+  // Sort by first prediction time (earliest = rank 1)
+  winnerEntries.sort((a, b) => a.firstPredAt.getTime() - b.firstPredAt.getTime());
+
+  // Fetch prize tiers (for multi-prize hunches)
+  const tiers = await db
+    .select()
+    .from(hunchPrizeTiersTable)
+    .where(eq(hunchPrizeTiersTable.hunchId, hunch.id))
+    .orderBy(hunchPrizeTiersTable.rank);
+
+  const mainPrize = await db.select().from(prizesTable).where(eq(prizesTable.id, hunch.prizeId)).then((r) => r[0]);
+
+  const winners = await Promise.all(
+    winnerEntries.map(async ({ userId }, idx) => {
+      const [user] = await db.select({ username: usersTable.username }).from(usersTable).where(eq(usersTable.id, userId));
+
+      let prizeLabel = mainPrize?.label ?? "";
+      let prizeValue = mainPrize?.value ?? "";
+
+      if (tiers.length > 1 && idx < tiers.length) {
+        const tierPrize = await db.select().from(prizesTable).where(eq(prizesTable.id, tiers[idx].prizeId)).then((r) => r[0]);
+        prizeLabel = tierPrize?.label ?? prizeLabel;
+        prizeValue = tierPrize?.value ?? prizeValue;
+      }
+
+      return {
+        username: user?.username ?? "Anonymous",
+        prizeLabel,
+        prizeValue,
+        rank: tiers.length > 1 ? idx + 1 : null,
+      };
+    }),
+  );
+
+  res.json({ winners });
 });
 
 // ─── Prediction submission (single & multi) ──────────────────────────────────

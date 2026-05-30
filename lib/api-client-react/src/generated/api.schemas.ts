@@ -148,6 +148,18 @@ export interface UploadUrlResponse {
   metadata?: UploadUrlRequest;
 }
 
+export interface HunchWinner {
+  username: string;
+  prizeLabel: string;
+  prizeValue: string;
+  /** @nullable */
+  rank?: number | null;
+}
+
+export interface HunchWinnerList {
+  winners: HunchWinner[];
+}
+
 export interface Prediction {
   id: number;
   hunchId: number;

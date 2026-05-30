@@ -27,6 +27,7 @@ import type {
   HealthStatus,
   Hunch,
   HunchList,
+  HunchWinnerList,
   ListHunchesParams,
   PlatformStats,
   Prediction,
@@ -595,6 +596,83 @@ export function useGetHunch<TData = Awaited<ReturnType<typeof getHunch>>, TError
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetHunchQueryOptions(id,params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetHunchWinnersUrl = (id: string,) => {
+
+
+
+
+  return `/api/hunches/${id}/winners`
+}
+
+/**
+ * @summary Get winners for a resolved hunch
+ */
+export const getHunchWinners = async (id: string, options?: RequestInit): Promise<HunchWinnerList> => {
+
+  return customFetch<HunchWinnerList>(getGetHunchWinnersUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetHunchWinnersQueryKey = (id: string,) => {
+    return [
+    `/api/hunches/${id}/winners`
+    ] as const;
+    }
+
+
+export const getGetHunchWinnersQueryOptions = <TData = Awaited<ReturnType<typeof getHunchWinners>>, TError = ErrorType<ErrorResponse>>(id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getHunchWinners>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetHunchWinnersQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getHunchWinners>>> = ({ signal }) => getHunchWinners(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(id), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getHunchWinners>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetHunchWinnersQueryResult = NonNullable<Awaited<ReturnType<typeof getHunchWinners>>>
+export type GetHunchWinnersQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Get winners for a resolved hunch
+ */
+
+export function useGetHunchWinners<TData = Awaited<ReturnType<typeof getHunchWinners>>, TError = ErrorType<ErrorResponse>>(
+ id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getHunchWinners>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetHunchWinnersQueryOptions(id,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

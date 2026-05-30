@@ -243,6 +243,23 @@ export const GetHunchResponse = zod.object({
 
 
 /**
+ * @summary Get winners for a resolved hunch
+ */
+export const GetHunchWinnersParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const GetHunchWinnersResponse = zod.object({
+  "winners": zod.array(zod.object({
+  "username": zod.string(),
+  "prizeLabel": zod.string(),
+  "prizeValue": zod.string(),
+  "rank": zod.number().nullish()
+}))
+})
+
+
+/**
  * @summary Submit a prediction on a hunch
  */
 export const SubmitPredictionParams = zod.object({

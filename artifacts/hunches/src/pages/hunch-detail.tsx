@@ -15,7 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 
 import { useToast } from "@/hooks/use-toast";
-import { useGetHunch, useSubmitPrediction, getGetHunchQueryKey } from "@workspace/api-client-react";
+import { useGetHunch, useSubmitPrediction, getGetHunchQueryKey, useGetHunchWinners, getGetHunchWinnersQueryKey } from "@workspace/api-client-react";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "@/hooks/use-auth";
 
@@ -232,6 +232,10 @@ export default function HunchDetail() {
     query: { queryKey: getGetHunchQueryKey(slug ?? "", { lang }), enabled: !!slug }
   });
 
+  const { data: winnersData } = useGetHunchWinners(slug ?? "", {
+    query: { queryKey: getGetHunchWinnersQueryKey(slug ?? ""), enabled: !!slug && hunch?.status === "resolved" },
+  });
+
   const submitPrediction = useSubmitPrediction({ request: { credentials: "include" } });
 
   const isMulti = (hunch as any)?.isMulti === true;
@@ -430,6 +434,51 @@ export default function HunchDetail() {
                   <strong className="text-foreground block mb-1">{t("how_resolution")}</strong>
                   <span className="text-muted-foreground whitespace-pre-line">{hunch.rules}</span>
                 </div>
+              </div>
+            )}
+
+            {/* Winners */}
+            {isResolved && (
+              <div className="bg-card border border-border rounded-2xl p-6 card-shadow">
+                <div className="flex items-center gap-2 mb-4">
+                  <Trophy className="w-4 h-4 text-amber-500" />
+                  <h3 className="text-base font-display font-bold text-foreground">Winners</h3>
+                </div>
+
+                {!winnersData ? (
+                  <div className="space-y-2">
+                    {[0, 1, 2].map((i) => (
+                      <div key={i} className="h-10 rounded-xl bg-muted animate-pulse" />
+                    ))}
+                  </div>
+                ) : winnersData.winners.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No winners have been recorded yet.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {winnersData.winners.map((w, idx) => (
+                      <div
+                        key={idx}
+                        className="flex items-center gap-3 px-4 py-3 rounded-xl bg-muted/50 border border-border"
+                      >
+                        {w.rank != null ? (
+                          <span className="text-xs font-bold text-primary bg-primary/10 rounded-lg px-2.5 py-1 whitespace-nowrap shrink-0 min-w-[72px] text-center">
+                            {ordinal(w.rank)} place
+                          </span>
+                        ) : (
+                          <span className="w-6 h-6 rounded-full bg-amber-100 border border-amber-200 flex items-center justify-center shrink-0">
+                            <Trophy className="w-3 h-3 text-amber-500" />
+                          </span>
+                        )}
+                        <span className="font-semibold text-foreground text-sm truncate flex-1">
+                          @{w.username}
+                        </span>
+                        <span className="text-xs text-muted-foreground shrink-0 truncate max-w-[140px]">
+                          {w.prizeLabel}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
           </div>
