@@ -89,6 +89,7 @@ export interface Hunch {
   rules?: string | null;
   ticketCost?: number;
   answerType?: string;
+  isMulti?: boolean;
 }
 
 export interface HunchList {
@@ -103,12 +104,22 @@ export interface PlatformStats {
   activeHunches: number;
 }
 
-export interface PredictionInput {
+export interface PredictionAnswer {
+  questionId: number;
   /**
      * @minLength 1
      * @maxLength 200
      */
   freeText: string;
+}
+
+export interface PredictionInput {
+  /**
+     * @minLength 1
+     * @maxLength 200
+     */
+  freeText?: string;
+  answers?: PredictionAnswer[];
 }
 
 export interface UploadUrlRequest {

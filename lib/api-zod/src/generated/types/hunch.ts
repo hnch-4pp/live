@@ -39,4 +39,5 @@ export interface Hunch {
   rules?: string | null;
   ticketCost?: number;
   answerType?: string;
+  isMulti?: boolean;
 }

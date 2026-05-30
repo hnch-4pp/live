@@ -5,13 +5,12 @@
  * Hunches - Prediction platform API
  * OpenAPI spec version: 0.1.0
  */
-import type { PredictionAnswer } from './predictionAnswer';
 
-export interface PredictionInput {
+export interface PredictionAnswer {
+  questionId: number;
   /**
      * @minLength 1
      * @maxLength 200
      */
-  freeText?: string;
-  answers?: PredictionAnswer[];
+  freeText: string;
 }

@@ -113,7 +113,8 @@ export const ListHunchesResponse = zod.object({
   "winnerOption": zod.string().nullish(),
   "rules": zod.string().nullish(),
   "ticketCost": zod.number().optional(),
-  "answerType": zod.string().optional()
+  "answerType": zod.string().optional(),
+  "isMulti": zod.boolean().optional()
 })),
   "total": zod.number()
 })
@@ -167,7 +168,8 @@ export const GetFeaturedHunchesResponseItem = zod.object({
   "winnerOption": zod.string().nullish(),
   "rules": zod.string().nullish(),
   "ticketCost": zod.number().optional(),
-  "answerType": zod.string().optional()
+  "answerType": zod.string().optional(),
+  "isMulti": zod.boolean().optional()
 })
 export const GetFeaturedHunchesResponse = zod.array(GetFeaturedHunchesResponseItem)
 
@@ -235,7 +237,8 @@ export const GetHunchResponse = zod.object({
   "winnerOption": zod.string().nullish(),
   "rules": zod.string().nullish(),
   "ticketCost": zod.number().optional(),
-  "answerType": zod.string().optional()
+  "answerType": zod.string().optional(),
+  "isMulti": zod.boolean().optional()
 })
 
 
@@ -248,14 +251,16 @@ export const SubmitPredictionParams = zod.object({
 
 export const submitPredictionBodyFreeTextMax = 200;
 
-export const PredictionAnswer = zod.object({
-  "questionId": zod.number(),
-  "freeText": zod.string().min(1).max(submitPredictionBodyFreeTextMax),
-});
+export const submitPredictionBodyAnswersItemFreeTextMax = 200;
+
+
 
 export const SubmitPredictionBody = zod.object({
   "freeText": zod.string().min(1).max(submitPredictionBodyFreeTextMax).optional(),
-  "answers": zod.array(PredictionAnswer).optional(),
+  "answers": zod.array(zod.object({
+  "questionId": zod.number(),
+  "freeText": zod.string().min(1).max(submitPredictionBodyAnswersItemFreeTextMax)
+})).optional()
 })
 
 

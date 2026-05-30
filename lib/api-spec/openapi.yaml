@@ -350,6 +350,8 @@ components:
           type: integer
         answerType:
           type: string
+        isMulti:
+          type: boolean
 
     HunchOption:
       type: object

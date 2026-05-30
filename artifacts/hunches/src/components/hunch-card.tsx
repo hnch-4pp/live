@@ -3,7 +3,7 @@ import { formatDistanceToNow, isPast, type Locale } from "date-fns";
 import {
   enUS, es, de, fr, pt, it, ja, ko, zhCN, id, tr,
 } from "date-fns/locale";
-import { Users, Clock, Trophy, Award, Gift, DollarSign } from "lucide-react";
+import { Users, Clock, Trophy, Award, Gift, DollarSign, Layers } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { Hunch } from "@workspace/api-client-react";
 
@@ -123,11 +123,17 @@ export function HunchCard({ hunch, featured = false }: HunchCardProps) {
           </div>
 
           {/* Prize — top right */}
-          <div className="absolute top-3 right-3">
+          <div className="absolute top-3 right-3 flex flex-col items-end gap-1.5">
             <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-white/90 backdrop-blur-sm text-foreground">
               {getPrizeIcon(hunch.prize.type)}
-              {hunch.prize.value}
+              {hunch.prizePoolTotal ?? hunch.prize.value}
             </span>
+            {hunch.isMulti && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-primary/90 backdrop-blur-sm text-white">
+                <Layers className="w-2.5 h-2.5" />
+                Multi
+              </span>
+            )}
           </div>
 
           {/* Category — bottom left */}
