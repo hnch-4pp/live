@@ -210,12 +210,12 @@ function AuthButtons() {
   return (
     <>
       <Link href="/login">
-        <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground font-medium hidden sm:flex">
+        <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground font-medium px-2 sm:px-3">
           {t("nav_login")}
         </Button>
       </Link>
       <Link href="/signup">
-        <Button size="sm" className="bg-primary text-white hover:bg-primary/90 font-semibold rounded-lg px-5 shadow-sm">
+        <Button size="sm" className="bg-primary text-white hover:bg-primary/90 font-semibold rounded-lg px-3 sm:px-5 shadow-sm">
           {t("nav_signup")}
         </Button>
       </Link>
