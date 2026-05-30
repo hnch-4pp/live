@@ -22,6 +22,7 @@ import AdminTicketCodes from "@/pages/backstage/ticket-codes";
 import AdminHero from "@/pages/backstage/hero";
 import Account from "@/pages/account";
 import Tickets from "@/pages/tickets";
+import TicketActivity from "@/pages/ticket-activity";
 import CheckoutSuccess from "@/pages/checkout-success";
 import MyHunches from "@/pages/my-hunches";
 
@@ -46,6 +47,7 @@ function Router() {
       <Route path="/responsible" component={Responsible} />
       <Route path="/account" component={Account} />
       <Route path="/tickets" component={Tickets} />
+      <Route path="/tickets/activity" component={TicketActivity} />
       <Route path="/tickets/success" component={CheckoutSuccess} />
       <Route path="/my-hunches" component={MyHunches} />
       <Route path="/backstage/login" component={AdminLogin} />
