@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { apiUrl } from "@/lib/apiFetch";
 import { LayoutDashboard, ListChecks, Tag, Users, LogOut, ChevronRight, Ticket, Sparkles, Bell } from "lucide-react";
@@ -23,6 +24,17 @@ async function logout() {
 
 export function AdminLayout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
+
+  useEffect(() => {
+    fetch(apiUrl("/api/admin/me"), {
+      credentials: "include",
+      headers: { "X-Admin-Request": "1" },
+    }).then((res) => {
+      if (res.status === 401) {
+        window.location.href = "/backstage/login";
+      }
+    }).catch(() => {});
+  }, []);
 
   return (
     <div className="min-h-screen flex bg-gray-50">

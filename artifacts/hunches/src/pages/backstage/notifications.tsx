@@ -268,9 +268,11 @@ export default function AdminNotifications() {
           expiresAt: form.expiresAt || null,
         }),
       });
+      if (res.status === 401) { window.location.href = "/backstage/login"; throw new Error("Session expired"); }
       if (!res.ok) throw new Error("Failed to create");
     },
     onSuccess: () => { invalidate(); setShowForm(false); },
+    onError: (err: Error) => { alert(`Error saving notification: ${err.message}`); },
   });
 
   const updateMutation = useMutation({
@@ -286,17 +288,21 @@ export default function AdminNotifications() {
           expiresAt: form.expiresAt || null,
         }),
       });
+      if (res.status === 401) { window.location.href = "/backstage/login"; throw new Error("Session expired"); }
       if (!res.ok) throw new Error("Failed to update");
     },
     onSuccess: () => { invalidate(); setEditingId(null); },
+    onError: (err: Error) => { alert(`Error updating notification: ${err.message}`); },
   });
 
   const deleteMutation = useMutation({
     mutationFn: async (id: number) => {
       const res = await adminFetch(`/admin/notifications/${id}`, { method: "DELETE" });
+      if (res.status === 401) { window.location.href = "/backstage/login"; throw new Error("Session expired"); }
       if (!res.ok) throw new Error("Failed to delete");
     },
     onSuccess: () => { invalidate(); setDeletingId(null); },
+    onError: (err: Error) => { alert(`Error deleting notification: ${err.message}`); },
   });
 
   const toggleActive = async (n: TopNotification) => {

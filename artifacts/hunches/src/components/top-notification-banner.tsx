@@ -31,32 +31,34 @@ function TypeIcon({ type }: { type: string }) {
 
 export function TopNotificationBanner() {
   const [notification, setNotification] = useState<TopNotification | null>(null);
-  const [dismissed, setDismissed] = useState(false);
 
   useEffect(() => {
-    void (async () => {
+    async function load() {
       try {
         const res = await fetch(apiUrl("/api/notifications/active"));
         if (!res.ok) return;
         const data = await res.json() as { notification: TopNotification | null };
-        if (data.notification) {
-          const key = `notif-dismissed-${data.notification.id}`;
-          if (sessionStorage.getItem(key)) return;
-          setNotification(data.notification);
-        }
+        if (!data.notification) { setNotification(null); return; }
+        const key = `notif-dismissed-${data.notification.id}`;
+        if (sessionStorage.getItem(key)) { setNotification(null); return; }
+        setNotification(data.notification);
       } catch {
         // silent fail — banner is non-critical
       }
-    })();
+    }
+
+    void load();
+    const interval = setInterval(() => { void load(); }, 30_000);
+    return () => clearInterval(interval);
   }, []);
 
-  if (!notification || dismissed) return null;
+  if (!notification) return null;
 
   const styles = TYPE_STYLES[notification.type] ?? TYPE_STYLES.info;
 
   const handleDismiss = () => {
-    setDismissed(true);
     sessionStorage.setItem(`notif-dismissed-${notification.id}`, "1");
+    setNotification(null);
   };
 
   return (
