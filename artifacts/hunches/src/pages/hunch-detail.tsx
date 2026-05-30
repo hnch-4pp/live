@@ -232,7 +232,7 @@ export default function HunchDetail() {
     query: { queryKey: getGetHunchQueryKey(slug ?? "", { lang }), enabled: !!slug }
   });
 
-  const submitPrediction = useSubmitPrediction();
+  const submitPrediction = useSubmitPrediction({ request: { credentials: "include" } });
 
   const isMulti = (hunch as any)?.isMulti === true;
   const questions: Array<{
