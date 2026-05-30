@@ -532,10 +532,6 @@ export default function HunchDetail() {
                         </span>
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-semibold text-foreground leading-snug">{q.prompt}</p>
-                          <div className="flex items-center gap-1 mt-0.5 text-muted-foreground">
-                            {getAnswerTypeIcon(q.answerType)}
-                            <span className="text-xs capitalize">{q.answerType}</span>
-                          </div>
                         </div>
                       </div>
                       <input
