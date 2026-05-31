@@ -369,6 +369,12 @@ components:
           type: ["string", "null"]
         winnerOption:
           type: ["string", "null"]
+        resultText:
+          type: ["string", "null"]
+          description: Admin-written summary of the outcome shown after resolution
+        resultSources:
+          type: ["string", "null"]
+          description: JSON array of source objects [{type,url,label}]
         rules:
           type: ["string", "null"]
         ticketCost:

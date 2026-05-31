@@ -4,7 +4,7 @@ import { format, isPast, type Locale } from "date-fns";
 import {
   enUS, es, de, fr, pt, it, ja, ko, zhCN, id as idLocale, tr,
 } from "date-fns/locale";
-import { ArrowLeft, Users, Clock, Share2, AlertCircle, Trophy, CheckCircle2, Gift, Award, DollarSign, ChevronDown, ChevronUp, Check, Ticket, X, Info, Hash, Percent, Calendar, Clock as ClockIcon, Layers } from "lucide-react";
+import { ArrowLeft, Users, Clock, Share2, AlertCircle, Trophy, CheckCircle2, Gift, Award, DollarSign, ChevronDown, ChevronUp, Check, Ticket, X, Info, Hash, Percent, Calendar, Clock as ClockIcon, Layers, Link as LinkIcon, Image, Video, ExternalLink } from "lucide-react";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, LabelList,
 } from "recharts";
@@ -481,6 +481,67 @@ export default function HunchDetail() {
                 )}
               </div>
             )}
+
+            {/* Results block */}
+            {isResolved && (hunch.resultText || (hunch.resultSources && hunch.resultSources !== "null")) && (() => {
+              let sources: { type: "link" | "image" | "video"; url: string; label: string }[] = [];
+              try { if (hunch.resultSources) sources = JSON.parse(hunch.resultSources); } catch { /* ignore */ }
+              return (
+                <div className="bg-amber-50/60 border border-amber-200 rounded-2xl p-6 space-y-4">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-amber-600" />
+                    <h3 className="text-base font-display font-bold text-amber-900">Result</h3>
+                  </div>
+
+                  {hunch.resultText && (
+                    <p className="text-sm text-amber-900/80 leading-relaxed whitespace-pre-line">{hunch.resultText}</p>
+                  )}
+
+                  {sources.length > 0 && (
+                    <div className="space-y-3">
+                      {sources.filter((s) => s.url).map((src, idx) => {
+                        if (src.type === "image") {
+                          return (
+                            <a key={idx} href={src.url} target="_blank" rel="noopener noreferrer" className="block group">
+                              <img
+                                src={src.url}
+                                alt={src.label || "Result image"}
+                                className="w-full rounded-xl object-cover max-h-64 border border-amber-200 group-hover:opacity-90 transition-opacity"
+                              />
+                              {src.label && <p className="mt-1 text-xs text-amber-700">{src.label}</p>}
+                            </a>
+                          );
+                        }
+                        if (src.type === "video") {
+                          return (
+                            <div key={idx}>
+                              <video
+                                src={src.url}
+                                controls
+                                className="w-full rounded-xl border border-amber-200 max-h-64"
+                              />
+                              {src.label && <p className="mt-1 text-xs text-amber-700">{src.label}</p>}
+                            </div>
+                          );
+                        }
+                        return (
+                          <a
+                            key={idx}
+                            href={src.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-2 text-sm text-amber-800 hover:text-amber-600 transition-colors group"
+                          >
+                            <ExternalLink className="w-3.5 h-3.5 shrink-0" />
+                            <span className="underline underline-offset-2 truncate">{src.label || src.url}</span>
+                          </a>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
           </div>
 
           {/* Sidebar */}

@@ -20,6 +20,8 @@ export const hunchesTable = pgTable("hunches", {
   winnerOption: text("winner_option"),
   winnerAnswers: text("winner_answers"), // JSON: Array<{ questionId: number; answer: string }>
   winnerUserId: integer("winner_user_id"), // For multi-prediction: the winning user's ID
+  resultText: text("result_text"), // Admin-written result summary shown after resolution
+  resultSources: text("result_sources"), // JSON: Array<{ type, url, label }>
   rules: text("rules"),
   answerType: text("answer_type").notNull().default("integer"), // integer | decimal | date | time
   isMulti: boolean("is_multi").notNull().default(false),

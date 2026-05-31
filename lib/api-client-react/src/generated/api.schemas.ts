@@ -85,6 +85,16 @@ export interface Hunch {
   imageFocalPoint?: string | null;
   /** @nullable */
   winnerOption?: string | null;
+  /**
+     * Admin-written summary of the outcome shown after resolution
+     * @nullable
+     */
+  resultText?: string | null;
+  /**
+     * JSON array of source objects [{type,url,label}]
+     * @nullable
+     */
+  resultSources?: string | null;
   /** @nullable */
   rules?: string | null;
   ticketCost?: number;

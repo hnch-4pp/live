@@ -376,6 +376,14 @@ router.patch(
     if ("winnerUserId" in req.body) {
       updates["winnerUserId"] = req.body.winnerUserId ? Number(req.body.winnerUserId) : null;
     }
+    if ("resultText" in req.body) {
+      updates["resultText"] = req.body.resultText ? String(req.body.resultText) : null;
+    }
+    if ("resultSources" in req.body) {
+      updates["resultSources"] = req.body.resultSources
+        ? (typeof req.body.resultSources === "string" ? req.body.resultSources : JSON.stringify(req.body.resultSources))
+        : null;
+    }
 
     // Prize tiers
     if (Array.isArray(req.body.prizeTiers)) {

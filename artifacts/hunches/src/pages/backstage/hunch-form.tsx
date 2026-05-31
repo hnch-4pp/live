@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useLocation, useParams } from "wouter";
 import { AdminLayout } from "@/components/admin-layout";
 import { useAdminAuth, adminFetch } from "./dashboard";
-import { Check, ChevronLeft, Hash, Percent, Calendar, Clock, Plus, Trash2, Gift, Layers, List, Users, Trophy, ChevronDown, ChevronUp } from "lucide-react";
+import { Check, ChevronLeft, Hash, Percent, Calendar, Clock, Plus, Trash2, Gift, Layers, List, Users, Trophy, ChevronDown, ChevronUp, Link as LinkIcon, Image, Video, X } from "lucide-react";
 
 function ordinal(n: number): string {
   const s = ["th", "st", "nd", "rd"];
@@ -34,6 +34,12 @@ interface UserAnswer { questionId: number; questionPrompt: string; answerLabel: 
 interface UserPredGroup { userId: number; username: string | null; phone: string | null; answers: UserAnswer[]; firstAt: string; }
 interface PredData { total: number; byOption: PredGroup[]; byUser: UserPredGroup[]; }
 
+interface ResultSource {
+  type: "link" | "image" | "video";
+  url: string;
+  label: string;
+}
+
 const EMPTY = {
   title: "",
   slug: "",
@@ -47,6 +53,7 @@ const EMPTY = {
   categoryId: 0,
   prizeId: 0,
   winnerOption: "",
+  resultText: "",
   answerType: "integer",
   ticketCost: 1,
   isMulti: false,
@@ -117,6 +124,7 @@ export default function HunchForm() {
     { prompt: "", answerType: "integer", placeholder: "", sortOrder: 1 },
   ]);
   const [winnerUserId, setWinnerUserId] = useState<number | null>(null);
+  const [resultSources, setResultSources] = useState<ResultSource[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [saving, setSaving]       = useState(false);
   const [loading, setLoading]     = useState(isEditing);
@@ -155,11 +163,15 @@ export default function HunchForm() {
           categoryId: h.categoryId ?? 0,
           prizeId: h.prizeId ?? 0,
           winnerOption: h.winnerOption ?? "",
+          resultText: h.resultText ?? "",
           rules: h.rules ?? "",
           answerType: h.answerType ?? "integer",
           ticketCost: h.ticketCost ?? 1,
           isMulti: h.isMulti ?? false,
         });
+        if (h.resultSources) {
+          try { setResultSources(JSON.parse(h.resultSources) as ResultSource[]); } catch { /* ignore */ }
+        }
         if (Array.isArray(h.prizeTiers) && h.prizeTiers.length > 0) {
           setPrizeTiers(h.prizeTiers.map((t: { rank: number; prizeLabel?: string }) => ({ rank: t.rank, prizeLabel: t.prizeLabel ?? "" })));
         }
@@ -202,6 +214,8 @@ export default function HunchForm() {
         imageUrl: form.imageUrl || null,
         imageFocalPoint: form.imageFocalPoint || null,
         winnerOption: form.winnerOption || null,
+        resultText: form.resultText || null,
+        resultSources: resultSources.length > 0 ? JSON.stringify(resultSources) : null,
         prizeTiers: validTiers,
         isMulti: form.isMulti,
       };
@@ -725,6 +739,71 @@ export default function HunchForm() {
                   className={inputCls}
                 />
               </Field>
+            )}
+
+            {/* Results */}
+            {form.status === "resolved" && (
+              <div className="border border-amber-200 bg-amber-50/40 rounded-2xl p-5 space-y-4">
+                <div className="flex items-center gap-2">
+                  <Trophy className="w-4 h-4 text-amber-600" />
+                  <span className="text-sm font-bold text-amber-800">Results</span>
+                </div>
+
+                <Field label="Result summary" hint="Explain what happened — shown publicly on the hunch page">
+                  <textarea
+                    value={form.resultText}
+                    onChange={(e) => setForm({ ...form, resultText: e.target.value })}
+                    placeholder="e.g. The final score was 3–1. Manchester City won the Premier League..."
+                    rows={3}
+                    className={`${inputCls} resize-none`}
+                  />
+                </Field>
+
+                <div>
+                  <p className="text-xs font-semibold text-gray-500 mb-2">Sources <span className="font-normal text-gray-400">(links, images or videos where users can verify the result)</span></p>
+                  <div className="space-y-2">
+                    {resultSources.map((src, idx) => (
+                      <div key={idx} className="flex items-center gap-2">
+                        <select
+                          value={src.type}
+                          onChange={(e) => setResultSources((s) => s.map((x, i) => i === idx ? { ...x, type: e.target.value as ResultSource["type"] } : x))}
+                          className="text-xs border border-gray-200 rounded-lg px-2 py-2 bg-white shrink-0"
+                        >
+                          <option value="link">Link</option>
+                          <option value="image">Image</option>
+                          <option value="video">Video</option>
+                        </select>
+                        <input
+                          value={src.url}
+                          onChange={(e) => setResultSources((s) => s.map((x, i) => i === idx ? { ...x, url: e.target.value } : x))}
+                          placeholder="https://..."
+                          className="flex-1 text-xs border border-gray-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-1 focus:ring-violet-400"
+                        />
+                        <input
+                          value={src.label}
+                          onChange={(e) => setResultSources((s) => s.map((x, i) => i === idx ? { ...x, label: e.target.value } : x))}
+                          placeholder="Label (optional)"
+                          className="w-32 text-xs border border-gray-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-1 focus:ring-violet-400"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setResultSources((s) => s.filter((_, i) => i !== idx))}
+                          className="text-gray-400 hover:text-red-500 transition-colors shrink-0"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setResultSources((s) => [...s, { type: "link", url: "", label: "" }])}
+                    className="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold text-violet-600 hover:text-violet-800 transition-colors"
+                  >
+                    <Plus className="w-3.5 h-3.5" /> Add source
+                  </button>
+                </div>
+              </div>
             )}
 
             <label className="flex items-center gap-3 cursor-pointer select-none">

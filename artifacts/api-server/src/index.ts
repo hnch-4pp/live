@@ -66,6 +66,8 @@ async function runAppMigrations(): Promise<void> {
   await db.execute(sql`ALTER TABLE hunches ADD COLUMN IF NOT EXISTS is_multi BOOLEAN NOT NULL DEFAULT false`);
   await db.execute(sql`ALTER TABLE hunches ADD COLUMN IF NOT EXISTS winner_answers TEXT`);
   await db.execute(sql`ALTER TABLE hunches ADD COLUMN IF NOT EXISTS winner_user_id INTEGER REFERENCES users(id)`);
+  await db.execute(sql`ALTER TABLE hunches ADD COLUMN IF NOT EXISTS result_text TEXT`);
+  await db.execute(sql`ALTER TABLE hunches ADD COLUMN IF NOT EXISTS result_sources TEXT`);
   await db.execute(sql`
     CREATE TABLE IF NOT EXISTS hunch_questions (
       id          SERIAL PRIMARY KEY,
