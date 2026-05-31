@@ -393,8 +393,7 @@ router.get("/hunches/:id/winners", async (req, res): Promise<void> => {
     const ids = await winningOptionIds(null, hunch.winnerOption);
     if (ids.length === 0) { res.json({ winners: [] }); return; }
     winnerMap.set(null, ids);
-  } else {
-    if (!hunch.winnerAnswers) { res.json({ winners: [] }); return; }
+  } else if (hunch.winnerAnswers) {
     let answers: Array<{ questionId: number; answer: string }>;
     try { answers = JSON.parse(hunch.winnerAnswers) as Array<{ questionId: number; answer: string }>; }
     catch { res.json({ winners: [] }); return; }
@@ -402,6 +401,14 @@ router.get("/hunches/:id/winners", async (req, res): Promise<void> => {
       const ids = await winningOptionIds(wa.questionId, wa.answer);
       winnerMap.set(wa.questionId, ids);
     }
+  } else if (hunch.winnerOption) {
+    // Fallback: multi-hunch where admin used winnerOption (e.g. from participants panel).
+    // Match any prediction with that option label across all questions.
+    const ids = await winningOptionIds(null, hunch.winnerOption);
+    if (ids.length === 0) { res.json({ winners: [] }); return; }
+    winnerMap.set(null, ids);
+  } else {
+    res.json({ winners: [] }); return;
   }
 
   // Fetch all predictions for this hunch, ordered by time
@@ -411,13 +418,16 @@ router.get("/hunches/:id/winners", async (req, res): Promise<void> => {
     .where(and(eq(predictionsTable.hunchId, hunch.id), isNotNull(predictionsTable.userId)))
     .orderBy(asc(predictionsTable.createdAt));
 
-  // Group by userId: questionId → optionId
+  // Group by userId: questionId → optionId; also track all optionIds per user for fallback
   const userAnswers = new Map<number, Map<number | null, number>>();
+  const userAllOptionIds = new Map<number, Set<number>>();
   const userFirstTime = new Map<number, Date>();
   for (const p of allPreds) {
     if (p.userId === null) continue;
     if (!userAnswers.has(p.userId)) userAnswers.set(p.userId, new Map());
     userAnswers.get(p.userId)!.set(p.questionId, p.optionId);
+    if (!userAllOptionIds.has(p.userId)) userAllOptionIds.set(p.userId, new Set());
+    userAllOptionIds.get(p.userId)!.add(p.optionId);
     if (!userFirstTime.has(p.userId)) userFirstTime.set(p.userId, p.createdAt);
   }
 
@@ -426,7 +436,13 @@ router.get("/hunches/:id/winners", async (req, res): Promise<void> => {
   for (const [userId, predMap] of userAnswers.entries()) {
     let correct = true;
     for (const [qId, validIds] of winnerMap.entries()) {
-      const userOptionId = predMap.get(qId);
+      let userOptionId: number | undefined;
+      if (qId === null && isMulti) {
+        // Fallback path: any matching option across all questions counts
+        userOptionId = [...(userAllOptionIds.get(userId) ?? new Set())].find((id) => validIds.includes(id));
+      } else {
+        userOptionId = predMap.get(qId);
+      }
       if (userOptionId === undefined || !validIds.includes(userOptionId)) { correct = false; break; }
     }
     if (correct) winnerEntries.push({ userId, firstPredAt: userFirstTime.get(userId) ?? new Date() });
