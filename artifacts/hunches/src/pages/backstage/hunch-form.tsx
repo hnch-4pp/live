@@ -27,11 +27,6 @@ interface Question {
   sortOrder: number;
 }
 
-interface WinnerAnswer {
-  questionId: number;
-  prompt: string;
-  answer: string;
-}
 
 interface PredParticipant { id: number; userId: number | null; username: string | null; phone: string | null; createdAt: string; }
 interface PredGroup { label: string; count: number; pct: number; participants: PredParticipant[]; }
@@ -121,7 +116,6 @@ export default function HunchForm() {
     { prompt: "", answerType: "integer", placeholder: "", sortOrder: 0 },
     { prompt: "", answerType: "integer", placeholder: "", sortOrder: 1 },
   ]);
-  const [winnerAnswers, setWinnerAnswers] = useState<WinnerAnswer[]>([]);
   const [winnerUserId, setWinnerUserId] = useState<number | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
   const [saving, setSaving]       = useState(false);
@@ -178,18 +172,6 @@ export default function HunchForm() {
             placeholder: q.placeholder ?? "",
             sortOrder: q.sortOrder,
           })));
-          // Pre-fill winner answers for resolved multi hunches
-          if (h.status === "resolved" && h.isMulti) {
-            const existingWA: Array<{ questionId: number; answer: string }> = (() => {
-              try { return h.winnerAnswers ? JSON.parse(h.winnerAnswers) : []; } catch { return []; }
-            })();
-            const waMap = new Map(existingWA.map((wa: { questionId: number; answer: string }) => [wa.questionId, wa.answer]));
-            setWinnerAnswers(h.questions.map((q: { id: number; prompt: string }) => ({
-              questionId: q.id,
-              prompt: q.prompt,
-              answer: waMap.get(q.id) ?? "",
-            })));
-          }
         } else if (h.isMulti) {
           setQuestions([
             { prompt: "", answerType: "integer", placeholder: "", sortOrder: 0 },
@@ -200,20 +182,6 @@ export default function HunchForm() {
       .catch(() => setError("Failed to load hunch"))
       .finally(() => setLoading(false));
   }, [isEditing, params.id]);
-
-  // Update winnerAnswers list when questions change (for resolved multi hunches)
-  useEffect(() => {
-    if (form.status === "resolved" && form.isMulti) {
-      setWinnerAnswers((prev) => {
-        const prevMap = new Map(prev.map((wa) => [wa.prompt, wa.answer]));
-        return questions.map((q, i) => ({
-          questionId: q.id ?? i,
-          prompt: q.prompt,
-          answer: prevMap.get(q.prompt) ?? "",
-        }));
-      });
-    }
-  }, [form.status, form.isMulti, questions]);
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -242,9 +210,6 @@ export default function HunchForm() {
         body["questions"] = questions.map((q, i) => ({ ...q, sortOrder: i }));
         body["winnerOption"] = null;
         body["winnerUserId"] = winnerUserId ?? null;
-        if (form.status === "resolved" && winnerAnswers.length > 0 && !winnerUserId) {
-          body["winnerAnswers"] = JSON.stringify(winnerAnswers);
-        }
       }
 
       const res = isEditing
@@ -760,29 +725,6 @@ export default function HunchForm() {
                   className={inputCls}
                 />
               </Field>
-            )}
-
-            {form.status === "resolved" && form.isMulti && winnerAnswers.length > 0 && (
-              <div className="space-y-3">
-                <label className="block text-sm font-medium text-gray-700">Correct answers per criterion</label>
-                {winnerAnswers.map((wa, idx) => (
-                  <div key={idx} className="flex items-center gap-3">
-                    <span className="text-xs text-gray-500 w-40 shrink-0 truncate" title={wa.prompt}>
-                      {wa.prompt || `Criterion ${idx + 1}`}
-                    </span>
-                    <input
-                      value={wa.answer}
-                      onChange={(e) => {
-                        const updated = [...winnerAnswers];
-                        updated[idx] = { ...updated[idx], answer: e.target.value };
-                        setWinnerAnswers(updated);
-                      }}
-                      placeholder="Exact correct answer..."
-                      className={`${inputCls} flex-1`}
-                    />
-                  </div>
-                ))}
-              </div>
             )}
 
             <label className="flex items-center gap-3 cursor-pointer select-none">
