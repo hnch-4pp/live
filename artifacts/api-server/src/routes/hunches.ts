@@ -168,6 +168,7 @@ async function buildHunch(hunch: typeof hunchesTable.$inferSelect) {
     imageFocalPoint: hunch.imageFocalPoint ?? null,
     winnerOption: hunch.winnerOption ?? null,
     winnerAnswers,
+    winnerUserId: hunch.winnerUserId ?? null,
     rules: hunch.rules ?? null,
     answerType: hunch.answerType,
     ticketCost: hunch.ticketCost,
@@ -393,6 +394,31 @@ router.get("/hunches/:id/winners", async (req, res): Promise<void> => {
     const ids = await winningOptionIds(null, hunch.winnerOption);
     if (ids.length === 0) { res.json({ winners: [] }); return; }
     winnerMap.set(null, ids);
+  } else if (hunch.winnerUserId) {
+    // Multi-prediction: admin selected a specific user as winner
+    const [winnerUser] = await db
+      .select({ username: usersTable.username })
+      .from(usersTable)
+      .where(eq(usersTable.id, hunch.winnerUserId));
+    const mainPrize = await db.select().from(prizesTable).where(eq(prizesTable.id, hunch.prizeId)).then((r) => r[0]);
+    const tiers = await db
+      .select()
+      .from(hunchPrizeTiersTable)
+      .where(eq(hunchPrizeTiersTable.hunchId, hunch.id))
+      .orderBy(hunchPrizeTiersTable.rank);
+    let prizeLabel = mainPrize?.label ?? "";
+    let prizeValue = mainPrize?.value ?? "";
+    if (tiers.length > 0) {
+      const firstTierPrize = await db
+        .select()
+        .from(prizesTable)
+        .where(eq(prizesTable.id, tiers[0].prizeId))
+        .then((r) => r[0]);
+      prizeLabel = firstTierPrize?.label ?? prizeLabel;
+      prizeValue = firstTierPrize?.value ?? prizeValue;
+    }
+    res.json({ winners: [{ username: winnerUser?.username ?? "Anonymous", prizeLabel, prizeValue, rank: null }] });
+    return;
   } else if (hunch.winnerAnswers) {
     let answers: Array<{ questionId: number; answer: string }>;
     try { answers = JSON.parse(hunch.winnerAnswers) as Array<{ questionId: number; answer: string }>; }

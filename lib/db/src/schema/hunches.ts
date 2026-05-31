@@ -19,6 +19,7 @@ export const hunchesTable = pgTable("hunches", {
   imageFocalPoint: text("image_focal_point"),
   winnerOption: text("winner_option"),
   winnerAnswers: text("winner_answers"), // JSON: Array<{ questionId: number; answer: string }>
+  winnerUserId: integer("winner_user_id"), // For multi-prediction: the winning user's ID
   rules: text("rules"),
   answerType: text("answer_type").notNull().default("integer"), // integer | decimal | date | time
   isMulti: boolean("is_multi").notNull().default(false),

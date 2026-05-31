@@ -35,7 +35,9 @@ interface WinnerAnswer {
 
 interface PredParticipant { id: number; userId: number | null; username: string | null; phone: string | null; createdAt: string; }
 interface PredGroup { label: string; count: number; pct: number; participants: PredParticipant[]; }
-interface PredData { total: number; byOption: PredGroup[]; }
+interface UserAnswer { questionId: number; questionPrompt: string; answerLabel: string; }
+interface UserPredGroup { userId: number; username: string | null; phone: string | null; answers: UserAnswer[]; firstAt: string; }
+interface PredData { total: number; byOption: PredGroup[]; byUser: UserPredGroup[]; }
 
 const EMPTY = {
   title: "",
@@ -120,6 +122,7 @@ export default function HunchForm() {
     { prompt: "", answerType: "integer", placeholder: "", sortOrder: 1 },
   ]);
   const [winnerAnswers, setWinnerAnswers] = useState<WinnerAnswer[]>([]);
+  const [winnerUserId, setWinnerUserId] = useState<number | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
   const [saving, setSaving]       = useState(false);
   const [loading, setLoading]     = useState(isEditing);
@@ -166,6 +169,7 @@ export default function HunchForm() {
         if (Array.isArray(h.prizeTiers) && h.prizeTiers.length > 0) {
           setPrizeTiers(h.prizeTiers.map((t: { rank: number; prizeLabel?: string }) => ({ rank: t.rank, prizeLabel: t.prizeLabel ?? "" })));
         }
+        if (h.winnerUserId) setWinnerUserId(h.winnerUserId as number);
         if (Array.isArray(h.questions) && h.questions.length > 0) {
           setQuestions(h.questions.map((q: { id: number; prompt: string; answerType: string; placeholder?: string; sortOrder: number }) => ({
             id: q.id,
@@ -236,7 +240,9 @@ export default function HunchForm() {
 
       if (form.isMulti) {
         body["questions"] = questions.map((q, i) => ({ ...q, sortOrder: i }));
-        if (form.status === "resolved" && winnerAnswers.length > 0) {
+        body["winnerOption"] = null;
+        body["winnerUserId"] = winnerUserId ?? null;
+        if (form.status === "resolved" && winnerAnswers.length > 0 && !winnerUserId) {
           body["winnerAnswers"] = JSON.stringify(winnerAnswers);
         }
       }
@@ -583,7 +589,49 @@ export default function HunchForm() {
                 <p className="text-sm text-gray-400">No predictions yet.</p>
               )}
 
-              {predData && predData.byOption.map((group) => (
+              {/* Multi-prediction: show users with all their combined answers */}
+              {predData && form.isMulti && predData.byUser.map((u) => {
+                const displayName = u.username ?? u.phone ?? `User ${u.userId}`;
+                const isWinner = winnerUserId === u.userId;
+                return (
+                  <div key={u.userId} className={`border rounded-xl overflow-hidden ${isWinner ? "border-emerald-300" : "border-gray-100"}`}>
+                    <div className={`flex items-center gap-3 px-4 py-3 ${isWinner ? "bg-emerald-50/60" : "bg-gray-50/60"}`}>
+                      <div className="w-7 h-7 rounded-full bg-violet-100 flex items-center justify-center shrink-0">
+                        <Users className="w-3.5 h-3.5 text-violet-500" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <span className="text-sm font-semibold text-gray-900">{displayName}</span>
+                        <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-0.5">
+                          {u.answers.map((a) => (
+                            <span key={a.questionId} className="text-xs text-gray-500">
+                              <span className="text-gray-400">{a.questionPrompt}:</span>{" "}
+                              <span className="font-medium text-gray-700">{a.answerLabel}</span>
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="shrink-0">
+                        {isWinner ? (
+                          <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg">
+                            <Trophy className="w-3 h-3" /> Winner
+                          </span>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => { setWinnerUserId(u.userId); setForm((f) => ({ ...f, status: "resolved" })); }}
+                            className="text-xs font-semibold text-violet-600 border border-violet-200 bg-white px-2.5 py-1 rounded-lg hover:bg-violet-50 transition-colors"
+                          >
+                            Set as winner
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+
+              {/* Single-prediction: show options grouped by answer */}
+              {predData && !form.isMulti && predData.byOption.map((group) => (
                 <div key={group.label} className="border border-gray-100 rounded-xl overflow-hidden">
                   <div className="flex items-center gap-3 px-4 py-3 bg-gray-50/60">
                     <div className="flex-1 min-w-0">

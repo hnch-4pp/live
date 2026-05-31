@@ -373,6 +373,9 @@ router.patch(
         ? (typeof req.body.winnerAnswers === "string" ? req.body.winnerAnswers : JSON.stringify(req.body.winnerAnswers))
         : null;
     }
+    if ("winnerUserId" in req.body) {
+      updates["winnerUserId"] = req.body.winnerUserId ? Number(req.body.winnerUserId) : null;
+    }
 
     // Prize tiers
     if (Array.isArray(req.body.prizeTiers)) {
@@ -1206,11 +1209,18 @@ router.get(
     const id = parseInt(String(req.params["id"] ?? "0"), 10);
     if (!id) { res.status(400).json({ error: "Invalid ID" }); return; }
 
+    // Check if this is a multi-prediction hunch
+    const [hunchRow] = await db
+      .select({ isMulti: hunchesTable.isMulti })
+      .from(hunchesTable)
+      .where(eq(hunchesTable.id, id));
+
     const preds = await db
       .select({
         id: predictionsTable.id,
         userId: predictionsTable.userId,
         optionId: predictionsTable.optionId,
+        questionId: predictionsTable.questionId,
         optionLabel: optionsTable.label,
         createdAt: predictionsTable.createdAt,
         username: usersTable.username,
@@ -1223,6 +1233,8 @@ router.get(
       .orderBy(asc(predictionsTable.createdAt));
 
     const total = preds.length;
+
+    // byOption — for single-prediction display
     const groupMap = new Map<string, {
       participants: Array<{ id: number; userId: number | null; username: string | null; phone: string | null; createdAt: Date }>;
     }>();
@@ -1248,7 +1260,65 @@ router.get(
       }))
       .sort((a, b) => b.count - a.count);
 
-    res.json({ total, byOption });
+    // byUser — for multi-prediction: group by user with all their answers
+    let byUser: Array<{
+      userId: number;
+      username: string | null;
+      phone: string | null;
+      answers: Array<{ questionId: number; answerLabel: string }>;
+      firstAt: string;
+    }> = [];
+
+    if (hunchRow?.isMulti) {
+      const questions = await db
+        .select({ id: hunchQuestionsTable.id, sortOrder: hunchQuestionsTable.sortOrder, prompt: hunchQuestionsTable.prompt })
+        .from(hunchQuestionsTable)
+        .where(eq(hunchQuestionsTable.hunchId, id))
+        .orderBy(hunchQuestionsTable.sortOrder);
+
+      const userMap = new Map<number, {
+        userId: number;
+        username: string | null;
+        phone: string | null;
+        answers: Array<{ questionId: number; questionPrompt: string; answerLabel: string; sortOrder: number }>;
+        firstAt: Date;
+      }>();
+
+      for (const p of preds) {
+        if (!p.userId) continue;
+        if (!userMap.has(p.userId)) {
+          userMap.set(p.userId, {
+            userId: p.userId,
+            username: p.username ?? null,
+            phone: p.phone ?? null,
+            answers: [],
+            firstAt: p.createdAt,
+          });
+        }
+        const entry = userMap.get(p.userId)!;
+        const q = questions.find((q) => q.id === p.questionId);
+        entry.answers.push({
+          questionId: p.questionId ?? 0,
+          questionPrompt: q?.prompt ?? `Question ${p.questionId ?? "?"}`,
+          answerLabel: p.optionLabel ?? "?",
+          sortOrder: q?.sortOrder ?? 0,
+        });
+      }
+
+      byUser = Array.from(userMap.values())
+        .map((u) => ({
+          userId: u.userId,
+          username: u.username,
+          phone: u.phone,
+          answers: u.answers
+            .sort((a, b) => a.sortOrder - b.sortOrder)
+            .map((a) => ({ questionId: a.questionId, questionPrompt: a.questionPrompt, answerLabel: a.answerLabel })),
+          firstAt: u.firstAt.toISOString(),
+        }))
+        .sort((a, b) => new Date(a.firstAt).getTime() - new Date(b.firstAt).getTime());
+    }
+
+    res.json({ total, byOption, byUser });
   },
 );
 
