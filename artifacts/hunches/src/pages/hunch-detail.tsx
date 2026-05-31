@@ -437,108 +437,110 @@ export default function HunchDetail() {
               </div>
             )}
 
-            {/* Winners */}
-            {isResolved && (
-              <div className="bg-card border border-border rounded-2xl p-6 card-shadow">
-                <div className="flex items-center gap-2 mb-4">
-                  <Trophy className="w-4 h-4 text-amber-500" />
-                  <h3 className="text-base font-display font-bold text-foreground">Winners</h3>
-                </div>
-
-                {!winnersData ? (
-                  <div className="space-y-2">
-                    {[0, 1, 2].map((i) => (
-                      <div key={i} className="h-10 rounded-xl bg-muted animate-pulse" />
-                    ))}
-                  </div>
-                ) : winnersData.winners.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">No winners have been recorded yet.</p>
-                ) : (
-                  <div className="space-y-2">
-                    {winnersData.winners.map((w, idx) => (
-                      <div
-                        key={idx}
-                        className="flex items-center gap-3 px-4 py-3 rounded-xl bg-muted/50 border border-border"
-                      >
-                        {w.rank != null ? (
-                          <span className="text-xs font-bold text-primary bg-primary/10 rounded-lg px-2.5 py-1 whitespace-nowrap shrink-0 min-w-[72px] text-center">
-                            {ordinal(w.rank)} place
-                          </span>
-                        ) : (
-                          <span className="w-6 h-6 rounded-full bg-amber-100 border border-amber-200 flex items-center justify-center shrink-0">
-                            <Trophy className="w-3 h-3 text-amber-500" />
-                          </span>
-                        )}
-                        <span className="font-semibold text-foreground text-sm truncate flex-1">
-                          @{w.username}
-                        </span>
-                        <span className="text-xs text-muted-foreground shrink-0 truncate max-w-[140px]">
-                          {w.prizeLabel}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Results block */}
-            {isResolved && (hunch.resultText || (hunch.resultSources && hunch.resultSources !== "null")) && (() => {
+            {/* Results & Winners — combined module */}
+            {isResolved && (() => {
               let sources: { type: "link" | "image" | "video"; url: string; label: string }[] = [];
               try { if (hunch.resultSources) sources = JSON.parse(hunch.resultSources); } catch { /* ignore */ }
+              const hasResult = !!(hunch.resultText || sources.filter((s) => s.url).length > 0);
+              const hasWinners = winnersData && winnersData.winners.length > 0;
+
               return (
-                <div className="bg-amber-50/60 border border-amber-200 rounded-2xl p-6 space-y-4">
-                  <div className="flex items-center gap-2">
-                    <CheckCircle2 className="w-4 h-4 text-amber-600" />
-                    <h3 className="text-base font-display font-bold text-amber-900">Result</h3>
-                  </div>
+                <div className="bg-card border border-amber-200 rounded-2xl overflow-hidden card-shadow">
+                  {/* Result section */}
+                  {hasResult && (
+                    <div className="p-6 bg-amber-50/50 space-y-4">
+                      <div className="flex items-center gap-2">
+                        <CheckCircle2 className="w-4 h-4 text-amber-600" />
+                        <h3 className="text-base font-display font-bold text-amber-900">Result</h3>
+                      </div>
 
-                  {hunch.resultText && (
-                    <p className="text-sm text-amber-900/80 leading-relaxed whitespace-pre-line">{hunch.resultText}</p>
-                  )}
+                      {hunch.resultText && (
+                        <p className="text-sm text-amber-900/80 leading-relaxed whitespace-pre-line">{hunch.resultText}</p>
+                      )}
 
-                  {sources.length > 0 && (
-                    <div className="space-y-3">
-                      {sources.filter((s) => s.url).map((src, idx) => {
-                        if (src.type === "image") {
-                          return (
-                            <a key={idx} href={src.url} target="_blank" rel="noopener noreferrer" className="block group">
-                              <img
-                                src={src.url}
-                                alt={src.label || "Result image"}
-                                className="w-full rounded-xl object-cover max-h-64 border border-amber-200 group-hover:opacity-90 transition-opacity"
-                              />
-                              {src.label && <p className="mt-1 text-xs text-amber-700">{src.label}</p>}
-                            </a>
-                          );
-                        }
-                        if (src.type === "video") {
-                          return (
-                            <div key={idx}>
-                              <video
-                                src={src.url}
-                                controls
-                                className="w-full rounded-xl border border-amber-200 max-h-64"
-                              />
-                              {src.label && <p className="mt-1 text-xs text-amber-700">{src.label}</p>}
-                            </div>
-                          );
-                        }
-                        return (
-                          <a
-                            key={idx}
-                            href={src.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center gap-2 text-sm text-amber-800 hover:text-amber-600 transition-colors group"
-                          >
-                            <ExternalLink className="w-3.5 h-3.5 shrink-0" />
-                            <span className="underline underline-offset-2 truncate">{src.label || src.url}</span>
-                          </a>
-                        );
-                      })}
+                      {sources.filter((s) => s.url).length > 0 && (
+                        <div className="space-y-3">
+                          {sources.filter((s) => s.url).map((src, idx) => {
+                            if (src.type === "image") {
+                              return (
+                                <a key={idx} href={src.url} target="_blank" rel="noopener noreferrer" className="block group">
+                                  <img
+                                    src={src.url}
+                                    alt={src.label || "Result image"}
+                                    className="w-full rounded-xl object-cover max-h-64 border border-amber-200 group-hover:opacity-90 transition-opacity"
+                                  />
+                                  {src.label && <p className="mt-1.5 text-xs text-amber-700">{src.label}</p>}
+                                </a>
+                              );
+                            }
+                            if (src.type === "video") {
+                              return (
+                                <div key={idx}>
+                                  <video src={src.url} controls className="w-full rounded-xl border border-amber-200 max-h-64" />
+                                  {src.label && <p className="mt-1.5 text-xs text-amber-700">{src.label}</p>}
+                                </div>
+                              );
+                            }
+                            return (
+                              <a
+                                key={idx}
+                                href={src.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center gap-2 text-sm text-amber-800 hover:text-amber-600 transition-colors"
+                              >
+                                <ExternalLink className="w-3.5 h-3.5 shrink-0" />
+                                <span className="underline underline-offset-2 truncate">{src.label || src.url}</span>
+                              </a>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
                   )}
+
+                  {/* Winners section */}
+                  <div className={`p-6 ${hasResult ? "border-t border-amber-100" : ""}`}>
+                    <div className="flex items-center gap-2 mb-4">
+                      <Trophy className="w-4 h-4 text-amber-500" />
+                      <h3 className="text-base font-display font-bold text-foreground">Winners</h3>
+                    </div>
+
+                    {!winnersData ? (
+                      <div className="space-y-2">
+                        {[0, 1, 2].map((i) => (
+                          <div key={i} className="h-10 rounded-xl bg-muted animate-pulse" />
+                        ))}
+                      </div>
+                    ) : !hasWinners ? (
+                      <p className="text-sm text-muted-foreground">No winners have been recorded yet.</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {winnersData.winners.map((w, idx) => (
+                          <div
+                            key={idx}
+                            className="flex items-center gap-3 px-4 py-3 rounded-xl bg-muted/50 border border-border"
+                          >
+                            {w.rank != null ? (
+                              <span className="text-xs font-bold text-primary bg-primary/10 rounded-lg px-2.5 py-1 whitespace-nowrap shrink-0 min-w-[72px] text-center">
+                                {ordinal(w.rank)} place
+                              </span>
+                            ) : (
+                              <span className="w-6 h-6 rounded-full bg-amber-100 border border-amber-200 flex items-center justify-center shrink-0">
+                                <Trophy className="w-3 h-3 text-amber-500" />
+                              </span>
+                            )}
+                            <span className="font-semibold text-foreground text-sm truncate flex-1">
+                              @{w.username}
+                            </span>
+                            <span className="text-xs text-muted-foreground shrink-0 truncate max-w-[140px]">
+                              {w.prizeLabel}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
               );
             })()}
