@@ -227,7 +227,7 @@ export default function HunchForm() {
         endsAt: parsedEndsAt.toISOString(),
         imageUrl: form.imageUrl || null,
         imageFocalPoint: form.imageFocalPoint || null,
-        winnerOption: form.isMulti ? null : (form.winnerOption || null),
+        winnerOption: form.winnerOption || null,
         prizeTiers: validTiers,
         isMulti: form.isMulti,
       };
