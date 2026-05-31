@@ -1,5 +1,4 @@
-import { S3Client, HeadObjectCommand, PutBucketCorsCommand } from "@aws-sdk/client-s3";
-import { PutObjectCommand } from "@aws-sdk/client-s3";
+import { S3Client, HeadObjectCommand, PutBucketCorsCommand, PutObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { randomUUID } from "crypto";
 
@@ -106,6 +105,34 @@ export class ObjectStorageService {
     }
     const key = objectPath.startsWith("/objects/") ? objectPath.slice("/objects/".length) : objectPath;
     return `${publicBase()}/${key}`;
+  }
+
+  /**
+   * Upload a buffer directly to R2 (server-side, no presigned URL).
+   * Used by the proxy upload endpoint to avoid browser CORS issues.
+   */
+  async uploadObject(
+    fileName: string,
+    body: Buffer,
+    contentType: string,
+  ): Promise<{ objectPath: string; publicUrl: string }> {
+    const uuid = randomUUID();
+    const ext = (fileName.split(".").pop() ?? "bin").toLowerCase().replace(/[^a-z0-9]/g, "");
+    const key = `uploads/${uuid}.${ext}`;
+
+    await r2Client().send(
+      new PutObjectCommand({
+        Bucket: bucketName(),
+        Key: key,
+        Body: body,
+        ContentType: contentType,
+      }),
+    );
+
+    return {
+      objectPath: `/objects/${key}`,
+      publicUrl: `${publicBase()}/${key}`,
+    };
   }
 
   /**
