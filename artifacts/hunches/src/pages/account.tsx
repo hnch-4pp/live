@@ -76,8 +76,8 @@ function AvatarUpload({
   const [preview, setPreview] = useState<string | null>(null);
 
   const { uploadFile, isUploading } = useUpload({
-    onSuccess: ({ objectPath }) => {
-      onUploaded(objectPath);
+    onSuccess: ({ publicUrl }) => {
+      onUploaded(publicUrl);
     },
   });
 
@@ -88,7 +88,11 @@ function AvatarUpload({
     uploadFile(file);
   };
 
-  const imgSrc = preview ?? (avatarUrl ? `/api/storage${avatarUrl}` : null);
+  // Support both: full R2 URLs (new) and old /objects/... paths (proxy redirect)
+  const resolveAvatarSrc = (url: string) =>
+    url.startsWith("http://") || url.startsWith("https://") ? url : `/api/storage${url}`;
+
+  const imgSrc = preview ?? (avatarUrl ? resolveAvatarSrc(avatarUrl) : null);
 
   return (
     <div className="flex items-center gap-4">

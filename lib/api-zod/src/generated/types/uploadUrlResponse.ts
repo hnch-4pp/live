@@ -8,9 +8,11 @@
 import type { UploadUrlRequest } from './uploadUrlRequest';
 
 export interface UploadUrlResponse {
-  /** Presigned GCS URL for PUT upload. */
+  /** Presigned R2 URL for PUT upload (expires in 15 min). */
   uploadURL: string;
-  /** Normalized object path (e.g. /objects/uploads/uuid). */
+  /** Internal object path stored in DB (e.g. /objects/uploads/uuid.jpg). */
   objectPath: string;
+  /** Direct public R2 URL to serve the uploaded file. */
+  publicUrl: string;
   metadata?: UploadUrlRequest;
 }

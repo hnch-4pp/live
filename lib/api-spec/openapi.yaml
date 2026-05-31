@@ -454,15 +454,19 @@ components:
           description: MIME type of the file (e.g. image/jpeg).
     UploadUrlResponse:
       type: object
-      required: [uploadURL, objectPath]
+      required: [uploadURL, objectPath, publicUrl]
       properties:
         uploadURL:
           type: string
           format: uri
-          description: Presigned GCS URL for PUT upload.
+          description: Presigned R2 URL for PUT upload (expires in 15 min).
         objectPath:
           type: string
-          description: Normalized object path (e.g. /objects/uploads/uuid).
+          description: Internal object path stored in DB (e.g. /objects/uploads/uuid.jpg).
+        publicUrl:
+          type: string
+          format: uri
+          description: Direct public R2 URL to serve the uploaded file.
         metadata:
           $ref: '#/components/schemas/UploadUrlRequest'
 

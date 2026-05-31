@@ -7,6 +7,7 @@ import { sql } from "drizzle-orm";
 import { ensureTicketPacksExist } from "./seedTicketPacks";
 import { ensureSubscriptionProductsExist } from "./seedSubscriptionProducts";
 import { setupStripeWebhook } from "./webhookHandlers";
+import { ObjectStorageService } from "./lib/objectStorage";
 
 async function runAppMigrations(): Promise<void> {
   // Add new enum value (safe to re-run)
@@ -153,6 +154,7 @@ const port = Number(rawPort);
 if (Number.isNaN(port) || port <= 0) throw new Error(`Invalid PORT value: "${rawPort}"`);
 
 await runAppMigrations();
+await new ObjectStorageService().configureCors();
 await ensureTicketPacksExist();
 await ensureSubscriptionProductsExist();
 

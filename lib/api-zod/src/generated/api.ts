@@ -28,8 +28,9 @@ export const RequestUploadUrlBody = zod.object({
 
 
 export const RequestUploadUrlResponse = zod.object({
-  "uploadURL": zod.string().url().describe('Presigned GCS URL for PUT upload.'),
-  "objectPath": zod.string().describe('Normalized object path (e.g. \/objects\/uploads\/uuid).'),
+  "uploadURL": zod.string().url().describe('Presigned R2 URL for PUT upload (expires in 15 min).'),
+  "objectPath": zod.string().describe('Internal object path stored in DB (e.g. \/objects\/uploads\/uuid.jpg).'),
+  "publicUrl": zod.string().url().describe('Direct public R2 URL to serve the uploaded file.'),
   "metadata": zod.object({
   "name": zod.string().min(1).describe('Original file name.'),
   "size": zod.number().min(1).describe('File size in bytes.'),
