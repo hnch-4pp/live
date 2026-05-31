@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { apiUrl } from "@/lib/apiFetch";
-import { LayoutDashboard, ListChecks, Tag, Users, LogOut, ChevronRight, Ticket, Sparkles, Bell } from "lucide-react";
+import { LayoutDashboard, ListChecks, Tag, Users, LogOut, ChevronRight, Ticket, Sparkles, Bell, BarChart2 } from "lucide-react";
 
 const NAV = [
   { href: "/backstage/dashboard",       label: "Dashboard",      icon: LayoutDashboard },
@@ -11,6 +11,7 @@ const NAV = [
   { href: "/backstage/users",           label: "Users",          icon: Users },
   { href: "/backstage/ticket-codes",    label: "Ticket Codes",   icon: Ticket },
   { href: "/backstage/notifications",   label: "Notifications",  icon: Bell },
+  { href: "/backstage/metrics",         label: "Metrics",        icon: BarChart2 },
 ];
 
 async function logout() {

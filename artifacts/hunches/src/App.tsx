@@ -22,6 +22,7 @@ import AdminUserDetail from "@/pages/backstage/user-detail";
 import AdminTicketCodes from "@/pages/backstage/ticket-codes";
 import AdminHero from "@/pages/backstage/hero";
 import AdminNotifications from "@/pages/backstage/notifications";
+import AdminMetrics from "@/pages/backstage/metrics";
 import Account from "@/pages/account";
 import Tickets from "@/pages/tickets";
 import TicketActivity from "@/pages/ticket-activity";
@@ -65,6 +66,7 @@ function Router() {
       <Route path="/backstage/ticket-codes" component={AdminTicketCodes} />
       <Route path="/backstage/hero" component={AdminHero} />
       <Route path="/backstage/notifications" component={AdminNotifications} />
+      <Route path="/backstage/metrics" component={AdminMetrics} />
       <Route component={NotFound} />
     </Switch>
   );
