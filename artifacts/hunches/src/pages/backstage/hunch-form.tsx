@@ -20,6 +20,7 @@ const ANSWER_TYPES = [
 ];
 
 interface Question {
+  id?: number;
   prompt: string;
   answerType: string;
   placeholder: string;
@@ -167,6 +168,7 @@ export default function HunchForm() {
         }
         if (Array.isArray(h.questions) && h.questions.length > 0) {
           setQuestions(h.questions.map((q: { id: number; prompt: string; answerType: string; placeholder?: string; sortOrder: number }) => ({
+            id: q.id,
             prompt: q.prompt,
             answerType: q.answerType,
             placeholder: q.placeholder ?? "",
@@ -201,7 +203,7 @@ export default function HunchForm() {
       setWinnerAnswers((prev) => {
         const prevMap = new Map(prev.map((wa) => [wa.prompt, wa.answer]));
         return questions.map((q, i) => ({
-          questionId: i,
+          questionId: q.id ?? i,
           prompt: q.prompt,
           answer: prevMap.get(q.prompt) ?? "",
         }));
