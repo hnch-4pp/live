@@ -1441,4 +1441,85 @@ router.get("/admin/metrics/users", requireAdmin, requireAdminHeader, async (req,
   res.json({ period, total, previousTotal, data });
 });
 
+// ─── Metrics: Active Users (DAU / WAU / MAU) ─────────────────────────────────
+
+router.get("/admin/metrics/active-users", requireAdmin, requireAdminHeader, async (_req, res): Promise<void> => {
+  const [dauRows, wauRows, mauRows, snapshotRows] = await Promise.all([
+    // DAU: unique users per day, last 30 days
+    db.execute(sql.raw(`
+      SELECT
+        to_char(gs, 'Mon DD') AS label,
+        COUNT(DISTINCT p.user_id)::int AS count
+      FROM generate_series(
+        date_trunc('day', now() AT TIME ZONE 'UTC') - interval '29 days',
+        date_trunc('day', now() AT TIME ZONE 'UTC'),
+        interval '1 day'
+      ) AS gs
+      LEFT JOIN predictions p
+        ON date_trunc('day', p.created_at AT TIME ZONE 'UTC') = gs
+        AND p.user_id IS NOT NULL
+      GROUP BY gs, label
+      ORDER BY gs
+    `)),
+    // WAU: unique users per week, last 12 weeks
+    db.execute(sql.raw(`
+      SELECT
+        to_char(gs, 'Mon DD') AS label,
+        COUNT(DISTINCT p.user_id)::int AS count
+      FROM generate_series(
+        date_trunc('week', now() AT TIME ZONE 'UTC') - interval '11 weeks',
+        date_trunc('week', now() AT TIME ZONE 'UTC'),
+        interval '1 week'
+      ) AS gs
+      LEFT JOIN predictions p
+        ON date_trunc('week', p.created_at AT TIME ZONE 'UTC') = gs
+        AND p.user_id IS NOT NULL
+      GROUP BY gs, label
+      ORDER BY gs
+    `)),
+    // MAU: unique users per month, last 12 months
+    db.execute(sql.raw(`
+      SELECT
+        to_char(gs, 'Mon YY') AS label,
+        COUNT(DISTINCT p.user_id)::int AS count
+      FROM generate_series(
+        date_trunc('month', now() AT TIME ZONE 'UTC') - interval '11 months',
+        date_trunc('month', now() AT TIME ZONE 'UTC'),
+        interval '1 month'
+      ) AS gs
+      LEFT JOIN predictions p
+        ON date_trunc('month', p.created_at AT TIME ZONE 'UTC') = gs
+        AND p.user_id IS NOT NULL
+      GROUP BY gs, label
+      ORDER BY gs
+    `)),
+    // Current snapshot: today's DAU, this week's WAU, this month's MAU
+    db.execute(sql.raw(`
+      SELECT
+        (SELECT COUNT(DISTINCT user_id)::int FROM predictions
+          WHERE created_at >= date_trunc('day', now() AT TIME ZONE 'UTC')
+            AND user_id IS NOT NULL) AS dau,
+        (SELECT COUNT(DISTINCT user_id)::int FROM predictions
+          WHERE created_at >= date_trunc('week', now() AT TIME ZONE 'UTC')
+            AND user_id IS NOT NULL) AS wau,
+        (SELECT COUNT(DISTINCT user_id)::int FROM predictions
+          WHERE created_at >= date_trunc('month', now() AT TIME ZONE 'UTC')
+            AND user_id IS NOT NULL) AS mau
+    `)),
+  ]);
+
+  const snap = (snapshotRows.rows as { dau: number; wau: number; mau: number }[])[0] ?? { dau: 0, wau: 0, mau: 0 };
+
+  res.json({
+    current: {
+      dau: Number(snap.dau),
+      wau: Number(snap.wau),
+      mau: Number(snap.mau),
+    },
+    dau: (dauRows.rows as { label: string; count: number }[]).map((r) => ({ label: r.label, count: Number(r.count) })),
+    wau: (wauRows.rows as { label: string; count: number }[]).map((r) => ({ label: r.label, count: Number(r.count) })),
+    mau: (mauRows.rows as { label: string; count: number }[]).map((r) => ({ label: r.label, count: Number(r.count) })),
+  });
+});
+
 export default router;
