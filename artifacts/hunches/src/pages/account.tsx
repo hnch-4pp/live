@@ -8,18 +8,17 @@ import { Label } from "@/components/ui/label";
 import { useAuth } from "@/hooks/use-auth";
 import { AddressAutocomplete } from "@/components/address-autocomplete";
 import { useUpload } from "@workspace/object-storage-web";
+import { useTranslation } from "react-i18next";
 import {
   Check, X, Loader2, Mail, Phone, Calendar,
   MapPin, Lock, Trash2, AlertTriangle, Camera,
   KeyRound, MessageSquare, Eye, EyeOff,
 } from "lucide-react";
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
 function formatDate(iso: string | null) {
   if (!iso) return "—";
   const [y, m, d] = iso.split("-");
-  return new Date(Number(y), Number(m) - 1, Number(d)).toLocaleDateString("en-US", {
+  return new Date(Number(y), Number(m) - 1, Number(d)).toLocaleDateString(undefined, {
     year: "numeric", month: "long", day: "numeric",
   });
 }
@@ -61,8 +60,6 @@ function ReadOnlyField({
   );
 }
 
-// ── Avatar section ─────────────────────────────────────────────────────────────
-
 function AvatarUpload({
   avatarUrl,
   initials,
@@ -72,6 +69,7 @@ function AvatarUpload({
   initials: string;
   onUploaded: (objectPath: string) => void;
 }) {
+  const { t } = useTranslation();
   const fileInputRef = useRef<HTMLInputElement | undefined>(undefined);
   const [preview, setPreview] = useState<string | null>(null);
 
@@ -88,7 +86,6 @@ function AvatarUpload({
     uploadFile(file);
   };
 
-  // Support both: full R2 URLs (new) and old /objects/... paths (proxy redirect)
   const resolveAvatarSrc = (url: string) =>
     url.startsWith("http://") || url.startsWith("https://") ? url : `/api/storage${url}`;
 
@@ -125,14 +122,12 @@ function AvatarUpload({
         />
       </div>
       <div>
-        <p className="text-sm font-medium text-foreground">Profile photo</p>
-        <p className="text-xs text-muted-foreground mt-0.5">Click the photo to upload a new one</p>
+        <p className="text-sm font-medium text-foreground">{t("acc_photo_label")}</p>
+        <p className="text-xs text-muted-foreground mt-0.5">{t("acc_photo_hint")}</p>
       </div>
     </div>
   );
 }
-
-// ── Username section ───────────────────────────────────────────────────────────
 
 function UsernameSection({
   current,
@@ -141,6 +136,7 @@ function UsernameSection({
   current: string | null;
   onSaved: (u: string) => void;
 }) {
+  const { t } = useTranslation();
   const [value, setValue] = useState(current ?? "");
   const [status, setStatus] = useState<"idle" | "checking" | "available" | "taken" | "invalid" | "same">("idle");
   const [saving, setSaving] = useState(false);
@@ -183,16 +179,27 @@ function UsernameSection({
       onSaved(data.username);
       setSaved(true);
       setTimeout(() => setSaved(false), 2500);
-    } catch (e: any) {
-      setError(e.message);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Failed to save");
     } finally {
       setSaving(false);
     }
   };
 
+  const statusText = () => {
+    const lower = value.trim().toLowerCase();
+    if (status === "idle")      return t("username_hint");
+    if (status === "checking")  return t("checking_avail");
+    if (status === "available") return t("username_available", { username: lower });
+    if (status === "same")      return t("username_same");
+    if (status === "taken")     return t("username_taken", { username: lower });
+    if (status === "invalid")   return t("username_invalid");
+    return "";
+  };
+
   return (
     <div className="space-y-2">
-      <Label htmlFor="acc-username">Username</Label>
+      <Label htmlFor="acc-username">{t("acc_username_label")}</Label>
       <div className="flex gap-2">
         <div className="relative flex-1">
           <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm select-none">@</span>
@@ -217,7 +224,7 @@ function UsernameSection({
           disabled={!canSave || saving || saved}
           className="rounded-xl h-11 px-5 bg-primary text-white hover:bg-primary/90 font-semibold shrink-0"
         >
-          {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : saved ? "Saved" : "Save"}
+          {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : saved ? t("saved_btn") : t("save_btn")}
         </Button>
       </div>
       <p className={`text-xs ${
@@ -225,21 +232,15 @@ function UsernameSection({
         status === "taken" || status === "invalid" ? "text-destructive" :
         "text-muted-foreground"
       }`}>
-        {status === "idle" && "3–20 characters: letters, numbers, _ or ."}
-        {status === "checking" && "Checking availability..."}
-        {status === "available" && `@${value.trim().toLowerCase()} is available`}
-        {status === "same" && "This is your current username"}
-        {status === "taken" && `@${value.trim().toLowerCase()} is already taken`}
-        {status === "invalid" && "3–20 characters: letters, numbers, _ or ."}
+        {statusText()}
       </p>
       {error && <p className="text-xs text-destructive">{error}</p>}
     </div>
   );
 }
 
-// ── Address section ────────────────────────────────────────────────────────────
-
 function AddressSection({ current, onSaved }: { current: string | null; onSaved: (a: string) => void }) {
+  const { t } = useTranslation();
   const [street, setStreet] = useState("");
   const [apt, setApt] = useState("");
   const [city, setCity] = useState("");
@@ -268,8 +269,8 @@ function AddressSection({ current, onSaved }: { current: string | null; onSaved:
       onSaved(data.address);
       setSaved(true);
       setTimeout(() => setSaved(false), 2500);
-    } catch (e: any) {
-      setError(e.message);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Failed to save");
     } finally {
       setSaving(false);
     }
@@ -284,7 +285,7 @@ function AddressSection({ current, onSaved }: { current: string | null; onSaved:
         </div>
       )}
       <div className="space-y-1.5">
-        <Label>New street address</Label>
+        <Label>{t("new_street_label")}</Label>
         <AddressAutocomplete
           value={street}
           onChange={setStreet}
@@ -298,7 +299,9 @@ function AddressSection({ current, onSaved }: { current: string | null; onSaved:
         />
       </div>
       <div className="space-y-1.5">
-        <Label htmlFor="acc-apt">Apt / Suite / Unit <span className="text-muted-foreground font-normal">(optional)</span></Label>
+        <Label htmlFor="acc-apt">
+          {t("apt_label")} <span className="text-muted-foreground font-normal">{t("apt_opt")}</span>
+        </Label>
         <Input
           id="acc-apt"
           type="text"
@@ -311,22 +314,22 @@ function AddressSection({ current, onSaved }: { current: string | null; onSaved:
       </div>
       <div className="grid grid-cols-2 gap-2">
         <div className="space-y-1.5">
-          <Label htmlFor="acc-city">City</Label>
-          <Input id="acc-city" type="text" value={city} onChange={(e) => setCity(e.target.value)} placeholder="City" className="rounded-xl h-11 bg-background border-border" />
+          <Label htmlFor="acc-city">{t("city_label")}</Label>
+          <Input id="acc-city" type="text" value={city} onChange={(e) => setCity(e.target.value)} placeholder={t("city_label")} className="rounded-xl h-11 bg-background border-border" />
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="acc-state">State / Province</Label>
-          <Input id="acc-state" type="text" value={state} onChange={(e) => setState(e.target.value)} placeholder="State" className="rounded-xl h-11 bg-background border-border" />
+          <Label htmlFor="acc-state">{t("state_label")}</Label>
+          <Input id="acc-state" type="text" value={state} onChange={(e) => setState(e.target.value)} placeholder={t("state_label")} className="rounded-xl h-11 bg-background border-border" />
         </div>
       </div>
       <div className="grid grid-cols-2 gap-2">
         <div className="space-y-1.5">
-          <Label htmlFor="acc-postal">ZIP / Postal code</Label>
+          <Label htmlFor="acc-postal">{t("zip_label")}</Label>
           <Input id="acc-postal" type="text" value={postal} onChange={(e) => setPostal(e.target.value)} placeholder="00000" className="rounded-xl h-11 bg-background border-border" />
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="acc-country">Country</Label>
-          <Input id="acc-country" type="text" value={country} onChange={(e) => setCountry(e.target.value)} placeholder="Country" className="rounded-xl h-11 bg-background border-border" />
+          <Label htmlFor="acc-country">{t("country_label")}</Label>
+          <Input id="acc-country" type="text" value={country} onChange={(e) => setCountry(e.target.value)} placeholder={t("country_label")} className="rounded-xl h-11 bg-background border-border" />
         </div>
       </div>
       {error && <p className="text-xs text-destructive">{error}</p>}
@@ -336,13 +339,11 @@ function AddressSection({ current, onSaved }: { current: string | null; onSaved:
         className="w-full rounded-xl h-11 bg-primary text-white hover:bg-primary/90 font-semibold"
       >
         {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-        {saved ? "Address saved" : "Save address"}
+        {saved ? t("address_saved") : t("save_address")}
       </Button>
     </div>
   );
 }
-
-// ── Login method section ───────────────────────────────────────────────────────
 
 function LoginMethodSection({
   current,
@@ -353,12 +354,12 @@ function LoginMethodSection({
   hasPassword: boolean;
   onSaved: () => void;
 }) {
+  const { t } = useTranslation();
   const [selected, setSelected] = useState<"password" | "otp">(current);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [saved, setSaved] = useState(false);
 
-  // Password-change form (shown when switching to password without one, or for changing pwd)
   const [showPwdForm, setShowPwdForm] = useState(false);
   const [currentPwd, setCurrentPwd] = useState("");
   const [newPwd, setNewPwd] = useState("");
@@ -394,8 +395,8 @@ function LoginMethodSection({
   };
 
   const savePassword = async () => {
-    if (newPwd !== confirmPwd) { setPwdError("Passwords do not match."); return; }
-    if (newPwd.length < 8) { setPwdError("Password must be at least 8 characters."); return; }
+    if (newPwd !== confirmPwd) { setPwdError(t("pw_no_match")); return; }
+    if (newPwd.length < 8) { setPwdError(t("pw_too_short")); return; }
     setPwdSaving(true);
     setPwdError("");
     try {
@@ -418,24 +419,9 @@ function LoginMethodSection({
     }
   };
 
-  const options: Array<{
-    id: "password" | "otp";
-    icon: React.ElementType;
-    title: string;
-    desc: string;
-  }> = [
-    {
-      id: "password",
-      icon: KeyRound,
-      title: "Password",
-      desc: "Sign in with your email and a password you set.",
-    },
-    {
-      id: "otp",
-      icon: MessageSquare,
-      title: "One-time code",
-      desc: "Receive a temporary code by SMS or email each time you log in.",
-    },
+  const options: Array<{ id: "password" | "otp"; icon: React.ElementType; titleKey: string; descKey: string }> = [
+    { id: "password", icon: KeyRound, titleKey: "login_pw_option", descKey: "login_pw_desc" },
+    { id: "otp",      icon: MessageSquare, titleKey: "login_otp_option", descKey: "login_otp_desc" },
   ];
 
   return (
@@ -464,8 +450,8 @@ function LoginMethodSection({
               }`}>
                 <Icon className="w-4 h-4" />
               </div>
-              <p className={`text-sm font-semibold ${active ? "text-foreground" : "text-foreground"}`}>{opt.title}</p>
-              <p className="text-xs text-muted-foreground mt-1 leading-snug">{opt.desc}</p>
+              <p className="text-sm font-semibold text-foreground">{t(opt.titleKey)}</p>
+              <p className="text-xs text-muted-foreground mt-1 leading-snug">{t(opt.descKey)}</p>
             </button>
           );
         })}
@@ -480,21 +466,19 @@ function LoginMethodSection({
           className="w-full rounded-xl h-11 bg-primary text-white hover:bg-primary/90 font-semibold"
         >
           {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-          {saved ? "Saved" : "Save login method"}
+          {saved ? t("saved_btn") : t("save_method")}
         </Button>
       )}
 
-      {/* Change password */}
+      {/* Change / Set password */}
       <div className="border-t border-border pt-4">
         <div className="flex items-center justify-between">
           <div>
             <p className="text-sm font-medium text-foreground">
-              {hasPassword ? "Change password" : "Set a password"}
+              {hasPassword ? t("change_pw_title") : t("set_pw_title")}
             </p>
             <p className="text-xs text-muted-foreground mt-0.5">
-              {hasPassword
-                ? "Update the password you use to log in."
-                : "Add a password to enable password-based login."}
+              {hasPassword ? t("change_pw_sub") : t("set_pw_sub")}
             </p>
           </div>
           <Button
@@ -502,7 +486,7 @@ function LoginMethodSection({
             onClick={() => { setShowPwdForm((v) => !v); setPwdError(""); setPwdSaved(false); }}
             className="shrink-0 rounded-xl text-sm font-semibold"
           >
-            {showPwdForm ? "Cancel" : hasPassword ? "Change" : "Set password"}
+            {showPwdForm ? t("cancel_btn") : hasPassword ? t("change_btn") : t("set_pw_btn")}
           </Button>
         </div>
 
@@ -510,20 +494,20 @@ function LoginMethodSection({
           <div className="mt-4 space-y-3">
             {hasPassword && (
               <div className="space-y-1.5">
-                <Label htmlFor="current-pwd">Current password</Label>
+                <Label htmlFor="current-pwd">{t("current_pw")}</Label>
                 <Input
                   id="current-pwd"
                   type="password"
                   autoComplete="current-password"
                   value={currentPwd}
                   onChange={(e) => setCurrentPwd(e.target.value)}
-                  placeholder="Your current password"
+                  placeholder={t("current_pw_ph")}
                   className="rounded-xl h-11 bg-background border-border"
                 />
               </div>
             )}
             <div className="space-y-1.5">
-              <Label htmlFor="new-pwd">New password</Label>
+              <Label htmlFor="new-pwd">{t("new_pw")}</Label>
               <div className="relative">
                 <Input
                   id="new-pwd"
@@ -531,7 +515,7 @@ function LoginMethodSection({
                   autoComplete="new-password"
                   value={newPwd}
                   onChange={(e) => setNewPwd(e.target.value)}
-                  placeholder="At least 8 characters"
+                  placeholder={t("new_pw_ph")}
                   className="rounded-xl h-11 bg-background border-border pr-10"
                 />
                 <button
@@ -544,7 +528,7 @@ function LoginMethodSection({
               </div>
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="confirm-pwd">Confirm new password</Label>
+              <Label htmlFor="confirm-pwd">{t("confirm_pw")}</Label>
               <div className="relative">
                 <Input
                   id="confirm-pwd"
@@ -552,7 +536,7 @@ function LoginMethodSection({
                   autoComplete="new-password"
                   value={confirmPwd}
                   onChange={(e) => setConfirmPwd(e.target.value)}
-                  placeholder="Repeat new password"
+                  placeholder={t("confirm_pw_ph")}
                   className="rounded-xl h-11 bg-background border-border pr-10"
                 />
                 <button
@@ -571,7 +555,7 @@ function LoginMethodSection({
               className="w-full rounded-xl h-11 bg-primary text-white hover:bg-primary/90 font-semibold"
             >
               {pwdSaving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-              {pwdSaved ? "Password updated" : hasPassword ? "Update password" : "Set password"}
+              {pwdSaved ? t("pw_updated") : hasPassword ? t("update_pw") : t("set_pw_btn")}
             </Button>
           </div>
         )}
@@ -579,8 +563,6 @@ function LoginMethodSection({
     </div>
   );
 }
-
-// ── Delete account dialog ──────────────────────────────────────────────────────
 
 function DeleteDialog({
   email,
@@ -591,6 +573,7 @@ function DeleteDialog({
   onClose: () => void;
   onDeleted: () => void;
 }) {
+  const { t } = useTranslation();
   const [typed, setTyped] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -609,8 +592,8 @@ function DeleteDialog({
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Failed to delete account");
       onDeleted();
-    } catch (e: any) {
-      setError(e.message);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Failed to delete");
       setLoading(false);
     }
   };
@@ -623,16 +606,14 @@ function DeleteDialog({
             <AlertTriangle className="w-5 h-5 text-destructive" />
           </div>
           <div>
-            <h3 className="text-base font-semibold text-foreground">Delete your account</h3>
-            <p className="text-sm text-muted-foreground mt-1">
-              This action is permanent and cannot be undone. All your data, predictions, and progress will be erased.
-            </p>
+            <h3 className="text-base font-semibold text-foreground">{t("delete_confirm_title")}</h3>
+            <p className="text-sm text-muted-foreground mt-1">{t("delete_confirm_desc")}</p>
           </div>
         </div>
         <div className="px-6 pb-6 space-y-4">
           <div className="space-y-2">
             <Label htmlFor="confirm-email">
-              Type your email to confirm: <span className="font-mono text-foreground">{email}</span>
+              {t("delete_confirm_email_label")} <span className="font-mono text-foreground">{email}</span>
             </Label>
             <Input
               id="confirm-email"
@@ -655,7 +636,7 @@ function DeleteDialog({
               disabled={loading}
               className="flex-1 rounded-xl h-11 font-semibold"
             >
-              Cancel
+              {t("cancel_btn")}
             </Button>
             <Button
               onClick={handleDelete}
@@ -663,7 +644,7 @@ function DeleteDialog({
               className="flex-1 rounded-xl h-11 bg-destructive text-white hover:bg-destructive/90 font-semibold"
             >
               {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Trash2 className="w-4 h-4 mr-2" />}
-              Delete account
+              {t("delete_btn")}
             </Button>
           </div>
         </div>
@@ -672,9 +653,8 @@ function DeleteDialog({
   );
 }
 
-// ── Main page ──────────────────────────────────────────────────────────────────
-
 export default function Account() {
+  const { t } = useTranslation();
   const [, setLocation] = useLocation();
   const { user, isLoading, refetch, logout } = useAuth();
   const [showDelete, setShowDelete] = useState(false);
@@ -710,16 +690,14 @@ export default function Account() {
       <div className="flex-1 bg-muted/30 py-10 px-4">
         <div className="max-w-lg mx-auto space-y-6">
 
-          {/* Header */}
           <div className="flex items-center gap-4">
             <div>
-              <h1 className="font-display text-2xl font-bold text-foreground">Account Settings</h1>
+              <h1 className="font-display text-2xl font-bold text-foreground">{t("acc_settings_title")}</h1>
               <p className="text-sm text-muted-foreground">{user.email}</p>
             </div>
           </div>
 
-          {/* Profile */}
-          <SectionCard title="Profile">
+          <SectionCard title={t("acc_profile")}>
             <AvatarUpload
               avatarUrl={user.avatarUrl}
               initials={initials}
@@ -730,28 +708,26 @@ export default function Account() {
                 current={user.username}
                 onSaved={async () => { await refetch(); }}
               />
-              <ReadOnlyField icon={Mail} label="Email address" value={user.email} note="Contact support to change your email" />
+              <ReadOnlyField icon={Mail} label={t("acc_email_label")} value={user.email} note={t("acc_email_note")} />
             </div>
           </SectionCard>
 
-          {/* Personal info */}
-          <SectionCard title="Personal Information">
+          <SectionCard title={t("acc_personal")}>
             <ReadOnlyField
               icon={Phone}
-              label="Phone number"
+              label={t("acc_phone")}
               value={user.phone ?? "—"}
-              note="Contact support to update your phone"
+              note={t("acc_phone_note")}
             />
             <ReadOnlyField
               icon={Calendar}
-              label="Date of birth"
+              label={t("acc_dob")}
               value={formatDate(user.dateOfBirth)}
             />
           </SectionCard>
 
-          {/* Security */}
-          <SectionCard title="Security">
-            <p className="text-xs text-muted-foreground -mt-1">Choose how you sign in to your account.</p>
+          <SectionCard title={t("acc_security")}>
+            <p className="text-xs text-muted-foreground -mt-1">{t("acc_security_sub")}</p>
             <LoginMethodSection
               current={user.loginMethod ?? "password"}
               hasPassword={user.hasPassword ?? false}
@@ -759,27 +735,23 @@ export default function Account() {
             />
           </SectionCard>
 
-          {/* Shipping address */}
-          <SectionCard title="Shipping Address">
-            <p className="text-xs text-muted-foreground -mt-1">Used to ship prizes to you when you win.</p>
+          <SectionCard title={t("acc_shipping")}>
+            <p className="text-xs text-muted-foreground -mt-1">{t("acc_shipping_sub")}</p>
             <AddressSection
               current={user.address}
               onSaved={async () => { await refetch(); }}
             />
           </SectionCard>
 
-          {/* Danger zone */}
           <div className="bg-card border border-destructive/30 rounded-2xl overflow-hidden">
             <div className="px-6 py-4 border-b border-destructive/20">
-              <h2 className="text-sm font-semibold text-destructive">Danger Zone</h2>
+              <h2 className="text-sm font-semibold text-destructive">{t("danger_zone")}</h2>
             </div>
             <div className="px-6 py-5">
               <div className="flex items-center justify-between gap-4">
                 <div>
-                  <p className="text-sm font-medium text-foreground">Delete account</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    Permanently erase all your data. This cannot be undone.
-                  </p>
+                  <p className="text-sm font-medium text-foreground">{t("delete_acct")}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">{t("delete_acct_sub")}</p>
                 </div>
                 <Button
                   variant="outline"
@@ -787,7 +759,7 @@ export default function Account() {
                   className="shrink-0 rounded-xl border-destructive/50 text-destructive hover:bg-destructive/5 hover:border-destructive font-semibold"
                 >
                   <Trash2 className="w-4 h-4 mr-2" />
-                  Delete
+                  {t("delete_acct")}
                 </Button>
               </div>
             </div>

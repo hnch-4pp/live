@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { apiUrl } from "@/lib/apiFetch";
 import { Layout } from "@/components/layout";
 import { Button } from "@/components/ui/button";
@@ -326,29 +327,6 @@ function CountryPicker({
 
 type Step = "email" | "email-otp" | "phone" | "phone-otp" | "password" | "username" | "address" | "dob" | "ticket-code";
 
-const STEP_TITLES: Record<Step, string> = {
-  email: "Create your account",
-  "email-otp": "Verify your email",
-  phone: "Add your phone",
-  "phone-otp": "Verify your phone",
-  password: "Set a password",
-  username: "Choose a username",
-  address: "Your address",
-  dob: "Date of birth",
-  "ticket-code": "Promo code",
-};
-
-const STEP_SUBS: Record<Step, string> = {
-  email: "Enter your email to get started",
-  "email-otp": "We sent a 6-digit code to your email",
-  phone: "We'll send a verification code via SMS",
-  "phone-otp": "We sent a 6-digit code to your phone",
-  password: "Choose a strong password for your account",
-  username: "Pick a unique username for your profile",
-  address: "Required to ship prizes",
-  dob: "You must be 18 or older to participate",
-  "ticket-code": "Have a promotional code? Get bonus tickets",
-};
 
 const STEPS: Step[] = ["email", "email-otp", "phone", "phone-otp", "password", "username", "address", "dob", "ticket-code"];
 
@@ -423,6 +401,7 @@ function OtpInput({ value, onChange }: { value: string; onChange: (v: string) =>
 export default function Signup() {
   const [, setLocation] = useLocation();
   const { refetch } = useAuth();
+  const { t } = useTranslation();
 
   const [step, setStep] = useState<Step>("email");
   const [email, setEmail] = useState("");
@@ -588,16 +567,40 @@ export default function Signup() {
     return false;
   };
 
+  const STEP_TITLES: Record<Step, string> = {
+    email: t("signup_step_email"),
+    "email-otp": t("signup_step_email_otp"),
+    phone: t("signup_step_phone"),
+    "phone-otp": t("signup_step_phone_otp"),
+    password: t("signup_step_password"),
+    username: t("signup_step_username"),
+    address: t("signup_step_address"),
+    dob: t("signup_step_dob"),
+    "ticket-code": t("signup_step_ticket_code"),
+  };
+
+  const STEP_SUBS: Record<Step, string> = {
+    email: t("signup_sub_email"),
+    "email-otp": t("signup_sub_email_otp"),
+    phone: t("signup_sub_phone"),
+    "phone-otp": t("signup_sub_phone_otp"),
+    password: t("signup_sub_password"),
+    username: t("signup_sub_username"),
+    address: t("signup_sub_address"),
+    dob: t("signup_sub_dob"),
+    "ticket-code": t("signup_sub_ticket_code"),
+  };
+
   const CTALabel: Record<Step, string> = {
-    email: "Send verification code",
-    "email-otp": "Verify email",
-    phone: "Send SMS code",
-    "phone-otp": "Verify phone",
-    password: "Set password",
-    username: "Continue",
-    address: "Continue",
-    dob: loading ? "Creating account..." : "Create account",
-    "ticket-code": promoApplied ? "Continue to Hunch" : "Skip for now",
+    email: t("signup_cta_email"),
+    "email-otp": t("signup_cta_email_otp"),
+    phone: t("signup_cta_phone"),
+    "phone-otp": t("signup_cta_phone_otp"),
+    password: t("signup_cta_password"),
+    username: t("continue_btn"),
+    address: t("continue_btn"),
+    dob: loading ? t("signup_cta_creating") : t("signup_cta_create"),
+    "ticket-code": promoApplied ? t("signup_cta_continue_to_hunch") : t("signup_cta_skip"),
   };
 
   return (
@@ -625,7 +628,7 @@ export default function Signup() {
             {/* Email */}
             {step === "email" && (
               <div className="space-y-1.5">
-                <Label htmlFor="email">Email address</Label>
+                <Label htmlFor="email">{t("email_address")}</Label>
                 <Input
                   id="email"
                   type="email"
@@ -643,7 +646,7 @@ export default function Signup() {
             {step === "email-otp" && (
               <div className="space-y-4">
                 <p className="text-sm text-center text-muted-foreground">
-                  Sent to <span className="font-medium text-foreground">{email}</span>
+                  {t("signup_sent_to", { email: <span key="e" className="font-medium text-foreground">{email}</span> })}
                 </p>
                 <OtpInput value={emailOtp} onChange={setEmailOtp} />
                 {devHint && (
@@ -657,7 +660,7 @@ export default function Signup() {
             {/* Phone with country picker */}
             {step === "phone" && (
               <div className="space-y-1.5">
-                <Label>Phone number</Label>
+                <Label>{t("acc_phone")}</Label>
                 <div className="flex gap-2 items-stretch">
                   <CountryPicker value={country} onChange={(c) => { setCountry(c); setLocalPhone(""); }} />
                   <Input
@@ -671,7 +674,7 @@ export default function Signup() {
                   />
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Enter your number without the country code
+                  {t("signup_phone_hint")}
                 </p>
               </div>
             )}
@@ -680,7 +683,7 @@ export default function Signup() {
             {step === "phone-otp" && (
               <div className="space-y-4">
                 <p className="text-sm text-center text-muted-foreground">
-                  Sent to <span className="font-medium text-foreground">{displayPhone}</span>
+                  {t("signup_sent_to", { email: <span key="p" className="font-medium text-foreground">{displayPhone}</span> })}
                 </p>
                 <OtpInput value={phoneOtp} onChange={setPhoneOtp} />
                 {devHint && (
@@ -695,7 +698,7 @@ export default function Signup() {
             {step === "password" && (
               <div className="space-y-3">
                 <div className="space-y-1.5">
-                  <Label htmlFor="password">Password</Label>
+                  <Label htmlFor="password">{t("password")}</Label>
                   <div className="relative">
                     <Input
                       id="password"
@@ -705,7 +708,7 @@ export default function Signup() {
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       onKeyDown={(e) => e.key === "Enter" && confirmPassword && isValid() && handle()}
-                      placeholder="At least 8 characters"
+                      placeholder={t("new_pw_ph")}
                       className="rounded-xl h-11 bg-background border-border pr-10"
                     />
                     <button
@@ -719,7 +722,7 @@ export default function Signup() {
                   </div>
                 </div>
                 <div className="space-y-1.5">
-                  <Label htmlFor="confirm-password">Confirm password</Label>
+                  <Label htmlFor="confirm-password">{t("signup_confirm_pw")}</Label>
                   <div className="relative">
                     <Input
                       id="confirm-password"
@@ -727,7 +730,7 @@ export default function Signup() {
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
                       onKeyDown={(e) => e.key === "Enter" && isValid() && handle()}
-                      placeholder="Repeat your password"
+                      placeholder={t("signup_confirm_pw_ph")}
                       className={`rounded-xl h-11 bg-background border-border pr-10 ${
                         confirmPassword && confirmPassword !== password
                           ? "border-destructive focus:ring-destructive/30"
@@ -744,7 +747,7 @@ export default function Signup() {
                     </button>
                   </div>
                   {confirmPassword && confirmPassword !== password && (
-                    <p className="text-xs text-destructive">Passwords do not match</p>
+                    <p className="text-xs text-destructive">{t("pw_no_match")}</p>
                   )}
                 </div>
                 {/* Strength hint */}
@@ -772,10 +775,10 @@ export default function Signup() {
                       })}
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      {password.length < 8 ? "Too short — minimum 8 characters" :
-                       password.length >= 12 && /[A-Z]/.test(password) && /[0-9]/.test(password) && /[^a-zA-Z0-9]/.test(password) ? "Strong password" :
-                       password.length >= 10 ? "Good — add symbols or uppercase to strengthen" :
-                       "Acceptable — a longer password is more secure"}
+                      {password.length < 8 ? t("pw_too_short_detail") :
+                       password.length >= 12 && /[A-Z]/.test(password) && /[0-9]/.test(password) && /[^a-zA-Z0-9]/.test(password) ? t("pw_strong") :
+                       password.length >= 10 ? t("pw_good") :
+                       t("pw_acceptable")}
                     </p>
                   </div>
                 )}
@@ -785,7 +788,7 @@ export default function Signup() {
             {/* Username */}
             {step === "username" && (
               <div className="space-y-2">
-                <Label htmlFor="username">Username</Label>
+                <Label htmlFor="username">{t("username_label")}</Label>
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm select-none">@</span>
                   <Input
@@ -812,11 +815,11 @@ export default function Signup() {
                   usernameStatus === "invalid" ? "text-destructive" :
                   "text-muted-foreground"
                 }`}>
-                  {usernameStatus === "idle" && "3–20 characters: letters, numbers, _ or ."}
-                  {usernameStatus === "checking" && "Checking availability..."}
-                  {usernameStatus === "available" && `@${username.trim().toLowerCase()} is available`}
-                  {usernameStatus === "taken" && `@${username.trim().toLowerCase()} is already taken`}
-                  {usernameStatus === "invalid" && "3–20 characters: letters, numbers, _ or ."}
+                  {usernameStatus === "idle" && t("username_invalid")}
+                  {usernameStatus === "checking" && t("checking_avail")}
+                  {usernameStatus === "available" && t("username_available", { username: username.trim().toLowerCase() })}
+                  {usernameStatus === "taken" && t("username_taken", { username: username.trim().toLowerCase() })}
+                  {usernameStatus === "invalid" && t("username_invalid")}
                 </p>
               </div>
             )}
@@ -825,7 +828,7 @@ export default function Signup() {
             {step === "address" && (
               <div className="space-y-3">
                 <div className="space-y-1.5">
-                  <Label>Street address</Label>
+                  <Label>{t("signup_street_label")}</Label>
                   <AddressAutocomplete
                     value={addrStreet}
                     onChange={setAddrStreet}
@@ -839,7 +842,7 @@ export default function Signup() {
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label htmlFor="addr-apt">Apt / Suite / Unit <span className="text-muted-foreground font-normal">(optional)</span></Label>
+                  <Label htmlFor="addr-apt">{t("apt_label")} <span className="text-muted-foreground font-normal">{t("apt_opt")}</span></Label>
                   <Input
                     id="addr-apt"
                     type="text"
@@ -852,7 +855,7 @@ export default function Signup() {
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   <div className="space-y-1.5">
-                    <Label htmlFor="addr-city">City</Label>
+                    <Label htmlFor="addr-city">{t("city_label")}</Label>
                     <Input
                       id="addr-city"
                       type="text"
@@ -864,7 +867,7 @@ export default function Signup() {
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <Label htmlFor="addr-state">State / Province</Label>
+                    <Label htmlFor="addr-state">{t("state_label")}</Label>
                     <Input
                       id="addr-state"
                       type="text"
@@ -878,7 +881,7 @@ export default function Signup() {
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   <div className="space-y-1.5">
-                    <Label htmlFor="addr-postal">ZIP / Postal code</Label>
+                    <Label htmlFor="addr-postal">{t("zip_label")}</Label>
                     <Input
                       id="addr-postal"
                       type="text"
@@ -890,7 +893,7 @@ export default function Signup() {
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <Label htmlFor="addr-country">Country</Label>
+                    <Label htmlFor="addr-country">{t("country_label")}</Label>
                     <Input
                       id="addr-country"
                       type="text"
@@ -902,14 +905,14 @@ export default function Signup() {
                     />
                   </div>
                 </div>
-                <p className="text-xs text-muted-foreground">Used only to ship prizes if you win</p>
+                <p className="text-xs text-muted-foreground">{t("signup_addr_note")}</p>
               </div>
             )}
 
             {/* Date of birth */}
             {step === "dob" && (
               <div className="space-y-1.5">
-                <Label htmlFor="dob">Date of birth</Label>
+                <Label htmlFor="dob">{t("acc_dob")}</Label>
                 <Input
                   id="dob"
                   type="date"
@@ -919,7 +922,7 @@ export default function Signup() {
                   max={new Date(Date.now() - 18 * 365.25 * 24 * 60 * 60 * 1000).toISOString().split("T")[0]}
                   className="rounded-xl h-11 bg-background border-border"
                 />
-                <p className="text-xs text-muted-foreground">You must be at least 18 years old</p>
+                <p className="text-xs text-muted-foreground">{t("signup_dob_note")}</p>
                 <div className="pt-1 space-y-3">
                   <label className="flex items-start gap-3 cursor-pointer group">
                     <input
@@ -929,9 +932,9 @@ export default function Signup() {
                       className="mt-0.5 w-4 h-4 rounded border-border accent-primary cursor-pointer flex-shrink-0"
                     />
                     <span className="text-xs text-muted-foreground leading-relaxed group-hover:text-foreground transition-colors">
-                      I have read and agree to the{" "}
+                      {t("signup_agree_terms_prefix")}{" "}
                       <a href="/terms" target="_blank" className="text-primary underline underline-offset-2 font-medium">
-                        Terms &amp; Conditions
+                        {t("terms_of_service")}
                       </a>
                     </span>
                   </label>
@@ -943,9 +946,9 @@ export default function Signup() {
                       className="mt-0.5 w-4 h-4 rounded border-border accent-primary cursor-pointer flex-shrink-0"
                     />
                     <span className="text-xs text-muted-foreground leading-relaxed group-hover:text-foreground transition-colors">
-                      I have read and agree to the{" "}
+                      {t("signup_agree_privacy_prefix")}{" "}
                       <a href="/privacy" target="_blank" className="text-primary underline underline-offset-2 font-medium">
-                        Privacy Policy
+                        {t("privacy_policy_label")}
                       </a>
                     </span>
                   </label>
@@ -962,8 +965,8 @@ export default function Signup() {
                       <Check className="w-6 h-6 text-green-600" />
                     </div>
                     <div>
-                      <p className="font-bold text-foreground text-lg">+{promoInfo.bonusTickets} bonus tickets added</p>
-                      <p className="text-sm text-muted-foreground mt-0.5">Your account now starts with {3 + promoInfo.bonusTickets} tickets</p>
+                      <p className="font-bold text-foreground text-lg">{t("signup_bonus_tickets", { count: promoInfo.bonusTickets })}</p>
+                      <p className="text-sm text-muted-foreground mt-0.5">{t("signup_bonus_note", { count: 3 + promoInfo.bonusTickets })}</p>
                     </div>
                     {promoInfo.instructions && (
                       <p className="text-xs text-muted-foreground bg-muted/50 rounded-xl px-4 py-3 text-left">{promoInfo.instructions}</p>
@@ -972,7 +975,7 @@ export default function Signup() {
                 ) : (
                   <div className="space-y-3">
                     <div className="space-y-1.5">
-                      <Label htmlFor="promo-code">Promo code</Label>
+                      <Label htmlFor="promo-code">{t("signup_promo_code_label")}</Label>
                       <div className="flex gap-2">
                         <Input
                           id="promo-code"
@@ -989,14 +992,14 @@ export default function Signup() {
                           disabled={promoLoading || !promoCode.trim()}
                           className="px-4 h-11 rounded-xl bg-primary text-white text-sm font-semibold hover:bg-primary/90 transition-colors disabled:opacity-50 whitespace-nowrap flex items-center gap-1.5"
                         >
-                          {promoLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Apply"}
+                          {promoLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : t("signup_apply_btn")}
                         </button>
                       </div>
                     </div>
                     {promoError && (
                       <p className="text-sm text-destructive bg-destructive/10 rounded-lg px-3 py-2 border border-destructive/20">{promoError}</p>
                     )}
-                    <p className="text-xs text-muted-foreground">Optional. You can also redeem codes later from your account.</p>
+                    <p className="text-xs text-muted-foreground">{t("signup_promo_optional")}</p>
                   </div>
                 )}
               </div>
@@ -1013,7 +1016,7 @@ export default function Signup() {
               onClick={handle}
               disabled={loading || !isValid()}
             >
-              {loading ? "Please wait..." : CTALabel[step]}
+              {loading ? t("please_wait") : CTALabel[step]}
             </Button>
           </div>
 
@@ -1023,12 +1026,12 @@ export default function Signup() {
                 onClick={back}
                 className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
               >
-                <ArrowLeft className="w-4 h-4" /> Back
+                <ArrowLeft className="w-4 h-4" /> {t("back_btn")}
               </button>
             ) : (
               <p className="text-sm text-muted-foreground">
-                Already have an account?{" "}
-                <Link href="/login" className="text-primary hover:underline font-semibold">Log in</Link>
+                {t("already_account")}{" "}
+                <Link href="/login" className="text-primary hover:underline font-semibold">{t("log_in")}</Link>
               </p>
             )}
             {step === "email-otp" && (
@@ -1044,7 +1047,7 @@ export default function Signup() {
                   finally { setLoading(false); }
                 }}
               >
-                Resend code
+                {t("resend_code")}
               </button>
             )}
             {step === "phone-otp" && (
@@ -1060,7 +1063,7 @@ export default function Signup() {
                   finally { setLoading(false); }
                 }}
               >
-                Resend code
+                {t("resend_code")}
               </button>
             )}
           </div>

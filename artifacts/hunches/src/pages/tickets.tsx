@@ -1,8 +1,8 @@
 import { Link, useLocation } from "wouter";
 import { apiUrl } from "@/lib/apiFetch";
 import {
-  Ticket, ArrowLeft, Info, Gift, Tag, ShoppingBag, MinusCircle,
-  Sparkles, Package, RefreshCw, Star, Zap, Crown, Loader2, Settings,
+  Ticket, ArrowLeft, Info, Sparkles, Package, MinusCircle,
+  Star, Zap, Crown, Loader2, Settings,
   CheckCircle2, AlertCircle, ChevronRight, TicketCheck, X,
 } from "lucide-react";
 import { Layout } from "@/components/layout";
@@ -10,18 +10,9 @@ import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-
-type TxType = "welcome" | "promo" | "purchase" | "subscription" | "spent";
-
-interface TicketTransaction {
-  id: number;
-  userId: number;
-  type: TxType;
-  amount: number;
-  label: string;
-  reference: string | null;
-  createdAt: string;
-}
+import { useTranslation } from "react-i18next";
+import { txSubtitle, formatDate, txIcon, txColors } from "@/lib/ticket-utils";
+import type { TxType, TicketTransaction } from "@/lib/ticket-utils";
 
 interface TicketPack {
   product_id: string;
@@ -81,45 +72,6 @@ function useMySubscription() {
   });
 }
 
-export function txIcon(type: TxType) {
-  switch (type) {
-    case "welcome":      return <Gift className="w-4 h-4" />;
-    case "promo":        return <Tag className="w-4 h-4" />;
-    case "purchase":     return <ShoppingBag className="w-4 h-4" />;
-    case "subscription": return <RefreshCw className="w-4 h-4" />;
-    case "spent":        return <MinusCircle className="w-4 h-4" />;
-  }
-}
-
-export function txColors(type: TxType): { icon: string; badge: string } {
-  switch (type) {
-    case "welcome":      return { icon: "text-violet-600 bg-violet-100", badge: "bg-violet-100 text-violet-700" };
-    case "promo":        return { icon: "text-emerald-600 bg-emerald-100", badge: "bg-emerald-100 text-emerald-700" };
-    case "purchase":     return { icon: "text-sky-600 bg-sky-100", badge: "bg-sky-100 text-sky-700" };
-    case "subscription": return { icon: "text-indigo-600 bg-indigo-100", badge: "bg-indigo-100 text-indigo-700" };
-    case "spent":        return { icon: "text-slate-500 bg-slate-100", badge: "bg-slate-100 text-slate-600" };
-  }
-}
-
-export function txSubtitle(tx: TicketTransaction): string {
-  if (tx.type === "welcome")      return "Tickets added to your account at signup";
-  if (tx.type === "promo")        return tx.reference ? `Code: ${tx.reference}` : "Promotional code redeemed";
-  if (tx.type === "purchase")     return tx.reference ? `Session: ${tx.reference.slice(0, 20)}…` : "Ticket purchase";
-  if (tx.type === "subscription") return "Monthly renewal";
-  if (tx.type === "spent")        return "Used for a prediction";
-  return "";
-}
-
-export function formatDate(iso: string): string {
-  const d = new Date(iso);
-  const now = new Date();
-  const diffDays = Math.floor((now.getTime() - d.getTime()) / 86_400_000);
-  if (diffDays === 0) return "Today";
-  if (diffDays === 1) return "Yesterday";
-  if (diffDays < 7)  return `${diffDays} days ago`;
-  return d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: diffDays > 365 ? "numeric" : undefined });
-}
-
 function formatPrice(cents: number): string {
   return `$${(cents / 100).toFixed(2)}`;
 }
@@ -139,7 +91,7 @@ const PACK_ICONS: Record<string, React.ReactNode> = {
 const FALLBACK_PACKS = [
   { label: "Single",  tickets: 1,  price: "$0.99" },
   { label: "5-Pack",  tickets: 5,  price: "$4.49" },
-  { label: "10-Pack", tickets: 10, price: "$7.99", badge: "Best value" },
+  { label: "10-Pack", tickets: 10, price: "$7.99", badge: true },
 ];
 
 const MONTHLY_PASSES = [
@@ -151,6 +103,7 @@ const MONTHLY_PASSES = [
 ];
 
 export default function TicketsPage() {
+  const { t } = useTranslation();
   const { user, isLoading: authLoading, refetch: refetchUser } = useAuth();
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
@@ -186,7 +139,6 @@ export default function TicketsPage() {
   const activeTier = subInfo?.tier ?? "free";
   const activeSub = subInfo?.subscription;
 
-  // Activity: newest first, max 3
   const recentActivity = activity ? [...activity].sort(
     (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
   ).slice(0, 3) : [];
@@ -240,16 +192,19 @@ export default function TicketsPage() {
       });
       const data = await res.json() as { ticketsGranted?: number; error?: string };
       if (!res.ok) {
-        setPromoResult({ ok: false, message: data.error ?? "Invalid code" });
+        setPromoResult({ ok: false, message: data.error ?? t("promo_invalid") });
       } else {
         const tickets = data.ticketsGranted ?? 0;
-        setPromoResult({ ok: true, message: `${tickets} ticket${tickets !== 1 ? "s" : ""} added to your account!`, tickets });
+        const msg = tickets !== 1
+          ? t("promo_success_plural", { count: tickets })
+          : t("promo_success", { count: tickets });
+        setPromoResult({ ok: true, message: msg, tickets });
         setPromoCode("");
         void refetchUser();
         void queryClient.invalidateQueries({ queryKey: ["ticket-activity"] });
       }
     } catch {
-      setPromoResult({ ok: false, message: "Something went wrong. Please try again." });
+      setPromoResult({ ok: false, message: t("promo_error") });
     } finally {
       setPromoLoading(false);
     }
@@ -279,10 +234,10 @@ export default function TicketsPage() {
         {/* Header */}
         <Link href="/" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground mb-6 transition-colors">
           <ArrowLeft className="w-4 h-4" />
-          Back to hunches
+          {t("tickets_back")}
         </Link>
-        <h1 className="font-display font-bold text-3xl text-foreground mb-1">My Tickets</h1>
-        <p className="text-muted-foreground text-sm mb-8">Tickets let you enter predictions and compete for prizes.</p>
+        <h1 className="font-display font-bold text-3xl text-foreground mb-1">{t("tickets_title")}</h1>
+        <p className="text-muted-foreground text-sm mb-8">{t("tickets_sub")}</p>
 
         {isLoading ? (
           <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-8">
@@ -299,8 +254,8 @@ export default function TicketsPage() {
               <div className="flex items-center gap-3 bg-emerald-50 border border-emerald-200 rounded-xl p-4 mb-6">
                 <CheckCircle2 className="w-5 h-5 text-emerald-600 flex-shrink-0" />
                 <div>
-                  <p className="text-sm font-semibold text-emerald-800">Subscription active</p>
-                  <p className="text-xs text-emerald-700">Your monthly tickets will be credited with each billing cycle.</p>
+                  <p className="text-sm font-semibold text-emerald-800">{t("sub_active_title")}</p>
+                  <p className="text-xs text-emerald-700">{t("sub_active_desc")}</p>
                 </div>
                 <button onClick={() => setSuccessBanner(false)} className="ml-auto text-emerald-500 hover:text-emerald-700">
                   <MinusCircle className="w-4 h-4" />
@@ -327,12 +282,12 @@ export default function TicketsPage() {
                       }
                       <div>
                         <p className="text-sm font-semibold text-foreground capitalize">
-                          {activeSub.tier} plan — {activeSub.ticketsPerMonth} tickets/mo
+                          {activeSub.tier} — {activeSub.ticketsPerMonth} tickets{t("per_month_suffix")}
                         </p>
                         <p className="text-xs text-muted-foreground">
                           {activeSub.cancelAtPeriodEnd
-                            ? `Cancels ${formatPeriodEnd(activeSub.currentPeriodEnd)}`
-                            : `Renews ${formatPeriodEnd(activeSub.currentPeriodEnd)}`
+                            ? t("sub_cancels", { date: formatPeriodEnd(activeSub.currentPeriodEnd) })
+                            : t("sub_renews", { date: formatPeriodEnd(activeSub.currentPeriodEnd) })
                           }
                         </p>
                       </div>
@@ -343,7 +298,7 @@ export default function TicketsPage() {
                       className="flex items-center gap-1.5 text-xs font-semibold text-primary hover:text-primary/80 transition-colors flex-shrink-0"
                     >
                       {openingPortal ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Settings className="w-3.5 h-3.5" />}
-                      Manage
+                      {t("tickets_manage")}
                     </button>
                   </div>
                 )}
@@ -355,7 +310,7 @@ export default function TicketsPage() {
                       <Ticket className="w-5 h-5 text-primary" />
                     </div>
                     <div>
-                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Current balance</p>
+                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("current_balance")}</p>
                       <p className="text-4xl font-display font-bold text-foreground leading-none mt-0.5">
                         {user.tickets}
                         <span className="text-lg font-medium text-muted-foreground ml-2">
@@ -368,10 +323,10 @@ export default function TicketsPage() {
 
                 {/* ── Get more tickets ── */}
                 <div className="mb-8">
-                  <h2 className="text-sm font-semibold text-foreground uppercase tracking-wide mb-5">Get more tickets</h2>
+                  <h2 className="text-sm font-semibold text-foreground uppercase tracking-wide mb-5">{t("tickets_get_more")}</h2>
 
                   {/* Ticket Packs */}
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-3">Ticket Packs</p>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-3">{t("ticket_packs_label")}</p>
 
                   {packsLoading ? (
                     <div className="grid grid-cols-3 gap-3 mb-8">
@@ -397,7 +352,7 @@ export default function TicketsPage() {
                           >
                             {pack.metadata?.packId === "ten" && (
                               <span className="absolute -top-2 left-3 text-[10px] font-bold bg-primary text-white px-2 py-0.5 rounded-full">
-                                Best value
+                                {t("best_value_badge")}
                               </span>
                             )}
                             <div className={`transition-colors ${isChecking ? "text-primary" : "text-muted-foreground group-hover:text-primary"}`}>
@@ -424,7 +379,7 @@ export default function TicketsPage() {
                         >
                           {pack.badge && (
                             <span className="absolute -top-2 left-3 text-[10px] font-bold bg-primary text-white px-2 py-0.5 rounded-full">
-                              {pack.badge}
+                              {t("best_value_badge")}
                             </span>
                           )}
                           <div className="text-muted-foreground"><Ticket className="w-5 h-5" /></div>
@@ -439,7 +394,7 @@ export default function TicketsPage() {
                   )}
 
                   {/* Monthly Passes */}
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-3">Monthly Passes</p>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-3">{t("monthly_passes_label")}</p>
                   <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
                     {MONTHLY_PASSES.map((pass) => {
                       const isActive = activeTier === pass.id;
@@ -462,24 +417,24 @@ export default function TicketsPage() {
                         >
                           {pass.featured && !isActive && (
                             <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 text-[10px] font-bold bg-primary text-white px-2.5 py-0.5 rounded-full whitespace-nowrap">
-                              Top Choice
+                              {t("top_choice_badge")}
                             </span>
                           )}
                           {isActive && (
                             <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 text-[10px] font-bold bg-emerald-500 text-white px-2.5 py-0.5 rounded-full whitespace-nowrap">
-                              Current plan
+                              {t("current_plan_badge")}
                             </span>
                           )}
 
                           <div className={isActive || pass.featured ? "text-primary" : "text-muted-foreground"}>{pass.icon}</div>
                           <div>
                             <p className={`text-sm font-bold ${isActive || pass.featured ? "text-primary" : "text-foreground"}`}>{pass.label}</p>
-                            <p className="text-xs text-muted-foreground">{pass.tickets} tickets/mo</p>
+                            <p className="text-xs text-muted-foreground">{pass.tickets} tickets{t("per_month_suffix")}</p>
                           </div>
                           <p className="text-base font-bold text-primary mt-auto">
                             {isFree
                               ? <span className="text-foreground font-bold">Free</span>
-                              : <>${(pass.amountCents / 100).toFixed(2)}<span className="text-xs font-medium text-muted-foreground">/mo</span></>
+                              : <>${(pass.amountCents / 100).toFixed(2)}<span className="text-xs font-medium text-muted-foreground">{t("per_month_suffix")}</span></>
                             }
                           </p>
 
@@ -498,17 +453,17 @@ export default function TicketsPage() {
                               {isSubscribing ? (
                                 <span className="flex items-center justify-center gap-1.5">
                                   <Loader2 className="w-3 h-3 animate-spin" />
-                                  Loading…
+                                  {t("loading_dots")}
                                 </span>
                               ) : isActive ? (
                                 openingPortal ? (
                                   <span className="flex items-center justify-center gap-1.5">
                                     <Loader2 className="w-3 h-3 animate-spin" />
-                                    Loading…
+                                    {t("loading_dots")}
                                   </span>
-                                ) : "Manage"
+                                ) : t("tickets_manage")
                               ) : (
-                                "Subscribe"
+                                t("subscribe_btn")
                               )}
                             </button>
                           )}
@@ -518,7 +473,7 @@ export default function TicketsPage() {
                   </div>
 
                   <p className="text-xs text-muted-foreground text-center mt-4">
-                    Tickets are never required — you can always play with your free tickets.
+                    {t("tickets_free_note")}
                   </p>
                 </div>
 
@@ -526,13 +481,13 @@ export default function TicketsPage() {
                 <div className="bg-muted/60 border border-border rounded-2xl p-5 space-y-3">
                   <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
                     <Info className="w-4 h-4 text-primary" />
-                    How tickets work
+                    {t("how_tickets_title")}
                   </div>
                   <ul className="space-y-2 text-sm text-muted-foreground list-none">
-                    <li className="flex gap-2"><span className="text-primary font-bold mt-0.5">–</span>Every new account starts with 15 tickets.</li>
-                    <li className="flex gap-2"><span className="text-primary font-bold mt-0.5">–</span>Each prediction you make costs at least 1 ticket.</li>
-                    <li className="flex gap-2"><span className="text-primary font-bold mt-0.5">–</span>Monthly subscribers receive their tickets at the start of each billing cycle.</li>
-                    <li className="flex gap-2"><span className="text-primary font-bold mt-0.5">–</span>Tickets are not money — no purchase is ever required.</li>
+                    <li className="flex gap-2"><span className="text-primary font-bold mt-0.5">–</span>{t("how_tickets_1")}</li>
+                    <li className="flex gap-2"><span className="text-primary font-bold mt-0.5">–</span>{t("how_tickets_2")}</li>
+                    <li className="flex gap-2"><span className="text-primary font-bold mt-0.5">–</span>{t("how_tickets_3")}</li>
+                    <li className="flex gap-2"><span className="text-primary font-bold mt-0.5">–</span>{t("how_tickets_4")}</li>
                   </ul>
                 </div>
 
@@ -541,7 +496,7 @@ export default function TicketsPage() {
                     className="w-full bg-primary text-white hover:bg-primary/90 font-bold rounded-xl h-12"
                     onClick={() => setLocation("/")}
                   >
-                    Browse open hunches
+                    {t("browse_open_hunches")}
                   </Button>
                 </div>
               </div>
@@ -550,13 +505,13 @@ export default function TicketsPage() {
               <div className="lg:sticky lg:top-6 space-y-4">
                 <div className="bg-card border border-border rounded-2xl p-5">
                   <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-sm font-semibold text-foreground uppercase tracking-wide">Activity</h2>
+                    <h2 className="text-sm font-semibold text-foreground uppercase tracking-wide">{t("activity_label")}</h2>
                     {activity && activity.length > 0 && (
                       <Link
                         href="/tickets/activity"
                         className="flex items-center gap-0.5 text-xs font-semibold text-primary hover:text-primary/80 transition-colors"
                       >
-                        ver detalle
+                        {t("view_detail")}
                         <ChevronRight className="w-3.5 h-3.5" />
                       </Link>
                     )}
@@ -581,7 +536,7 @@ export default function TicketsPage() {
                                 <div className="flex items-start justify-between gap-2">
                                   <div className="min-w-0">
                                     <p className="text-sm font-semibold text-foreground leading-tight truncate">{tx.label}</p>
-                                    <p className="text-xs text-muted-foreground mt-0.5">{formatDate(tx.createdAt)}</p>
+                                    <p className="text-xs text-muted-foreground mt-0.5">{formatDate(tx.createdAt, t)}</p>
                                   </div>
                                   <span className={`text-xs font-bold px-2 py-0.5 rounded-full flex-shrink-0 ${c.badge}`}>
                                     {tx.amount > 0 ? `+${tx.amount}` : tx.amount}
@@ -599,7 +554,7 @@ export default function TicketsPage() {
                             href="/tickets/activity"
                             className="flex items-center justify-center gap-1 text-xs font-semibold text-primary hover:text-primary/80 transition-colors"
                           >
-                            Ver todos ({activity.length} movimientos)
+                            {t("view_all_movements", { count: activity.length })}
                             <ChevronRight className="w-3.5 h-3.5" />
                           </Link>
                         </div>
@@ -607,7 +562,7 @@ export default function TicketsPage() {
                     </div>
                   ) : (
                     <div className="text-center py-8 text-sm text-muted-foreground">
-                      No activity yet
+                      {t("no_activity")}
                     </div>
                   )}
                 </div>
@@ -616,9 +571,9 @@ export default function TicketsPage() {
                 <div className="bg-card border border-border rounded-2xl p-5">
                   <div className="flex items-center gap-2 mb-3">
                     <TicketCheck className="w-4 h-4 text-primary" />
-                    <h2 className="text-sm font-semibold text-foreground uppercase tracking-wide">Promo Code</h2>
+                    <h2 className="text-sm font-semibold text-foreground uppercase tracking-wide">{t("promo_code_title")}</h2>
                   </div>
-                  <p className="text-xs text-muted-foreground mb-3">Enter a code to add bonus tickets to your account.</p>
+                  <p className="text-xs text-muted-foreground mb-3">{t("promo_code_desc")}</p>
 
                   <form onSubmit={handleRedeemPromo} className="flex flex-col gap-2">
                     <div className="flex gap-2">
@@ -629,7 +584,7 @@ export default function TicketsPage() {
                           setPromoCode(e.target.value.toUpperCase());
                           setPromoResult(null);
                         }}
-                        placeholder="Enter code"
+                        placeholder={t("promo_placeholder")}
                         maxLength={32}
                         className="flex-1 min-w-0 h-9 px-3 rounded-lg border border-border bg-background text-sm font-mono font-semibold text-foreground placeholder:font-normal placeholder:text-muted-foreground outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/15 transition-all uppercase"
                         disabled={promoLoading}
@@ -642,7 +597,7 @@ export default function TicketsPage() {
                         disabled={!promoCode.trim() || promoLoading}
                         className="h-9 px-4 rounded-lg bg-primary text-white text-xs font-semibold hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-1.5 shrink-0"
                       >
-                        {promoLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Redeem"}
+                        {promoLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : t("redeem_btn")}
                       </button>
                     </div>
 

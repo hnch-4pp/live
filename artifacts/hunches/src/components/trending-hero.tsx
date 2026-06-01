@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Link } from "wouter";
 import { formatDistanceToNow, isPast, type Locale } from "date-fns";
-import { enUS, es, de, fr, pt, it, ja, ko, zhCN, id, tr } from "date-fns/locale";
+import { enUS, es } from "date-fns/locale";
 import {
   ChevronLeft, ChevronRight, Users, Clock, Gift, Award,
   DollarSign, Trophy, Zap, ArrowRight,
@@ -16,7 +16,8 @@ import { useTranslation } from "react-i18next";
 import type { Hunch } from "@workspace/api-client-react";
 
 const DATE_FNS_LOCALES: Record<string, Locale> = {
-  en: enUS, es, de, fr, pt, it, ja, ko, zh: zhCN, id, tr,
+  en: enUS,
+  es,
 };
 
 const CATEGORY_PLACEHOLDER: Record<string, string> = {
@@ -379,7 +380,7 @@ export function TrendingHero({ hunches }: TrendingHeroProps) {
                 }`}
               >
                 <span className={`w-1.5 h-1.5 rounded-full ${isOpen ? "bg-emerald-400 animate-pulse" : "bg-white/50"}`} />
-                {isOpen ? "Open" : effectiveStatus === "resolved" ? "Resolved" : "Closed"}
+                {isOpen ? t("status_open_label") : effectiveStatus === "resolved" ? t("status_resolved_label") : t("status_closed_label")}
               </span>
             </div>
 
@@ -398,7 +399,7 @@ export function TrendingHero({ hunches }: TrendingHeroProps) {
                 href={`/hunch/${hunch.slug || hunch.id}`}
                 className="inline-block mt-1.5 text-xs text-white/50 hover:text-white/80 transition-colors"
               >
-                View more
+                {t("view_more")}
               </Link>
             </div>
 
@@ -410,12 +411,12 @@ export function TrendingHero({ hunches }: TrendingHeroProps) {
               </span>
               <span className="inline-flex items-center gap-1.5 text-white/70 text-xs">
                 <Users className="w-3.5 h-3.5" />
-                {hunch.participantCount.toLocaleString()} predictions
+                {t("predictions_count", { count: hunch.participantCount.toLocaleString() })}
               </span>
               {timeLeft && (
                 <span className="inline-flex items-center gap-1.5 text-white/70 text-xs">
                   <Clock className="w-3.5 h-3.5" />
-                  {timeLeft} left
+                  {timeLeft} {t("time_left_suffix")}
                 </span>
               )}
             </div>
@@ -423,7 +424,7 @@ export function TrendingHero({ hunches }: TrendingHeroProps) {
             {/* CTA */}
             <Link href={`/hunch/${hunch.slug || hunch.id}`}>
               <button className="inline-flex items-center gap-2 bg-white text-foreground font-bold text-sm px-5 py-2.5 rounded-xl hover:bg-white/90 transition-all shadow-lg hover:shadow-xl active:scale-95">
-                {isOpen ? "Make your prediction" : "See results"}
+                {isOpen ? t("make_prediction_cta") : t("see_results")}
                 <ArrowRight className="w-4 h-4" />
               </button>
             </Link>
@@ -432,8 +433,12 @@ export function TrendingHero({ hunches }: TrendingHeroProps) {
           {/* Right — distribution chart */}
           {hasOptions && (
             <div className="hidden md:flex flex-col justify-end w-[420px] shrink-0">
-              <p className="text-white/50 text-[11px] font-semibold uppercase tracking-wider mb-1">Predictions distribution</p>
-              <p className="text-white/30 text-[10px] mb-2">{hunch.participantCount.toLocaleString()} prediction{hunch.participantCount !== 1 ? "s" : ""} so far</p>
+              <p className="text-white/50 text-[11px] font-semibold uppercase tracking-wider mb-1">{t("predictions_dist")}</p>
+              <p className="text-white/30 text-[10px] mb-2">
+                {hunch.participantCount !== 1
+                  ? t("predictions_so_far_plural", { count: hunch.participantCount.toLocaleString() })
+                  : t("predictions_so_far", { count: hunch.participantCount.toLocaleString() })}
+              </p>
               <DistributionChart options={hunch.options} participantCount={hunch.participantCount} />
             </div>
           )}

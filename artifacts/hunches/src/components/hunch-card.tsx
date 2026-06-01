@@ -1,8 +1,6 @@
 import { Link } from "wouter";
 import { formatDistanceToNow, isPast, type Locale } from "date-fns";
-import {
-  enUS, es, de, fr, pt, it, ja, ko, zhCN, id, tr,
-} from "date-fns/locale";
+import { enUS, es } from "date-fns/locale";
 import { Users, Clock, Trophy, Award, Gift, DollarSign, Layers } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { Hunch } from "@workspace/api-client-react";
@@ -15,16 +13,6 @@ interface HunchCardProps {
 const DATE_FNS_LOCALES: Record<string, Locale> = {
   en: enUS,
   es,
-  de,
-  fr,
-  pt,
-  it,
-  ja,
-  ko,
-  zh: zhCN,
-  id,
-  tr,
-  /* hi and bn don't have date-fns locales — fallback to enUS */
 };
 
 const CATEGORY_GRADIENTS: Record<string, string> = {

@@ -4,92 +4,7 @@ import {
   Ticket, Package, Sparkles, Star, Zap, Crown,
   CheckCircle2, ArrowRight, Gift,
 } from "lucide-react";
-
-const PASSES = [
-  {
-    id: "free",
-    icon: <Ticket className="w-5 h-5" />,
-    label: "Free",
-    tickets: 5,
-    amountCents: 0,
-    highlight: true,
-    badge: "Always free",
-    cta: "Start playing",
-    features: [
-      "5 tickets every month, automatically",
-      "Access to all prediction categories",
-      "Community leaderboard",
-      "Real prizes — no purchase required",
-    ],
-  },
-  {
-    id: "starter",
-    icon: <Package className="w-5 h-5" />,
-    label: "Starter",
-    tickets: 10,
-    amountCents: 699,
-    highlight: false,
-    badge: null,
-    cta: "Get Starter",
-    features: [
-      "10 tickets every month",
-      "Everything in Free",
-      "Early access to new hunches",
-    ],
-  },
-  {
-    id: "plus",
-    icon: <Star className="w-5 h-5" />,
-    label: "Plus",
-    tickets: 25,
-    amountCents: 1399,
-    highlight: false,
-    badge: null,
-    cta: "Get Plus",
-    features: [
-      "25 tickets every month",
-      "Everything in Starter",
-      "Priority prediction placement",
-    ],
-  },
-  {
-    id: "pro",
-    icon: <Zap className="w-5 h-5" />,
-    label: "Pro",
-    tickets: 100,
-    amountCents: 2999,
-    highlight: false,
-    badge: "Most popular",
-    cta: "Get Pro",
-    features: [
-      "100 tickets every month",
-      "Everything in Plus",
-      "Exclusive Pro-only hunches",
-    ],
-  },
-  {
-    id: "elite",
-    icon: <Crown className="w-5 h-5" />,
-    label: "Elite",
-    tickets: 250,
-    amountCents: 4999,
-    highlight: false,
-    badge: null,
-    cta: "Get Elite",
-    features: [
-      "250 tickets every month",
-      "Everything in Pro",
-      "VIP prize access",
-      "Dedicated support",
-    ],
-  },
-];
-
-const PACKS = [
-  { icon: <Ticket className="w-4 h-4" />,    label: "Single",  tickets: 1,  price: "$0.99", badge: null },
-  { icon: <Package className="w-4 h-4" />,   label: "5-Pack",  tickets: 5,  price: "$4.49", badge: null },
-  { icon: <Sparkles className="w-4 h-4" />,  label: "10-Pack", tickets: 10, price: "$7.99", badge: "Best value" },
-];
+import { useTranslation } from "react-i18next";
 
 function fmt$(cents: number) {
   return `$${(cents / 100).toFixed(2)}`;
@@ -101,6 +16,94 @@ function costPerTicket(cents: number, tickets: number) {
 }
 
 export default function Pricing() {
+  const { t } = useTranslation();
+
+  const PASSES = [
+    {
+      id: "free",
+      icon: <Ticket className="w-5 h-5" />,
+      label: "Free",
+      tickets: 5,
+      amountCents: 0,
+      highlight: true,
+      badgeKey: "pricing_free_badge" as const,
+      ctaKey: "pricing_free_cta" as const,
+      features: [
+        t("pricing_free_f1"),
+        t("pricing_free_f2"),
+        t("pricing_free_f3"),
+        t("pricing_free_f4"),
+      ],
+    },
+    {
+      id: "starter",
+      icon: <Package className="w-5 h-5" />,
+      label: "Starter",
+      tickets: 10,
+      amountCents: 699,
+      highlight: false,
+      badgeKey: null,
+      ctaKey: "pricing_starter_cta" as const,
+      features: [
+        t("pricing_starter_f1"),
+        t("pricing_starter_f2"),
+        t("pricing_starter_f3"),
+      ],
+    },
+    {
+      id: "plus",
+      icon: <Star className="w-5 h-5" />,
+      label: "Plus",
+      tickets: 25,
+      amountCents: 1399,
+      highlight: false,
+      badgeKey: null,
+      ctaKey: "pricing_plus_cta" as const,
+      features: [
+        t("pricing_plus_f1"),
+        t("pricing_plus_f2"),
+        t("pricing_plus_f3"),
+      ],
+    },
+    {
+      id: "pro",
+      icon: <Zap className="w-5 h-5" />,
+      label: "Pro",
+      tickets: 100,
+      amountCents: 2999,
+      highlight: false,
+      badgeKey: "pricing_pro_badge" as const,
+      ctaKey: "pricing_pro_cta" as const,
+      features: [
+        t("pricing_pro_f1"),
+        t("pricing_pro_f2"),
+        t("pricing_pro_f3"),
+      ],
+    },
+    {
+      id: "elite",
+      icon: <Crown className="w-5 h-5" />,
+      label: "Elite",
+      tickets: 250,
+      amountCents: 4999,
+      highlight: false,
+      badgeKey: null,
+      ctaKey: "pricing_elite_cta" as const,
+      features: [
+        t("pricing_elite_f1"),
+        t("pricing_elite_f2"),
+        t("pricing_elite_f3"),
+        t("pricing_elite_f4"),
+      ],
+    },
+  ];
+
+  const PACKS = [
+    { icon: <Ticket className="w-4 h-4" />,   label: "Single",  tickets: 1,  price: "$0.99", badgeKey: null },
+    { icon: <Package className="w-4 h-4" />,  label: "5-Pack",  tickets: 5,  price: "$4.49", badgeKey: null },
+    { icon: <Sparkles className="w-4 h-4" />, label: "10-Pack", tickets: 10, price: "$7.99", badgeKey: "best_value_badge" as const },
+  ];
+
   return (
     <Layout>
       <div className="min-h-screen bg-gray-50">
@@ -110,31 +113,30 @@ export default function Pricing() {
           <div className="max-w-4xl mx-auto px-4 py-16 text-center">
             <div className="inline-flex items-center gap-2 bg-violet-50 border border-violet-200 text-violet-700 text-xs font-bold uppercase tracking-widest px-3 py-1.5 rounded-full mb-6">
               <Gift className="w-3.5 h-3.5" />
-              No purchase ever required
+              {t("pricing_badge")}
             </div>
             <h1 className="text-4xl sm:text-5xl font-display font-extrabold text-gray-900 mb-5 leading-tight">
-              Play free, forever.
+              {t("pricing_hero_h1_1")}
               <br />
-              <span className="text-violet-600">Win real prizes.</span>
+              <span className="text-violet-600">{t("pricing_hero_h1_2")}</span>
             </h1>
             <p className="text-lg text-gray-500 max-w-xl mx-auto mb-8">
-              Every account gets 5 free tickets every month — no card needed, no strings attached.
-              Buy more if you want to play more, or upgrade for a monthly pass.
+              {t("pricing_hero_sub")}
             </p>
             <Link href="/signup"
               className="inline-flex items-center gap-2 bg-violet-600 hover:bg-violet-700 text-white font-bold px-7 py-3.5 rounded-xl transition-colors shadow-sm">
-              Start playing free
+              {t("pricing_start_free")}
               <ArrowRight className="w-4 h-4" />
             </Link>
-            <p className="text-xs text-gray-400 mt-3">No credit card required</p>
+            <p className="text-xs text-gray-400 mt-3">{t("pricing_no_card")}</p>
           </div>
         </section>
 
         {/* ── Monthly passes ── */}
         <section className="max-w-6xl mx-auto px-4 py-16">
           <div className="text-center mb-10">
-            <h2 className="text-2xl font-display font-bold text-gray-900 mb-2">Monthly Passes</h2>
-            <p className="text-gray-500 text-sm">Tickets delivered every month. Cancel any time.</p>
+            <h2 className="text-2xl font-display font-bold text-gray-900 mb-2">{t("pricing_passes_title")}</h2>
+            <p className="text-gray-500 text-sm">{t("pricing_passes_sub")}</p>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
@@ -148,13 +150,13 @@ export default function Pricing() {
                     : "bg-white border-gray-200 text-gray-900"
                 }`}>
 
-                  {pass.badge && (
+                  {pass.badgeKey && (
                     <div className={`absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest whitespace-nowrap ${
                       pass.highlight
                         ? "bg-white text-violet-600"
                         : "bg-violet-600 text-white"
                     }`}>
-                      {pass.badge}
+                      {t(pass.badgeKey)}
                     </div>
                   )}
 
@@ -178,7 +180,7 @@ export default function Pricing() {
                   </div>
 
                   <p className={`text-sm font-semibold mb-1 ${pass.highlight ? "text-white/90" : "text-gray-700"}`}>
-                    {pass.tickets} tickets/month
+                    {t("pricing_tickets_month", { n: pass.tickets })}
                   </p>
 
                   {perTicket && (
@@ -203,7 +205,7 @@ export default function Pricing() {
                         ? "bg-white text-violet-600 hover:bg-violet-50"
                         : "bg-violet-50 text-violet-700 hover:bg-violet-100 border border-violet-200"
                     }`}>
-                    {pass.cta}
+                    {t(pass.ctaKey)}
                   </Link>
                 </div>
               );
@@ -214,16 +216,16 @@ export default function Pricing() {
         {/* ── Ticket packs ── */}
         <section className="max-w-3xl mx-auto px-4 pb-16">
           <div className="text-center mb-10">
-            <h2 className="text-2xl font-display font-bold text-gray-900 mb-2">Ticket Packs</h2>
-            <p className="text-gray-500 text-sm">Need more tickets this month? Top up anytime with a one-time pack.</p>
+            <h2 className="text-2xl font-display font-bold text-gray-900 mb-2">{t("pricing_packs_title")}</h2>
+            <p className="text-gray-500 text-sm">{t("pricing_packs_sub")}</p>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             {PACKS.map((pack) => (
               <div key={pack.label} className="relative bg-white border border-gray-200 rounded-2xl p-6 text-center hover:border-violet-300 hover:shadow-sm transition-all">
-                {pack.badge && (
+                {pack.badgeKey && (
                   <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-violet-600 text-white text-[10px] font-bold uppercase tracking-widest px-3 py-1 rounded-full">
-                    {pack.badge}
+                    {t(pack.badgeKey)}
                   </div>
                 )}
                 <div className="w-10 h-10 rounded-xl bg-violet-50 text-violet-600 flex items-center justify-center mx-auto mb-3">
@@ -237,7 +239,7 @@ export default function Pricing() {
                 </p>
                 <Link href="/tickets"
                   className="block text-sm font-bold text-violet-700 bg-violet-50 hover:bg-violet-100 border border-violet-200 py-2.5 rounded-xl transition-colors">
-                  Buy pack
+                  {t("pricing_buy_pack")}
                 </Link>
               </div>
             ))}
@@ -246,14 +248,13 @@ export default function Pricing() {
           {/* Free play callout */}
           <div className="mt-10 bg-gradient-to-r from-violet-600 to-violet-500 rounded-2xl p-6 text-white text-center">
             <Gift className="w-8 h-8 mx-auto mb-3 opacity-90" />
-            <h3 className="text-lg font-bold mb-1">Remember — you can always play free</h3>
+            <h3 className="text-lg font-bold mb-1">{t("pricing_free_callout_title")}</h3>
             <p className="text-sm text-white/80 mb-4 max-w-md mx-auto">
-              Every Hunches account receives 5 free tickets at the start of each month.
-              No credit card, no commitment — just sign up and start making predictions.
+              {t("pricing_free_callout_sub")}
             </p>
             <Link href="/signup"
               className="inline-flex items-center gap-2 bg-white text-violet-700 font-bold text-sm px-6 py-2.5 rounded-xl hover:bg-violet-50 transition-colors">
-              Create free account
+              {t("pricing_create_free")}
               <ArrowRight className="w-4 h-4" />
             </Link>
           </div>
@@ -263,7 +264,7 @@ export default function Pricing() {
         <section className="border-t border-gray-200 bg-white">
           <div className="max-w-3xl mx-auto px-4 py-8 text-center">
             <p className="text-xs text-gray-400 leading-relaxed">
-              Hunches is a skill-based prediction platform. Tickets are used to make predictions and are not money, currency, or a financial instrument. No purchase is necessary to play — free tickets are provided to all users monthly. Prizes are awarded as Amazon gift cards, Starbucks cards, or branded merchandise. This is not gambling.
+              {t("pricing_disclaimer")}
             </p>
           </div>
         </section>

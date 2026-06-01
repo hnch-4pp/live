@@ -3,6 +3,7 @@ import { apiUrl } from "@/lib/apiFetch";
 import { useLocation } from "wouter";
 import { Layout } from "@/components/layout";
 import { useAuth } from "@/hooks/use-auth";
+import { useTranslation } from "react-i18next";
 import {
   Clock, CheckCircle2, XCircle, Users, Hourglass, ChevronRight, Loader2, Target,
 } from "lucide-react";
@@ -29,24 +30,25 @@ interface MyHunchRow {
 
 function formatPredictionDate(iso: string): string {
   const d = new Date(iso);
-  return d.toLocaleString("en-US", {
+  return d.toLocaleString(undefined, {
     month: "short", day: "numeric", year: "numeric",
     hour: "numeric", minute: "2-digit", hour12: true,
   });
 }
 
-function timeLeft(iso: string): string {
+function timeLeft(iso: string, endedLabel: string): string {
   const diff = new Date(iso).getTime() - Date.now();
-  if (diff <= 0) return "Ended";
+  if (diff <= 0) return endedLabel;
   const days = Math.floor(diff / 86400000);
   const hours = Math.floor((diff % 86400000) / 3600000);
   const mins = Math.floor((diff % 3600000) / 60000);
-  if (days > 0) return `${days}d ${hours}h left`;
-  if (hours > 0) return `${hours}h ${mins}m left`;
-  return `${mins}m left`;
+  if (days > 0) return `${days}d ${hours}h`;
+  if (hours > 0) return `${hours}h ${mins}m`;
+  return `${mins}m`;
 }
 
 export default function MyHunches() {
+  const { t } = useTranslation();
   const [, setLocation] = useLocation();
   const { user, isLoading: authLoading } = useAuth();
   const [hunches, setHunches] = useState<MyHunchRow[]>([]);
@@ -94,8 +96,8 @@ export default function MyHunches() {
               <Target className="w-5 h-5 text-primary" />
             </div>
             <div>
-              <h1 className="font-display text-2xl font-bold text-foreground">My Hunches</h1>
-              <p className="text-sm text-muted-foreground">Your predictions and their outcomes</p>
+              <h1 className="font-display text-2xl font-bold text-foreground">{t("my_hunches_title")}</h1>
+              <p className="text-sm text-muted-foreground">{t("my_hunches_sub")}</p>
             </div>
           </div>
 
@@ -104,20 +106,20 @@ export default function MyHunches() {
             {/* Tab pills */}
             <div className="px-6 py-4 border-b border-border flex items-center justify-between gap-4">
               <div className="flex items-center gap-1 bg-muted rounded-xl p-1">
-                {(["active", "past"] as const).map((t) => {
-                  const count = t === "active" ? active.length : past.length;
+                {(["active", "past"] as const).map((tabKey) => {
+                  const count = tabKey === "active" ? active.length : past.length;
                   return (
                     <button
-                      key={t}
-                      onClick={() => setTab(t)}
+                      key={tabKey}
+                      onClick={() => setTab(tabKey)}
                       className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
-                        tab === t ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                        tab === tabKey ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
                       }`}
                     >
-                      {t === "active" ? "Active" : "Past"}
+                      {tabKey === "active" ? t("tab_active") : t("tab_past")}
                       {count > 0 && (
                         <span className={`min-w-[18px] h-[18px] rounded-full flex items-center justify-center text-[10px] font-bold ${
-                          tab === t ? "bg-primary text-white" : "bg-muted-foreground/20 text-muted-foreground"
+                          tab === tabKey ? "bg-primary text-white" : "bg-muted-foreground/20 text-muted-foreground"
                         }`}>{count}</span>
                       )}
                     </button>
@@ -141,14 +143,14 @@ export default function MyHunches() {
                 <div className="px-6 py-16 text-center">
                   <Target className="w-10 h-10 text-muted-foreground/30 mx-auto mb-3" />
                   <p className="text-sm text-muted-foreground font-medium">
-                    {tab === "active" ? "No active hunches right now." : "No past hunches yet."}
+                    {tab === "active" ? t("no_active_hunches") : t("no_past_hunches")}
                   </p>
                   {tab === "active" && hunches.length === 0 && (
                     <button
                       onClick={() => setLocation("/")}
                       className="mt-4 text-sm font-semibold text-primary hover:underline"
                     >
-                      Browse hunches
+                      {t("browse_hunches_link")}
                     </button>
                   )}
                 </div>
@@ -210,7 +212,7 @@ export default function MyHunches() {
                         <p className="text-sm font-semibold text-foreground leading-snug truncate pr-2">{h.hunchTitle}</p>
                         <div className="flex items-center gap-3 mt-1">
                           <span className="text-xs text-muted-foreground">
-                            Your pick: <span className="font-medium text-foreground">{h.optionLabel}</span>
+                            {t("your_pick")} <span className="font-medium text-foreground">{h.optionLabel}</span>
                             <span className="text-muted-foreground/70 ml-1">({Math.round(h.optionPercentage)}%)</span>
                           </span>
                           <span className="flex items-center gap-1 text-xs text-muted-foreground">
@@ -219,7 +221,7 @@ export default function MyHunches() {
                           </span>
                         </div>
                         <p className="text-[10px] text-muted-foreground/60 mt-0.5">
-                          Predicted {formatPredictionDate(h.predictionCreatedAt)}
+                          {t("predicted_on", { date: formatPredictionDate(h.predictionCreatedAt) })}
                         </p>
                       </div>
 
@@ -227,22 +229,22 @@ export default function MyHunches() {
                       <div className="flex items-center gap-2 shrink-0">
                         {h.hunchStatus === "open" && (
                           <span className="text-xs font-medium text-green-600 bg-green-50 border border-green-200 px-2.5 py-1 rounded-full whitespace-nowrap">
-                            {timeLeft(h.hunchEndsAt)}
+                            {timeLeft(h.hunchEndsAt, t("ended"))}
                           </span>
                         )}
                         {won && (
                           <span className="text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-full">
-                            Correct
+                            {t("outcome_correct")}
                           </span>
                         )}
                         {lost && (
                           <span className="text-xs font-bold text-red-700 bg-red-50 border border-red-200 px-2.5 py-1 rounded-full">
-                            Incorrect
+                            {t("outcome_incorrect")}
                           </span>
                         )}
                         {isClosed && (
                           <span className="text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-full">
-                            Pending
+                            {t("outcome_pending")}
                           </span>
                         )}
                         <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-colors" />

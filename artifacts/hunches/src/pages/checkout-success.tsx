@@ -5,10 +5,12 @@ import { Layout } from "@/components/layout";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { apiUrl } from "@/lib/apiFetch";
+import { useTranslation } from "react-i18next";
 
 type Status = "loading" | "success" | "error";
 
 export default function CheckoutSuccessPage() {
+  const { t } = useTranslation();
   const search = useSearch();
   const sessionId = new URLSearchParams(search).get("session_id");
   const [, setLocation] = useLocation();
@@ -74,16 +76,18 @@ export default function CheckoutSuccessPage() {
 
             <div>
               <h1 className="font-display font-bold text-2xl text-foreground mb-2">
-                Payment successful
+                {t("checkout_success_title")}
               </h1>
               <p className="text-muted-foreground text-sm">
-                {ticketAmount} ticket{ticketAmount !== 1 ? "s" : ""} have been added to your account.
+                {ticketAmount !== 1
+                  ? t("checkout_tickets_added_plural", { count: ticketAmount })
+                  : t("checkout_tickets_added", { count: ticketAmount })}
               </p>
             </div>
 
             <div className="bg-card border border-primary/20 rounded-2xl p-6 card-shadow">
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
-                New balance
+                {t("checkout_new_balance")}
               </p>
               <div className="flex items-center justify-center gap-2">
                 <Ticket className="w-5 h-5 text-primary" />
@@ -99,12 +103,12 @@ export default function CheckoutSuccessPage() {
             <div className="space-y-2">
               <Link href="/tickets">
                 <Button className="w-full bg-primary text-white hover:bg-primary/90 font-bold rounded-xl h-12">
-                  View my tickets
+                  {t("checkout_view_tickets")}
                 </Button>
               </Link>
               <Link href="/">
                 <Button variant="ghost" className="w-full rounded-xl h-12">
-                  Browse hunches
+                  {t("checkout_browse")}
                 </Button>
               </Link>
             </div>
@@ -118,10 +122,10 @@ export default function CheckoutSuccessPage() {
             </div>
             <div>
               <h1 className="font-display font-bold text-2xl text-foreground mb-2">
-                Something went wrong
+                {t("checkout_error_title")}
               </h1>
               <p className="text-muted-foreground text-sm">
-                We could not confirm your payment. If you were charged, please contact support with your session ID.
+                {t("checkout_error_desc")}
               </p>
               {sessionId && (
                 <p className="text-xs text-muted-foreground mt-3 font-mono bg-muted rounded px-2 py-1 break-all">
@@ -132,7 +136,7 @@ export default function CheckoutSuccessPage() {
             <Link href="/tickets">
               <Button className="w-full rounded-xl h-12">
                 <ArrowLeft className="w-4 h-4 mr-2" />
-                Back to tickets
+                {t("checkout_back")}
               </Button>
             </Link>
           </div>

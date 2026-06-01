@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { Mail, Lock } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 function OtpInput({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   return (
@@ -48,6 +49,7 @@ function OtpInput({ value, onChange }: { value: string; onChange: (v: string) =>
 type Step = "email" | "password" | "otp";
 
 export default function Login() {
+  const { t } = useTranslation();
   const [, setLocation] = useLocation();
   const { refetch } = useAuth();
 
@@ -71,7 +73,6 @@ export default function Login() {
     return data;
   };
 
-  // Step 1: resolve the user's preferred login method
   const handleEmail = async () => {
     setError("");
     setDevHint("");
@@ -81,11 +82,9 @@ export default function Login() {
         loginMethod: "password" | "otp";
         hasPassword: boolean;
       };
-
       if (d.loginMethod === "password" && d.hasPassword) {
         setStep("password");
       } else {
-        // loginMethod === "otp", or password method selected but no password set yet
         const r = await post("/auth/login/send-otp", { email }) as { devCode?: string };
         if (r.devCode) setDevHint(`Dev mode — your code is: ${r.devCode}`);
         setStep("otp");
@@ -97,7 +96,6 @@ export default function Login() {
     }
   };
 
-  // Step 2a: password login
   const handlePassword = async () => {
     setError("");
     setLoading(true);
@@ -112,7 +110,6 @@ export default function Login() {
     }
   };
 
-  // Step 2b: OTP verification
   const handleOtp = async () => {
     setError("");
     setLoading(true);
@@ -127,7 +124,6 @@ export default function Login() {
     }
   };
 
-  // Resend OTP from the OTP step
   const handleResend = async () => {
     setError("");
     setDevHint("");
@@ -142,17 +138,19 @@ export default function Login() {
     }
   };
 
-  const headingIcon = step === "password" ? <Lock className="w-5 h-5 text-white" /> : <Mail className="w-5 h-5 text-white" />;
+  const headingIcon = step === "password"
+    ? <Lock className="w-5 h-5 text-white" />
+    : <Mail className="w-5 h-5 text-white" />;
 
   const heading =
-    step === "email" ? "Welcome back" :
-    step === "password" ? "Enter your password" :
-    "Check your email";
+    step === "email"    ? t("welcome_back") :
+    step === "password" ? t("login_enter_password_heading") :
+                          t("login_check_email_heading");
 
   const subheading =
-    step === "email" ? "Enter your email to sign in" :
+    step === "email"    ? t("login_enter_email_sub") :
     step === "password" ? email :
-    `We sent a 6-digit code to ${email}`;
+                          t("login_code_sent", { email });
 
   return (
     <Layout>
@@ -167,10 +165,9 @@ export default function Login() {
           </div>
 
           <div className="bg-card border border-border rounded-2xl p-7 card-shadow space-y-5">
-            {/* Email step */}
             {step === "email" && (
               <div className="space-y-1.5">
-                <Label htmlFor="email">Email address</Label>
+                <Label htmlFor="email">{t("email_address")}</Label>
                 <Input
                   id="email"
                   type="email"
@@ -184,10 +181,9 @@ export default function Login() {
               </div>
             )}
 
-            {/* Password step */}
             {step === "password" && (
               <div className="space-y-1.5">
-                <Label htmlFor="password">Password</Label>
+                <Label htmlFor="password">{t("password")}</Label>
                 <Input
                   id="password"
                   type="password"
@@ -196,13 +192,12 @@ export default function Login() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && password && handlePassword()}
-                  placeholder="Your password"
+                  placeholder={t("your_password")}
                   className="rounded-xl h-11 bg-background border-border"
                 />
               </div>
             )}
 
-            {/* OTP step */}
             {step === "otp" && (
               <div className="space-y-4">
                 <OtpInput value={otp} onChange={setOtp} />
@@ -226,7 +221,7 @@ export default function Login() {
                 onClick={handleEmail}
                 disabled={loading || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)}
               >
-                {loading ? "Checking..." : "Continue"}
+                {loading ? t("checking") : t("continue_btn")}
               </Button>
             )}
 
@@ -236,7 +231,7 @@ export default function Login() {
                 onClick={handlePassword}
                 disabled={loading || !password}
               >
-                {loading ? "Signing in..." : "Sign in"}
+                {loading ? t("signing_in") : t("sign_in")}
               </Button>
             )}
 
@@ -246,7 +241,7 @@ export default function Login() {
                 onClick={handleOtp}
                 disabled={loading || otp.length < 6}
               >
-                {loading ? "Signing in..." : "Sign in"}
+                {loading ? t("signing_in") : t("sign_in")}
               </Button>
             )}
           </div>
@@ -254,8 +249,8 @@ export default function Login() {
           <div className="mt-5 flex items-center justify-between">
             {step === "email" && (
               <p className="text-sm text-muted-foreground w-full text-center">
-                No account yet?{" "}
-                <Link href="/signup" className="text-primary hover:underline font-semibold">Sign up</Link>
+                {t("login_no_account")}{" "}
+                <Link href="/signup" className="text-primary hover:underline font-semibold">{t("nav_signup")}</Link>
               </p>
             )}
 
@@ -265,7 +260,7 @@ export default function Login() {
                   className="text-sm text-muted-foreground hover:text-foreground transition-colors"
                   onClick={() => { setStep("email"); setPassword(""); setError(""); }}
                 >
-                  ← Change email
+                  {t("change_email_back")}
                 </button>
                 <button
                   className="text-sm text-primary hover:underline font-medium"
@@ -284,7 +279,7 @@ export default function Login() {
                     }
                   }}
                 >
-                  Use code instead
+                  {t("use_code_instead")}
                 </button>
               </>
             )}
@@ -295,14 +290,14 @@ export default function Login() {
                   className="text-sm text-muted-foreground hover:text-foreground transition-colors"
                   onClick={() => { setStep("email"); setOtp(""); setError(""); setDevHint(""); }}
                 >
-                  ← Change email
+                  {t("change_email_back")}
                 </button>
                 <button
                   className="text-sm text-primary hover:underline font-medium"
                   onClick={handleResend}
                   disabled={loading}
                 >
-                  Resend code
+                  {t("resend_code")}
                 </button>
               </>
             )}
