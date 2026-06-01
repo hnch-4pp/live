@@ -170,9 +170,7 @@ export default function AffiliateSlugPage() {
 
             {/* Main headline */}
             <h1 className="text-5xl md:text-7xl font-black text-foreground leading-[1.05] tracking-tight mb-4">
-              Predice.{" "}
-              <span className="text-violet-600">Gana</span>{" "}
-              premios reales.
+              Predice y <span className="text-violet-600">Gana</span> Premios Reales.
             </h1>
 
             {/* Discount callout line */}
@@ -184,19 +182,12 @@ export default function AffiliateSlugPage() {
             </div>
 
             {/* Sub-description */}
-            <p className="text-muted-foreground text-lg md:text-xl max-w-2xl mx-auto mb-4 leading-relaxed">
+            <p className="text-muted-foreground text-lg md:text-xl max-w-2xl mx-auto mb-8 leading-relaxed">
               Hunch es la unica plataforma donde ganas{" "}
               <span className="font-semibold text-foreground">gift cards, merch y premios reales</span>{" "}
               prediciendo resultados de deportes, musica, entretenimiento y finanzas.{" "}
               <span className="font-semibold text-foreground">Sin apostar dinero.</span>
             </p>
-
-            {/* Note from influencer */}
-            {affiliate.bio && (
-              <p className="text-sm text-muted-foreground italic max-w-md mx-auto mb-8">
-                "{affiliate.bio}" — {affiliate.name}
-              </p>
-            )}
 
             {/* CTA button */}
             <Button
