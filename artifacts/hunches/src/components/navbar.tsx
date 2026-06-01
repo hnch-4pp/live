@@ -162,7 +162,7 @@ function AuthButtons() {
               <span className="text-[10px] font-bold text-primary">{navInitials}</span>
             )}
           </div>
-          <span className="hidden sm:block max-w-[120px] truncate">{user.email.split("@")[0]}</span>
+          <span className="hidden sm:block max-w-[120px] truncate">{user.username ?? user.email.split("@")[0]}</span>
           <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" style={{ transform: menuOpen ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 200ms" }} />
         </button>
         {menuOpen && (
