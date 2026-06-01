@@ -182,14 +182,22 @@ export default function AdminMetrics() {
 
   return (
     <AdminLayout>
-      <div className="p-8 max-w-5xl mx-auto space-y-12">
+      <div className="p-8 max-w-5xl mx-auto">
         {/* Header */}
-        <div>
+        <div className="mb-10">
           <h1 className="text-2xl font-bold text-gray-900">Metrics</h1>
           <p className="text-sm text-gray-500 mt-1">Platform analytics and growth data</p>
         </div>
 
-        {/* ── Section 1: New user registrations ────────────────────────────── */}
+        {/* ══ USUARIOS ══════════════════════════════════════════════════════════ */}
+        <div className="mb-14">
+          <div className="flex items-center gap-3 mb-8">
+            <span className="text-xs font-bold uppercase tracking-widest text-gray-400">Usuarios</span>
+            <div className="flex-1 h-px bg-gray-200" />
+          </div>
+          <div className="space-y-10">
+
+        {/* New user registrations */}
         <section>
           <div className="flex items-center gap-2 mb-5">
             <div className="w-7 h-7 bg-violet-100 rounded-lg flex items-center justify-center">
@@ -298,7 +306,7 @@ export default function AdminMetrics() {
           </div>
         </section>
 
-        {/* ── Section 2: Active Users (DAU / WAU / MAU) ────────────────────── */}
+        {/* Active users — DAU / WAU / MAU */}
         <section>
           <div className="flex items-center gap-2 mb-5">
             <div className="w-7 h-7 bg-emerald-100 rounded-lg flex items-center justify-center">
@@ -422,7 +430,17 @@ export default function AdminMetrics() {
           </div>
         </section>
 
-        {/* ── Section 3: Revenue — New premium subscriptions ───────────────── */}
+          </div>{/* /space-y-10 */}
+        </div>{/* /Usuarios */}
+
+        {/* ══ INGRESOS ══════════════════════════════════════════════════════════ */}
+        <div className="mb-14">
+          <div className="flex items-center gap-3 mb-8">
+            <span className="text-xs font-bold uppercase tracking-widest text-gray-400">Ingresos</span>
+            <div className="flex-1 h-px bg-gray-200" />
+          </div>
+
+        {/* Nuevas suscripciones premium */}
         <section>
           <div className="flex items-center gap-2 mb-1">
             <div className="w-7 h-7 bg-amber-100 rounded-lg flex items-center justify-center">
@@ -540,6 +558,19 @@ export default function AdminMetrics() {
             )}
           </div>
         </section>
+        </div>{/* /Ingresos */}
+
+        {/* ══ ACTIVIDADES ═══════════════════════════════════════════════════════ */}
+        <div className="mb-4">
+          <div className="flex items-center gap-3 mb-8">
+            <span className="text-xs font-bold uppercase tracking-widest text-gray-400">Actividades</span>
+            <div className="flex-1 h-px bg-gray-200" />
+          </div>
+          <div className="bg-white border border-dashed border-gray-200 rounded-2xl py-14 flex items-center justify-center">
+            <p className="text-sm text-gray-400">Próximamente</p>
+          </div>
+        </div>
+
       </div>
     </AdminLayout>
   );
