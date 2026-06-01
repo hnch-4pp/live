@@ -41,8 +41,9 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
     <div className="min-h-screen flex bg-gray-50">
       {/* Sidebar */}
       <aside className="w-56 shrink-0 bg-white border-r border-gray-200 flex flex-col">
-        <div className="h-16 flex items-center px-5 border-b border-gray-200">
-          <span className="font-bold text-sm text-gray-900 tracking-tight">Hunch Admin</span>
+        <div className="h-16 flex items-center px-5 border-b border-gray-200 gap-2">
+          <img src="/hunch-logo.png" alt="Hunch" className="h-6 w-auto" />
+          <span className="text-xs font-semibold text-gray-400 uppercase tracking-widest ml-1">Admin</span>
         </div>
 
         <nav className="flex-1 py-4 px-3 space-y-0.5">

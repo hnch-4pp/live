@@ -1,7 +1,7 @@
 import { Link, useLocation, useSearch } from "wouter";
 import { Button } from "@/components/ui/button";
 import { useEffect, useRef, useState } from "react";
-import { Globe, ChevronDown, Heart, Search, X, Trophy, Music, Film, Clapperboard, TrendingUp, Star, Zap as ZapIcon, Globe2, Heart as HeartIcon, LogOut, Settings, Ticket, Target } from "lucide-react";
+import { Globe, ChevronDown, Search, X, Trophy, Music, Film, Clapperboard, TrendingUp, Star, Zap as ZapIcon, Globe2, Heart as HeartIcon, LogOut, Settings, Ticket, Target } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import i18n from "@/i18n";
 import { useListCategories } from "@workspace/api-client-react";
@@ -286,11 +286,8 @@ export function Navbar() {
     <header className="sticky top-0 z-50 w-full bg-white/90 backdrop-blur-md border-b border-border">
       {/* Top row */}
       <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-        <Link href="/" className="flex items-center gap-2.5 shrink-0">
-          <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center shadow-sm">
-            <Heart className="w-4 h-4 text-white fill-white" />
-          </div>
-          <span className="font-display font-bold text-xl tracking-tight text-foreground">Hunch</span>
+        <Link href="/" className="flex items-center shrink-0">
+          <img src="/hunch-logo.png" alt="Hunch" className="h-8 w-auto" />
         </Link>
 
         <div className="flex items-center gap-2">
