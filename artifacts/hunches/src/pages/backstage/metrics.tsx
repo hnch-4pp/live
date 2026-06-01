@@ -1,10 +1,12 @@
 import { useState, useEffect } from "react";
 import { AdminLayout } from "@/components/admin-layout";
 import { useAdminAuth, adminFetch } from "./dashboard";
-import { Users, TrendingUp, TrendingDown, Minus, Activity, CreditCard } from "lucide-react";
+import { Users, TrendingUp, TrendingDown, Minus, Activity, CreditCard, UsersRound } from "lucide-react";
 import {
   AreaChart,
   Area,
+  LineChart,
+  Line,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -29,6 +31,12 @@ interface MetricsData {
   total: number;
   previousTotal: number;
   data: { label: string; count: number }[];
+}
+
+interface CumulativeUsersData {
+  period: Period;
+  totalNow: number;
+  data: { label: string; total: number }[];
 }
 
 interface ActiveUsersData {
@@ -134,6 +142,18 @@ const RegTooltip = ({ active, payload, label }: { active?: boolean; payload?: { 
   );
 };
 
+const CumTooltip = ({ active, payload, label }: { active?: boolean; payload?: { value: number }[]; label?: string }) => {
+  if (!active || !payload?.length) return null;
+  return (
+    <div className="bg-white border border-gray-200 rounded-xl shadow-lg px-4 py-3">
+      <p className="text-xs font-semibold text-gray-500 mb-1">{label}</p>
+      <p className="text-lg font-bold text-indigo-700">
+        {payload[0].value?.toLocaleString()} <span className="text-sm font-normal text-gray-500">total users</span>
+      </p>
+    </div>
+  );
+};
+
 const AuTooltip = ({ active, payload, label }: { active?: boolean; payload?: { value?: number | string }[]; label?: string }) => {
   if (!active || !payload?.length) return null;
   return (
@@ -157,8 +177,14 @@ function StatSkeleton() {
 export default function AdminMetrics() {
   useAdminAuth();
 
-  // New user registrations state
+  // Shared period for all user charts
   const [period, setPeriod] = useState<Period>("last_7_days");
+
+  // Cumulative user totals state
+  const [cumData, setCumData] = useState<CumulativeUsersData | null>(null);
+  const [cumLoading, setCumLoading] = useState(true);
+
+  // New user registrations state
   const [regData, setRegData] = useState<MetricsData | null>(null);
   const [regLoading, setRegLoading] = useState(true);
 
@@ -202,6 +228,15 @@ export default function AdminMetrics() {
       setRecovering(false);
     }
   }
+
+  useEffect(() => {
+    setCumLoading(true);
+    setCumData(null);
+    adminFetch(`/admin/metrics/users/cumulative?period=${period}`)
+      .then(async (r) => { if (!r.ok) throw new Error(`${r.status}`); return r.json() as Promise<CumulativeUsersData>; })
+      .then((d) => { if (Array.isArray(d?.data)) { setCumData(d); } setCumLoading(false); })
+      .catch(() => setCumLoading(false));
+  }, [period]);
 
   useEffect(() => {
     setRegLoading(true);
@@ -255,23 +290,13 @@ export default function AdminMetrics() {
 
         {/* ══ USUARIOS ══════════════════════════════════════════════════════════ */}
         <div className="mb-14">
-          <div className="flex items-center gap-3 mb-8">
+          <div className="flex items-center gap-3 mb-6">
             <span className="text-xs font-bold uppercase tracking-widest text-gray-400">Usuarios</span>
             <div className="flex-1 h-px bg-gray-200" />
           </div>
-          <div className="space-y-10">
 
-        {/* New user registrations */}
-        <section>
-          <div className="flex items-center gap-2 mb-5">
-            <div className="w-7 h-7 bg-violet-100 rounded-lg flex items-center justify-center">
-              <Users className="w-4 h-4 text-violet-600" />
-            </div>
-            <h2 className="text-base font-bold text-gray-800">New user registrations</h2>
-          </div>
-
-          {/* Period selector */}
-          <div className="flex flex-wrap gap-1.5 mb-6">
+          {/* Shared period selector */}
+          <div className="flex flex-wrap gap-1.5 mb-8">
             {PERIODS.map((p) => (
               <button
                 key={p.value}
@@ -285,6 +310,108 @@ export default function AdminMetrics() {
                 {p.label}
               </button>
             ))}
+          </div>
+
+          <div className="space-y-10">
+
+        {/* ── Total registered users (cumulative) ── */}
+        <section>
+          <div className="flex items-center gap-2 mb-5">
+            <div className="w-7 h-7 bg-indigo-100 rounded-lg flex items-center justify-center">
+              <UsersRound className="w-4 h-4 text-indigo-600" />
+            </div>
+            <h2 className="text-base font-bold text-gray-800">Total registered users</h2>
+          </div>
+
+          {/* Stat card */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-6">
+            <div className="bg-white border border-gray-200 rounded-2xl p-5">
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Total users now</p>
+              {cumLoading ? <StatSkeleton /> : (
+                <span className="text-3xl font-bold text-gray-900">{cumData?.totalNow?.toLocaleString() ?? 0}</span>
+              )}
+              <p className="text-xs text-gray-400 mt-1">all time</p>
+            </div>
+            <div className="bg-white border border-gray-200 rounded-2xl p-5">
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">At period start</p>
+              {cumLoading ? <StatSkeleton /> : (
+                <span className="text-3xl font-bold text-gray-900">{cumData?.data[0]?.total?.toLocaleString() ?? 0}</span>
+              )}
+              <p className="text-xs text-gray-400 mt-1">{PERIODS.find((p) => p.value === period)?.label}</p>
+            </div>
+            <div className="bg-white border border-gray-200 rounded-2xl p-5">
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Growth in period</p>
+              {cumLoading ? <StatSkeleton /> : (() => {
+                const start = cumData?.data[0]?.total ?? 0;
+                const end = cumData?.totalNow ?? 0;
+                const gained = end - start;
+                return (
+                  <div className="flex items-end gap-3">
+                    <span className="text-3xl font-bold text-gray-900">+{gained.toLocaleString()}</span>
+                    {gained > 0 && start > 0 && (
+                      <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 bg-emerald-50 rounded-full px-2.5 py-1 mb-1">
+                        <TrendingUp className="w-3 h-3" /> +{Math.round((gained / start) * 100)}%
+                      </span>
+                    )}
+                  </div>
+                );
+              })()}
+              <p className="text-xs text-gray-400 mt-1">vs. start of period</p>
+            </div>
+          </div>
+
+          {/* Chart */}
+          <div className="bg-white border border-gray-200 rounded-2xl p-6">
+            {cumLoading ? (
+              <div className="h-72 flex items-center justify-center">
+                <div className="text-sm text-gray-400">Loading chart...</div>
+              </div>
+            ) : !cumData || cumData.data.length === 0 ? (
+              <div className="h-72 flex items-center justify-center">
+                <div className="text-sm text-gray-400">No data for this period</div>
+              </div>
+            ) : (
+              <>
+                <div className="flex items-center justify-between mb-5">
+                  <p className="text-sm font-semibold text-gray-700">
+                    {PERIODS.find((p) => p.value === period)?.label} — cumulative growth
+                  </p>
+                  <p className="text-xs text-gray-400">{cumData.totalNow.toLocaleString()} total</p>
+                </div>
+                <ResponsiveContainer width="100%" height={280}>
+                  <LineChart data={cumData.data} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="cumGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%"  stopColor="#4f46e5" stopOpacity={0.15} />
+                        <stop offset="95%" stopColor="#4f46e5" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
+                    <XAxis dataKey="label" tick={{ fontSize: 11, fill: "#9ca3af" }} tickLine={false} axisLine={false} interval="preserveStartEnd" />
+                    <YAxis tick={{ fontSize: 11, fill: "#9ca3af" }} tickLine={false} axisLine={false} allowDecimals={false} width={36} />
+                    <Tooltip content={<CumTooltip />} cursor={{ stroke: "#4f46e5", strokeWidth: 1, strokeDasharray: "4 2" }} />
+                    <Line
+                      type="monotone"
+                      dataKey="total"
+                      stroke="#4f46e5"
+                      strokeWidth={2.5}
+                      dot={cumData.data.length <= 14 ? { r: 4, fill: "#4f46e5", strokeWidth: 0 } : false}
+                      activeDot={{ r: 5, fill: "#4f46e5", strokeWidth: 0 }}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </>
+            )}
+          </div>
+        </section>
+
+        {/* ── New user registrations ── */}
+        <section>
+          <div className="flex items-center gap-2 mb-5">
+            <div className="w-7 h-7 bg-violet-100 rounded-lg flex items-center justify-center">
+              <Users className="w-4 h-4 text-violet-600" />
+            </div>
+            <h2 className="text-base font-bold text-gray-800">New user registrations</h2>
           </div>
 
           {/* Stat cards */}

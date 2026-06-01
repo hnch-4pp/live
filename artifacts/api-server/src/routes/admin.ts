@@ -1448,6 +1448,81 @@ router.get("/admin/metrics/users", requireAdmin, requireAdminHeader, async (req,
   }
 });
 
+// ─── Metrics: Users — cumulative total ───────────────────────────────────────
+
+router.get("/admin/metrics/users/cumulative", requireAdmin, requireAdminHeader, async (req, res): Promise<void> => {
+  const period = (req.query.period as MetricsPeriod) ?? "last_12_months";
+
+  let seriesQuery: string;
+  let labelExpr: string;
+  let bucketInterval: string;
+
+  switch (period) {
+    case "today":
+      seriesQuery = `generate_series(date_trunc('day', now() AT TIME ZONE 'UTC'), date_trunc('day', now() AT TIME ZONE 'UTC') + interval '23 hours', interval '1 hour')`;
+      labelExpr = `to_char(gs, 'HH12 AM')`;
+      bucketInterval = `interval '1 hour'`;
+      break;
+    case "yesterday":
+      seriesQuery = `generate_series(date_trunc('day', now() AT TIME ZONE 'UTC') - interval '1 day', date_trunc('day', now() AT TIME ZONE 'UTC') - interval '1 hour', interval '1 hour')`;
+      labelExpr = `to_char(gs, 'HH12 AM')`;
+      bucketInterval = `interval '1 hour'`;
+      break;
+    case "this_week":
+      seriesQuery = `generate_series(date_trunc('week', now() AT TIME ZONE 'UTC'), date_trunc('day', now() AT TIME ZONE 'UTC'), interval '1 day')`;
+      labelExpr = `to_char(gs, 'Dy DD')`;
+      bucketInterval = `interval '1 day'`;
+      break;
+    case "last_7_days":
+      seriesQuery = `generate_series(date_trunc('day', now() AT TIME ZONE 'UTC') - interval '6 days', date_trunc('day', now() AT TIME ZONE 'UTC'), interval '1 day')`;
+      labelExpr = `to_char(gs, 'Mon DD')`;
+      bucketInterval = `interval '1 day'`;
+      break;
+    case "this_month":
+      seriesQuery = `generate_series(date_trunc('month', now() AT TIME ZONE 'UTC'), date_trunc('day', now() AT TIME ZONE 'UTC'), interval '1 day')`;
+      labelExpr = `to_char(gs, 'Mon DD')`;
+      bucketInterval = `interval '1 day'`;
+      break;
+    case "last_30_days":
+      seriesQuery = `generate_series(date_trunc('day', now() AT TIME ZONE 'UTC') - interval '29 days', date_trunc('day', now() AT TIME ZONE 'UTC'), interval '1 day')`;
+      labelExpr = `to_char(gs, 'Mon DD')`;
+      bucketInterval = `interval '1 day'`;
+      break;
+    case "this_year":
+      seriesQuery = `generate_series(date_trunc('year', now() AT TIME ZONE 'UTC'), date_trunc('month', now() AT TIME ZONE 'UTC'), interval '1 month')`;
+      labelExpr = `to_char(gs, 'Mon')`;
+      bucketInterval = `interval '1 month'`;
+      break;
+    case "last_12_months":
+    default:
+      seriesQuery = `generate_series(date_trunc('month', now() AT TIME ZONE 'UTC') - interval '11 months', date_trunc('month', now() AT TIME ZONE 'UTC'), interval '1 month')`;
+      labelExpr = `to_char(gs, 'Mon YY')`;
+      bucketInterval = `interval '1 month'`;
+      break;
+  }
+
+  try {
+    const result = await db.execute(sql.raw(`
+      SELECT
+        ${labelExpr} AS label,
+        (SELECT COUNT(*)::int FROM users WHERE created_at < gs + ${bucketInterval}) AS total
+      FROM ${seriesQuery} AS gs
+      ORDER BY gs
+    `));
+
+    const data = (result.rows as { label: string; total: number }[]).map((r) => ({
+      label: r.label,
+      total: Number(r.total),
+    }));
+
+    const totalNow = data.length > 0 ? (data[data.length - 1]?.total ?? 0) : 0;
+    res.json({ period, totalNow, data });
+  } catch (err) {
+    req.log.warn({ err }, "metrics/users/cumulative query failed");
+    res.json({ period, totalNow: 0, data: [] });
+  }
+});
+
 // ─── Metrics: Revenue (subscriptions + pack purchases) ───────────────────────
 
 router.get("/admin/metrics/revenue", requireAdmin, requireAdminHeader, async (req, res): Promise<void> => {
