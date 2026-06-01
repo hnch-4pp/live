@@ -185,21 +185,33 @@ router.get("/affiliates/tiers", async (_req, res): Promise<void> => {
 
 router.get("/affiliates/public/:slug", async (req, res): Promise<void> => {
   const { slug } = req.params as { slug: string };
-  const [aff] = await db.select().from(affiliatesTable)
+  const [row] = await db
+    .select({
+      id: affiliatesTable.id,
+      name: affiliatesTable.name,
+      slug: affiliatesTable.slug,
+      affiliateAvatarUrl: affiliatesTable.avatarUrl,
+      userAvatarUrl: usersTable.avatarUrl,
+      bio: affiliatesTable.bio,
+      niche: affiliatesTable.niche,
+      customMessage: affiliatesTable.customMessage,
+    })
+    .from(affiliatesTable)
+    .leftJoin(usersTable, eq(usersTable.id, affiliatesTable.userId))
     .where(and(eq(affiliatesTable.slug, slug.toLowerCase()), eq(affiliatesTable.status, "active")))
     .limit(1);
-  if (!aff) {
+  if (!row) {
     res.status(404).json({ error: "Affiliate not found" });
     return;
   }
   res.json({
-    id: aff.id,
-    name: aff.name,
-    slug: aff.slug,
-    avatarUrl: aff.avatarUrl,
-    bio: aff.bio,
-    niche: aff.niche,
-    customMessage: aff.customMessage,
+    id: row.id,
+    name: row.name,
+    slug: row.slug,
+    avatarUrl: row.affiliateAvatarUrl ?? row.userAvatarUrl,
+    bio: row.bio,
+    niche: row.niche,
+    customMessage: row.customMessage,
   });
 });
 
