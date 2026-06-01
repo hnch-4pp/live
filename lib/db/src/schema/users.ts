@@ -11,7 +11,7 @@ export const usersTable = pgTable("users", {
   dateOfBirth: date("date_of_birth"),
   passwordHash: text("password_hash"),
   avatarUrl: text("avatar_url"),
-  tickets: integer("tickets").notNull().default(15),
+  tickets: integer("tickets").notNull().default(5),
   stripeCustomerId: text("stripe_customer_id"),
   status: userStatusEnum("status").notNull().default("active"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
