@@ -3,7 +3,7 @@ import { apiUrl } from "@/lib/apiFetch";
 import {
   Ticket, ArrowLeft, Info, Gift, Tag, ShoppingBag, MinusCircle,
   Sparkles, Package, RefreshCw, Star, Zap, Crown, Loader2, Settings,
-  CheckCircle2, AlertCircle, ChevronRight,
+  CheckCircle2, AlertCircle, ChevronRight, TicketCheck, X,
 } from "lucide-react";
 import { Layout } from "@/components/layout";
 import { useAuth } from "@/hooks/use-auth";
@@ -163,6 +163,9 @@ export default function TicketsPage() {
   const [subscribing, setSubscribing] = useState<string | null>(null);
   const [openingPortal, setOpeningPortal] = useState(false);
   const [successBanner, setSuccessBanner] = useState(false);
+  const [promoCode, setPromoCode] = useState("");
+  const [promoLoading, setPromoLoading] = useState(false);
+  const [promoResult, setPromoResult] = useState<{ ok: boolean; message: string; tickets?: number } | null>(null);
 
   useEffect(() => {
     if (!authLoading && !user) setLocation("/login");
@@ -219,6 +222,36 @@ export default function TicketsPage() {
       if (data.url) window.location.href = data.url;
     } catch {
       setSubscribing(null);
+    }
+  }
+
+  async function handleRedeemPromo(e: React.FormEvent) {
+    e.preventDefault();
+    const code = promoCode.trim().toUpperCase();
+    if (!code || promoLoading) return;
+    setPromoLoading(true);
+    setPromoResult(null);
+    try {
+      const res = await fetch(apiUrl("/api/auth/ticket-codes/redeem"), {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code, context: "general" }),
+      });
+      const data = await res.json() as { ticketsGranted?: number; error?: string };
+      if (!res.ok) {
+        setPromoResult({ ok: false, message: data.error ?? "Invalid code" });
+      } else {
+        const tickets = data.ticketsGranted ?? 0;
+        setPromoResult({ ok: true, message: `${tickets} ticket${tickets !== 1 ? "s" : ""} added to your account!`, tickets });
+        setPromoCode("");
+        void refetchUser();
+        void queryClient.invalidateQueries({ queryKey: ["ticket-activity"] });
+      }
+    } catch {
+      setPromoResult({ ok: false, message: "Something went wrong. Please try again." });
+    } finally {
+      setPromoLoading(false);
     }
   }
 
@@ -513,8 +546,8 @@ export default function TicketsPage() {
                 </div>
               </div>
 
-              {/* ── RIGHT COLUMN — Activity ── */}
-              <div className="lg:sticky lg:top-6">
+              {/* ── RIGHT COLUMN — Activity + Promo ── */}
+              <div className="lg:sticky lg:top-6 space-y-4">
                 <div className="bg-card border border-border rounded-2xl p-5">
                   <div className="flex items-center justify-between mb-4">
                     <h2 className="text-sm font-semibold text-foreground uppercase tracking-wide">Activity</h2>
@@ -578,6 +611,57 @@ export default function TicketsPage() {
                     </div>
                   )}
                 </div>
+
+                {/* ── Promo Code ── */}
+                <div className="bg-card border border-border rounded-2xl p-5">
+                  <div className="flex items-center gap-2 mb-3">
+                    <TicketCheck className="w-4 h-4 text-primary" />
+                    <h2 className="text-sm font-semibold text-foreground uppercase tracking-wide">Promo Code</h2>
+                  </div>
+                  <p className="text-xs text-muted-foreground mb-3">Enter a code to add bonus tickets to your account.</p>
+
+                  <form onSubmit={handleRedeemPromo} className="flex flex-col gap-2">
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={promoCode}
+                        onChange={(e) => {
+                          setPromoCode(e.target.value.toUpperCase());
+                          setPromoResult(null);
+                        }}
+                        placeholder="Enter code"
+                        maxLength={32}
+                        className="flex-1 min-w-0 h-9 px-3 rounded-lg border border-border bg-background text-sm font-mono font-semibold text-foreground placeholder:font-normal placeholder:text-muted-foreground outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/15 transition-all uppercase"
+                        disabled={promoLoading}
+                        autoComplete="off"
+                        autoCorrect="off"
+                        spellCheck={false}
+                      />
+                      <button
+                        type="submit"
+                        disabled={!promoCode.trim() || promoLoading}
+                        className="h-9 px-4 rounded-lg bg-primary text-white text-xs font-semibold hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-1.5 shrink-0"
+                      >
+                        {promoLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Redeem"}
+                      </button>
+                    </div>
+
+                    {promoResult && (
+                      <div className={`flex items-start gap-2 rounded-lg px-3 py-2 text-xs ${
+                        promoResult.ok
+                          ? "bg-emerald-50 border border-emerald-200 text-emerald-700"
+                          : "bg-red-50 border border-red-200 text-red-600"
+                      }`}>
+                        {promoResult.ok
+                          ? <CheckCircle2 className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                          : <X className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                        }
+                        <span className="font-medium">{promoResult.message}</span>
+                      </div>
+                    )}
+                  </form>
+                </div>
+
               </div>
 
             </div>
