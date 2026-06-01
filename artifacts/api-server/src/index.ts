@@ -23,6 +23,7 @@ async function runAppMigrations(): Promise<void> {
     END $$;
   `);
 
+  await db.execute(sql`ALTER TABLE ticket_transactions ADD COLUMN IF NOT EXISTS revenue_cents INTEGER`);
   await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS stripe_customer_id TEXT`);
   await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS last_access_at TIMESTAMPTZ`);
   await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS login_method TEXT NOT NULL DEFAULT 'password'`);

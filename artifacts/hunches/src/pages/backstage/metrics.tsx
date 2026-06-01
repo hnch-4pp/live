@@ -181,16 +181,16 @@ export default function AdminMetrics() {
     setRegLoading(true);
     setRegData(null);
     adminFetch(`/admin/metrics/users?period=${period}`)
-      .then((r) => r.json())
-      .then((d: MetricsData) => { setRegData(d); setRegLoading(false); })
+      .then(async (r) => { if (!r.ok) throw new Error(`${r.status}`); return r.json() as Promise<MetricsData>; })
+      .then((d) => { if (Array.isArray(d?.data)) { setRegData(d); } setRegLoading(false); })
       .catch(() => setRegLoading(false));
   }, [period]);
 
   useEffect(() => {
     setAuLoading(true);
     adminFetch("/admin/metrics/active-users")
-      .then((r) => r.json())
-      .then((d: ActiveUsersData) => { setAuData(d); setAuLoading(false); })
+      .then(async (r) => { if (!r.ok) throw new Error(`${r.status}`); return r.json() as Promise<ActiveUsersData>; })
+      .then((d) => { if (d?.current) { setAuData(d); } setAuLoading(false); })
       .catch(() => setAuLoading(false));
   }, []);
 
@@ -198,8 +198,8 @@ export default function AdminMetrics() {
     setSubLoading(true);
     setSubData(null);
     adminFetch(`/admin/metrics/subscriptions?period=${subPeriod}`)
-      .then((r) => r.json())
-      .then((d: MetricsData) => { setSubData(d); setSubLoading(false); })
+      .then(async (r) => { if (!r.ok) throw new Error(`${r.status}`); return r.json() as Promise<MetricsData>; })
+      .then((d) => { if (Array.isArray(d?.data)) { setSubData(d); } setSubLoading(false); })
       .catch(() => setSubLoading(false));
   }, [subPeriod]);
 
@@ -207,15 +207,15 @@ export default function AdminMetrics() {
     setRevLoading(true);
     setRevData(null);
     adminFetch(`/admin/metrics/revenue?period=${revPeriod}`)
-      .then((r) => r.json())
-      .then((d: RevenueData) => { setRevData(d); setRevLoading(false); })
+      .then(async (r) => { if (!r.ok) throw new Error(`${r.status}`); return r.json() as Promise<RevenueData>; })
+      .then((d) => { if (Array.isArray(d?.data)) { setRevData(d); } setRevLoading(false); })
       .catch(() => setRevLoading(false));
   }, [revPeriod]);
 
-  const regMaxCount = regData ? Math.max(...regData.data.map((d) => d.count), 1) : 1;
+  const regMaxCount = regData?.data ? Math.max(...regData.data.map((d) => d.count), 1) : 1;
   const chartData: { label: string; count: number }[] = auData?.[auView] ?? [];
-  const subMaxCount = subData ? Math.max(...subData.data.map((d) => d.count), 1) : 1;
-  const revMaxTotal = revData ? Math.max(...revData.data.map((d) => d.total), 1) : 1;
+  const subMaxCount = subData?.data ? Math.max(...subData.data.map((d) => d.count), 1) : 1;
+  const revMaxTotal = revData?.data ? Math.max(...revData.data.map((d) => d.total), 1) : 1;
   const fmtDollars = (cents: number) => `$${(cents / 100).toFixed(2)}`;
 
   return (

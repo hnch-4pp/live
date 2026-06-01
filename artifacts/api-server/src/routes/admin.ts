@@ -1412,33 +1412,38 @@ router.get("/admin/metrics/users", requireAdmin, requireAdminHeader, async (req,
       break;
   }
 
-  const [dataRows, prevRows] = await Promise.all([
-    db.execute(sql.raw(`
-      SELECT
-        ${labelExpr} AS label,
-        COUNT(u.id)::int AS count
-      FROM ${seriesQuery} AS gs
-      LEFT JOIN users u ON ${joinExpr}
-      GROUP BY gs, label
-      ORDER BY gs
-    `)),
-    db.execute(sql.raw(`
-      SELECT COUNT(*)::int AS total
-      FROM users
-      WHERE created_at >= ${prevStart}
-        AND created_at <= ${prevEnd}
-    `)),
-  ]);
+  try {
+    const [dataRows, prevRows] = await Promise.all([
+      db.execute(sql.raw(`
+        SELECT
+          ${labelExpr} AS label,
+          COUNT(u.id)::int AS count
+        FROM ${seriesQuery} AS gs
+        LEFT JOIN users u ON ${joinExpr}
+        GROUP BY gs, label
+        ORDER BY gs
+      `)),
+      db.execute(sql.raw(`
+        SELECT COUNT(*)::int AS total
+        FROM users
+        WHERE created_at >= ${prevStart}
+          AND created_at <= ${prevEnd}
+      `)),
+    ]);
 
-  const data = (dataRows.rows as { label: string; count: number }[]).map((r) => ({
-    label: r.label,
-    count: Number(r.count),
-  }));
+    const data = (dataRows.rows as { label: string; count: number }[]).map((r) => ({
+      label: r.label,
+      count: Number(r.count),
+    }));
 
-  const total = data.reduce((s, r) => s + r.count, 0);
-  const previousTotal = Number((prevRows.rows as { total: number }[])[0]?.total ?? 0);
+    const total = data.reduce((s, r) => s + r.count, 0);
+    const previousTotal = Number((prevRows.rows as { total: number }[])[0]?.total ?? 0);
 
-  res.json({ period, total, previousTotal, data });
+    res.json({ period, total, previousTotal, data });
+  } catch (err) {
+    req.log.warn({ err }, "metrics/users query failed");
+    res.json({ period, total: 0, previousTotal: 0, data: [] });
+  }
 });
 
 // ─── Metrics: Revenue (subscriptions + pack purchases) ───────────────────────
@@ -1512,42 +1517,47 @@ router.get("/admin/metrics/revenue", requireAdmin, requireAdminHeader, async (re
       break;
   }
 
-  const [dataRows, prevRows] = await Promise.all([
-    db.execute(sql.raw(`
-      SELECT
-        ${labelExpr} AS label,
-        COALESCE(SUM(CASE WHEN tt.type = 'subscription' THEN tt.revenue_cents ELSE 0 END), 0)::int AS subscriptions,
-        COALESCE(SUM(CASE WHEN tt.type = 'purchase'     THEN tt.revenue_cents ELSE 0 END), 0)::int AS purchases
-      FROM ${seriesQuery} AS gs
-      LEFT JOIN ticket_transactions tt
-        ON ${joinExpr}
-        AND tt.type IN ('subscription', 'purchase')
-        AND tt.revenue_cents IS NOT NULL
-      GROUP BY gs, label
-      ORDER BY gs
-    `)),
-    db.execute(sql.raw(`
-      SELECT COALESCE(SUM(revenue_cents), 0)::int AS total
-      FROM ticket_transactions
-      WHERE type IN ('subscription', 'purchase')
-        AND revenue_cents IS NOT NULL
-        AND created_at >= ${prevStart}
-        AND created_at <= ${prevEnd}
-    `)),
-  ]);
+  try {
+    const [dataRows, prevRows] = await Promise.all([
+      db.execute(sql.raw(`
+        SELECT
+          ${labelExpr} AS label,
+          COALESCE(SUM(CASE WHEN tt.type = 'subscription' THEN tt.revenue_cents ELSE 0 END), 0)::int AS subscriptions,
+          COALESCE(SUM(CASE WHEN tt.type = 'purchase'     THEN tt.revenue_cents ELSE 0 END), 0)::int AS purchases
+        FROM ${seriesQuery} AS gs
+        LEFT JOIN ticket_transactions tt
+          ON ${joinExpr}
+          AND tt.type IN ('subscription', 'purchase')
+          AND tt.revenue_cents IS NOT NULL
+        GROUP BY gs, label
+        ORDER BY gs
+      `)),
+      db.execute(sql.raw(`
+        SELECT COALESCE(SUM(revenue_cents), 0)::int AS total
+        FROM ticket_transactions
+        WHERE type IN ('subscription', 'purchase')
+          AND revenue_cents IS NOT NULL
+          AND created_at >= ${prevStart}
+          AND created_at <= ${prevEnd}
+      `)),
+    ]);
 
-  type RevenueRow = { label: string; subscriptions: number; purchases: number };
-  const data = (dataRows.rows as RevenueRow[]).map((r) => ({
-    label: r.label,
-    subscriptions: Number(r.subscriptions),
-    purchases: Number(r.purchases),
-    total: Number(r.subscriptions) + Number(r.purchases),
-  }));
+    type RevenueRow = { label: string; subscriptions: number; purchases: number };
+    const data = (dataRows.rows as RevenueRow[]).map((r) => ({
+      label: r.label,
+      subscriptions: Number(r.subscriptions),
+      purchases: Number(r.purchases),
+      total: Number(r.subscriptions) + Number(r.purchases),
+    }));
 
-  const total = data.reduce((s, r) => s + r.total, 0);
-  const previousTotal = Number((prevRows.rows as { total: number }[])[0]?.total ?? 0);
+    const total = data.reduce((s, r) => s + r.total, 0);
+    const previousTotal = Number((prevRows.rows as { total: number }[])[0]?.total ?? 0);
 
-  res.json({ period, total, previousTotal, data });
+    res.json({ period, total, previousTotal, data });
+  } catch (err) {
+    req.log.warn({ err }, "metrics/revenue query failed");
+    res.json({ period, total: 0, previousTotal: 0, data: [] });
+  }
 });
 
 // ─── Metrics: New Premium Subscriptions ──────────────────────────────────────
@@ -1621,38 +1631,44 @@ router.get("/admin/metrics/subscriptions", requireAdmin, requireAdminHeader, asy
       break;
   }
 
-  const [dataRows, prevRows] = await Promise.all([
-    db.execute(sql.raw(`
-      SELECT
-        ${labelExpr} AS label,
-        COUNT(s.id)::int AS count
-      FROM ${seriesQuery} AS gs
-      LEFT JOIN subscriptions s ON ${joinExpr}
-      GROUP BY gs, label
-      ORDER BY gs
-    `)),
-    db.execute(sql.raw(`
-      SELECT COUNT(*)::int AS total
-      FROM subscriptions
-      WHERE created_at >= ${prevStart}
-        AND created_at <= ${prevEnd}
-    `)),
-  ]);
+  try {
+    const [dataRows, prevRows] = await Promise.all([
+      db.execute(sql.raw(`
+        SELECT
+          ${labelExpr} AS label,
+          COUNT(s.id)::int AS count
+        FROM ${seriesQuery} AS gs
+        LEFT JOIN subscriptions s ON ${joinExpr}
+        GROUP BY gs, label
+        ORDER BY gs
+      `)),
+      db.execute(sql.raw(`
+        SELECT COUNT(*)::int AS total
+        FROM subscriptions
+        WHERE created_at >= ${prevStart}
+          AND created_at <= ${prevEnd}
+      `)),
+    ]);
 
-  const data = (dataRows.rows as { label: string; count: number }[]).map((r) => ({
-    label: r.label,
-    count: Number(r.count),
-  }));
+    const data = (dataRows.rows as { label: string; count: number }[]).map((r) => ({
+      label: r.label,
+      count: Number(r.count),
+    }));
 
-  const total = data.reduce((s, r) => s + r.count, 0);
-  const previousTotal = Number((prevRows.rows as { total: number }[])[0]?.total ?? 0);
+    const total = data.reduce((s, r) => s + r.count, 0);
+    const previousTotal = Number((prevRows.rows as { total: number }[])[0]?.total ?? 0);
 
-  res.json({ period, total, previousTotal, data });
+    res.json({ period, total, previousTotal, data });
+  } catch (err) {
+    req.log.warn({ err }, "metrics/subscriptions query failed");
+    res.json({ period, total: 0, previousTotal: 0, data: [] });
+  }
 });
 
 // ─── Metrics: Active Users (DAU / WAU / MAU) ─────────────────────────────────
 
 router.get("/admin/metrics/active-users", requireAdmin, requireAdminHeader, async (_req, res): Promise<void> => {
+  try {
   const [dauRows, wauRows, mauRows, snapshotRows] = await Promise.all([
     // DAU: unique users per day, last 30 days
     db.execute(sql.raw(`
@@ -1729,6 +1745,9 @@ router.get("/admin/metrics/active-users", requireAdmin, requireAdminHeader, asyn
     wau: (wauRows.rows as { label: string; count: number }[]).map((r) => ({ label: r.label, count: Number(r.count) })),
     mau: (mauRows.rows as { label: string; count: number }[]).map((r) => ({ label: r.label, count: Number(r.count) })),
   });
+  } catch (err) {
+    res.json({ current: { dau: 0, wau: 0, mau: 0 }, dau: [], wau: [], mau: [] });
+  }
 });
 
 export default router;
