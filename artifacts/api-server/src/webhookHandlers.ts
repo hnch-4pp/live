@@ -81,6 +81,55 @@ export async function setupStripeWebhook(webhookBaseUrl: string): Promise<void> 
 
 // ── Event handlers ──────────────────────────────────────────────────────────
 
+async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session): Promise<void> {
+  // Only process one-time payment sessions (not subscriptions, which are handled by invoice events)
+  if (session.mode !== "payment") return;
+
+  const userId = Number(session.metadata?.userId);
+  const ticketAmount = Number(session.metadata?.ticketAmount ?? 1);
+  const packName = session.metadata?.packName ?? "Ticket pack";
+
+  if (!userId || isNaN(userId)) {
+    logger.warn({ sessionId: session.id }, "checkout.session.completed: no userId in metadata");
+    return;
+  }
+
+  // Idempotency: skip if already processed
+  const [existing] = await db
+    .select({ id: ticketTransactionsTable.id })
+    .from(ticketTransactionsTable)
+    .where(
+      and(
+        eq(ticketTransactionsTable.reference, session.id),
+        eq(ticketTransactionsTable.type, "purchase"),
+      ),
+    )
+    .limit(1);
+
+  if (existing) {
+    logger.info({ sessionId: session.id }, "Checkout session already processed — skipping");
+    return;
+  }
+
+  const revenueCents = session.amount_total ?? null;
+
+  await db.transaction(async (tx) => {
+    await tx.execute(
+      sql`UPDATE users SET tickets = tickets + ${ticketAmount} WHERE id = ${userId}`,
+    );
+    await tx.insert(ticketTransactionsTable).values({
+      userId,
+      type: "purchase",
+      amount: ticketAmount,
+      revenueCents,
+      label: `${packName} purchased`,
+      reference: session.id,
+    });
+  });
+
+  logger.info({ userId, ticketAmount, revenueCents, sessionId: session.id }, "Ticket pack credited via webhook");
+}
+
 async function handleInvoicePaymentSucceeded(invoice: Stripe.Invoice): Promise<void> {
   const subDetails = invoice.parent?.subscription_details;
   const subscriptionId =
@@ -251,6 +300,9 @@ export class WebhookHandlers {
     logger.info({ eventType: event.type, eventId: event.id }, "Stripe webhook received");
 
     switch (event.type) {
+      case "checkout.session.completed":
+        await handleCheckoutSessionCompleted(event.data.object as Stripe.Checkout.Session);
+        break;
       case "customer.subscription.created":
         await handleSubscriptionCreated(event.data.object as Stripe.Subscription);
         break;
