@@ -541,14 +541,22 @@ router.put("/admin/affiliates/:id", requireAdmin, requireAdminHeader, async (req
     updates.slug = normalized;
   }
 
+  const beingApproved = status === "active" && aff.status !== "active";
+
   if (status && ["pending", "active", "suspended", "rejected"].includes(status)) {
     updates.status = status as any;
-    if (status === "active" && aff.status !== "active") {
+    if (beingApproved) {
       updates.approvedAt = new Date();
     }
   }
 
   await db.update(affiliatesTable).set(updates).where(eq(affiliatesTable.id, id));
+
+  if (beingApproved) {
+    const finalSlug = updates.slug ?? aff.slug;
+    sendAffiliateWelcomeEmail({ name: updates.name ?? aff.name, email: updates.email ?? aff.email, slug: finalSlug }).catch(() => {});
+  }
+
   res.json({ ok: true });
 });
 
@@ -604,6 +612,143 @@ async function sendAffiliateInviteEmail({
     headers: { Authorization: `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json" },
     body: JSON.stringify({ from: "Hunch <no-reply@hunch.fan>", to: [email], subject: "You're invited to Hunch's affiliate program", html: body }),
   }).catch(() => {});
+}
+
+async function sendAffiliateWelcomeEmail({ name, email, slug }: { name: string; email: string; slug: string }) {
+  const RESEND_API_KEY = process.env.RESEND_API_KEY;
+  if (!RESEND_API_KEY) {
+    console.warn("[AFFILIATES] RESEND_API_KEY not configured — welcome email not sent");
+    return;
+  }
+  const affiliateLink = `https://hunch.fan/${slug}`;
+  const dashboardLink = `https://hunch.fan/affiliate/dashboard`;
+
+  const html = `
+    <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:560px;margin:0 auto;background:#ffffff;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden">
+
+      <!-- Header -->
+      <div style="background:#7c3aed;padding:32px 32px 28px">
+        <p style="margin:0;font-size:22px;font-weight:800;color:#ffffff;letter-spacing:-0.3px">hunch</p>
+        <p style="margin:8px 0 0;font-size:13px;color:#ddd6fe;text-transform:uppercase;letter-spacing:1px">Programa de afiliados</p>
+      </div>
+
+      <!-- Body -->
+      <div style="padding:32px">
+        <h1 style="margin:0 0 8px;font-size:22px;font-weight:700;color:#111827">Bienvenido al programa, ${name}</h1>
+        <p style="margin:0 0 24px;font-size:15px;color:#6b7280">Tu solicitud fue aprobada. Ya puedes empezar a compartir tu link y ganar comisiones.</p>
+
+        <!-- Link box -->
+        <div style="background:#f5f3ff;border:1px solid #ddd6fe;border-radius:10px;padding:20px 24px;margin-bottom:28px">
+          <p style="margin:0 0 6px;font-size:12px;font-weight:600;color:#7c3aed;text-transform:uppercase;letter-spacing:0.8px">Tu link de afiliado</p>
+          <p style="margin:0;font-size:18px;font-weight:700;color:#4c1d95;word-break:break-all">${affiliateLink}</p>
+          <p style="margin:8px 0 0;font-size:13px;color:#7c3aed">Comparte este link con tu comunidad. Cada usuario que se registre quedara asociado a ti.</p>
+        </div>
+
+        <!-- Steps -->
+        <h2 style="margin:0 0 16px;font-size:16px;font-weight:700;color:#111827">Como empezar</h2>
+        <table style="width:100%;border-collapse:collapse;margin-bottom:28px">
+          <tr>
+            <td style="vertical-align:top;padding:0 14px 18px 0;width:32px">
+              <div style="width:28px;height:28px;background:#7c3aed;border-radius:50%;text-align:center;line-height:28px;font-size:13px;font-weight:700;color:#fff">1</div>
+            </td>
+            <td style="vertical-align:top;padding-bottom:18px">
+              <p style="margin:0 0 2px;font-size:14px;font-weight:600;color:#111827">Comparte tu link</p>
+              <p style="margin:0;font-size:13px;color:#6b7280">Publica <strong>${affiliateLink}</strong> en tus redes sociales, videos, stories o donde sea que este tu comunidad.</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="vertical-align:top;padding:0 14px 18px 0">
+              <div style="width:28px;height:28px;background:#7c3aed;border-radius:50%;text-align:center;line-height:28px;font-size:13px;font-weight:700;color:#fff">2</div>
+            </td>
+            <td style="vertical-align:top;padding-bottom:18px">
+              <p style="margin:0 0 2px;font-size:14px;font-weight:600;color:#111827">Tus seguidores se registran</p>
+              <p style="margin:0;font-size:13px;color:#6b7280">Cada usuario que llegue desde tu link recibe <strong>50% de descuento en su primer mes premium</strong>. Eso motiva la conversion.</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="vertical-align:top;padding:0 14px 0 0">
+              <div style="width:28px;height:28px;background:#7c3aed;border-radius:50%;text-align:center;line-height:28px;font-size:13px;font-weight:700;color:#fff">3</div>
+            </td>
+            <td style="vertical-align:top">
+              <p style="margin:0 0 2px;font-size:14px;font-weight:600;color:#111827">Cobra comisiones recurrentes</p>
+              <p style="margin:0;font-size:13px;color:#6b7280">Ganas comision cada mes que tus usuarios mantengan su suscripcion premium. A mas usuarios activos, mayor es tu tier.</p>
+            </td>
+          </tr>
+        </table>
+
+        <!-- Tiers -->
+        <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:10px;padding:20px 24px;margin-bottom:28px">
+          <p style="margin:0 0 14px;font-size:13px;font-weight:700;color:#111827;text-transform:uppercase;letter-spacing:0.5px">Tiers de comision</p>
+          <table style="width:100%;border-collapse:collapse">
+            <tr>
+              <td style="padding:6px 8px 6px 0;font-size:13px;font-weight:600;color:#374151;width:80px">Starter</td>
+              <td style="padding:6px 8px;font-size:13px;color:#6b7280">0 – 50 usuarios premium activos</td>
+              <td style="padding:6px 0 6px 8px;font-size:13px;font-weight:700;color:#7c3aed;text-align:right">20%</td>
+            </tr>
+            <tr style="background:#f3f4f6">
+              <td style="padding:6px 8px 6px 0;font-size:13px;font-weight:600;color:#374151;border-radius:4px 0 0 4px">Growth</td>
+              <td style="padding:6px 8px;font-size:13px;color:#6b7280">51 – 250 usuarios premium activos</td>
+              <td style="padding:6px 0 6px 8px;font-size:13px;font-weight:700;color:#7c3aed;text-align:right">25%</td>
+            </tr>
+            <tr>
+              <td style="padding:6px 8px 6px 0;font-size:13px;font-weight:600;color:#374151">Pro</td>
+              <td style="padding:6px 8px;font-size:13px;color:#6b7280">251 – 1,000 usuarios premium activos</td>
+              <td style="padding:6px 0 6px 8px;font-size:13px;font-weight:700;color:#7c3aed;text-align:right">30%</td>
+            </tr>
+            <tr style="background:#f3f4f6">
+              <td style="padding:6px 8px 6px 0;font-size:13px;font-weight:600;color:#374151">Elite</td>
+              <td style="padding:6px 8px;font-size:13px;color:#6b7280">1,001+ usuarios premium activos</td>
+              <td style="padding:6px 0 6px 8px;font-size:13px;font-weight:700;color:#7c3aed;text-align:right">35%</td>
+            </tr>
+          </table>
+          <p style="margin:12px 0 0;font-size:12px;color:#9ca3af">Tickets: 10% de comision fija independiente del tier. Comisiones calculadas sobre revenue neto.</p>
+        </div>
+
+        <!-- CTA -->
+        <div style="text-align:center;margin-bottom:28px">
+          <a href="${dashboardLink}" style="display:inline-block;padding:14px 32px;background:#7c3aed;color:#ffffff;text-decoration:none;border-radius:10px;font-weight:700;font-size:15px">
+            Ver mi dashboard de afiliado
+          </a>
+        </div>
+
+        <!-- Tips -->
+        <div style="border-left:3px solid #7c3aed;padding:12px 16px;background:#faf5ff;border-radius:0 8px 8px 0;margin-bottom:24px">
+          <p style="margin:0 0 8px;font-size:13px;font-weight:700;color:#4c1d95">Tips para maximizar tus comisiones</p>
+          <ul style="margin:0;padding-left:16px;font-size:13px;color:#6b7280;line-height:1.8">
+            <li>Menciona la plataforma en contexto: cuando hagas predicciones o comentarios de resultados</li>
+            <li>Recuerda el descuento del 50% — es tu mejor argumento de conversion</li>
+            <li>Comparte tu link regularmente, no solo una vez</li>
+            <li>Engancha a tu comunidad con hunches de su nicho</li>
+          </ul>
+        </div>
+
+        <p style="margin:0;font-size:14px;color:#6b7280">Si tienes preguntas, responde a este correo o contactanos en <a href="mailto:hola@hunch.fan" style="color:#7c3aed;text-decoration:none">hola@hunch.fan</a>.</p>
+      </div>
+
+      <!-- Footer -->
+      <div style="background:#f9fafb;border-top:1px solid #e5e7eb;padding:20px 32px">
+        <p style="margin:0;font-size:12px;color:#9ca3af;text-align:center">
+          Hunch es una plataforma de predicciones basada en habilidad. No se apuesta dinero real.<br>
+          <a href="https://hunch.fan/terms" style="color:#9ca3af">Terminos</a> &nbsp;·&nbsp;
+          <a href="https://hunch.fan/privacy" style="color:#9ca3af">Privacidad</a> &nbsp;·&nbsp;
+          <a href="https://hunch.fan/responsible" style="color:#9ca3af">Juego responsable</a>
+        </p>
+      </div>
+    </div>
+  `;
+
+  await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      from: "Hunch <no-reply@hunch.fan>",
+      to: [email],
+      subject: `Bienvenido al programa de afiliados, ${name}`,
+      html,
+    }),
+  }).catch((err) => {
+    console.error("[AFFILIATES] Failed to send welcome email:", err);
+  });
 }
 
 // ─── Admin: affiliate tiers CRUD ──────────────────────────────────────────────
