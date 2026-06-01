@@ -398,10 +398,25 @@ function OtpInput({ value, onChange }: { value: string; onChange: (v: string) =>
 
 // ── Main component ────────────────────────────────────────────────────────────
 
+function getAffiliateRefFromUrl(): string {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const ref = params.get("ref");
+    if (ref) return ref;
+    const raw = localStorage.getItem("hunch_affiliate_ref");
+    if (!raw) return "";
+    const { slug, ts } = JSON.parse(raw) as { slug: string; ts: number };
+    if (Date.now() - ts > 30 * 24 * 60 * 60 * 1000) { localStorage.removeItem("hunch_affiliate_ref"); return ""; }
+    return slug;
+  } catch { return ""; }
+}
+
 export default function Signup() {
   const [, setLocation] = useLocation();
   const { refetch } = useAuth();
   const { t } = useTranslation();
+
+  const affiliateRef = getAffiliateRefFromUrl();
 
   const [step, setStep] = useState<Step>("email");
   const [email, setEmail] = useState("");
@@ -522,7 +537,7 @@ export default function Signup() {
       } else if (step === "address") {
         setStep("dob");
       } else if (step === "dob") {
-        await post("/auth/signup/complete", { username: username.trim().toLowerCase(), address: fullAddress, dateOfBirth: dob });
+        await post("/auth/signup/complete", { username: username.trim().toLowerCase(), address: fullAddress, dateOfBirth: dob, ...(affiliateRef ? { affiliateRef } : {}) });
         await refetch();
         setStep("ticket-code");
       } else if (step === "ticket-code") {

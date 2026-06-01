@@ -14,3 +14,4 @@ export * from "./ticketTransactions";
 export * from "./subscriptions";
 export * from "./appSettings";
 export * from "./topNotifications";
+export * from "./affiliates";

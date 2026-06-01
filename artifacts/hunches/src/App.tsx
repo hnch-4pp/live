@@ -30,6 +30,11 @@ import TicketActivity from "@/pages/ticket-activity";
 import CheckoutSuccess from "@/pages/checkout-success";
 import MyHunches from "@/pages/my-hunches";
 import Pricing from "@/pages/pricing";
+import AffiliateLanding from "@/pages/affiliate-landing";
+import AffiliateDashboard from "@/pages/affiliate-dashboard";
+import AffiliateSlugPage from "@/pages/affiliate-slug";
+import AdminAffiliates from "@/pages/backstage/affiliates";
+import AdminAffiliateTiers from "@/pages/backstage/affiliate-tiers";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -69,6 +74,11 @@ function Router() {
       <Route path="/backstage/notifications" component={AdminNotifications} />
       <Route path="/backstage/admin-alerts" component={AdminAlerts} />
       <Route path="/backstage/metrics" component={AdminMetrics} />
+      <Route path="/backstage/affiliates" component={AdminAffiliates} />
+      <Route path="/backstage/affiliate-tiers" component={AdminAffiliateTiers} />
+      <Route path="/affiliate" component={AffiliateLanding} />
+      <Route path="/affiliate/dashboard" component={AffiliateDashboard} />
+      <Route path="/:affiliateSlug" component={AffiliateSlugPage} />
       <Route component={NotFound} />
     </Switch>
   );

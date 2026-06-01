@@ -7,6 +7,7 @@ import {
 } from "@workspace/db";
 import bcrypt from "bcryptjs";
 import { sendAdminAlert } from "../adminAlerts";
+import { attributeUserToAffiliate } from "./affiliates";
 
 const router: IRouter = Router();
 
@@ -277,6 +278,8 @@ router.post("/auth/signup/complete", async (req, res): Promise<void> => {
     return;
   }
 
+  const { affiliateRef: bodyAffiliateRef } = req.body as { affiliateRef?: string };
+
   const [user] = await db
     .insert(usersTable)
     .values({
@@ -297,9 +300,15 @@ router.post("/auth/signup/complete", async (req, res): Promise<void> => {
     label: "Welcome bonus — 15 tickets",
   });
 
+  // Affiliate attribution — prefer body param, fall back to session
+  const affiliateRef = bodyAffiliateRef?.trim() || req.session.pendingSignup?.affiliateRef;
   req.session.pendingSignup = undefined;
   req.session.userId = user.id;
   res.json({ ok: true, user: { id: user.id, email: user.email } });
+
+  if (affiliateRef) {
+    attributeUserToAffiliate(user.id, affiliateRef).catch(() => {});
+  }
 
   sendAdminAlert(
     "new_user",

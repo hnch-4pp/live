@@ -1,4 +1,4 @@
-import { pgTable, serial, text, date, timestamp, pgEnum, integer } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, date, timestamp, pgEnum, integer, boolean } from "drizzle-orm/pg-core";
 
 export const userStatusEnum = pgEnum("user_status", ["active", "suspended", "banned"]);
 
@@ -15,6 +15,9 @@ export const usersTable = pgTable("users", {
   stripeCustomerId: text("stripe_customer_id"),
   status: userStatusEnum("status").notNull().default("active"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  referredByAffiliateId: integer("referred_by_affiliate_id"),
+  referralDiscountUsed: boolean("referral_discount_used").notNull().default(false),
+  referralDiscountAppliedAt: timestamp("referral_discount_applied_at", { withTimezone: true }),
 });
 
 export type User = typeof usersTable.$inferSelect;

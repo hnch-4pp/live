@@ -2,18 +2,20 @@ import { useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { useTranslation } from "react-i18next";
 import { apiUrl } from "@/lib/apiFetch";
-import { LayoutDashboard, ListChecks, Tag, Users, LogOut, ChevronRight, Ticket, Sparkles, Bell, BarChart2, BellRing } from "lucide-react";
+import { LayoutDashboard, ListChecks, Tag, Users, LogOut, ChevronRight, Ticket, Sparkles, Bell, BarChart2, BellRing, Link2, Award } from "lucide-react";
 
 const NAV = [
-  { href: "/backstage/dashboard",       label: "Dashboard",      icon: LayoutDashboard },
-  { href: "/backstage/hunches",         label: "Hunches",        icon: ListChecks },
-  { href: "/backstage/hero",            label: "Hero Order",     icon: Sparkles, sub: true },
-  { href: "/backstage/categories",      label: "Categories",     icon: Tag },
-  { href: "/backstage/users",           label: "Users",          icon: Users },
-  { href: "/backstage/ticket-codes",    label: "Ticket Codes",   icon: Ticket },
-  { href: "/backstage/notifications",   label: "Notifications",  icon: Bell },
-  { href: "/backstage/admin-alerts",    label: "Admin Alerts",   icon: BellRing },
-  { href: "/backstage/metrics",         label: "Metrics",        icon: BarChart2 },
+  { href: "/backstage/dashboard",         label: "Dashboard",        icon: LayoutDashboard },
+  { href: "/backstage/hunches",           label: "Hunches",          icon: ListChecks },
+  { href: "/backstage/hero",              label: "Hero Order",       icon: Sparkles, sub: true },
+  { href: "/backstage/categories",        label: "Categories",       icon: Tag },
+  { href: "/backstage/users",             label: "Users",            icon: Users },
+  { href: "/backstage/ticket-codes",      label: "Ticket Codes",     icon: Ticket },
+  { href: "/backstage/notifications",     label: "Notifications",    icon: Bell },
+  { href: "/backstage/admin-alerts",      label: "Admin Alerts",     icon: BellRing },
+  { href: "/backstage/metrics",           label: "Metrics",          icon: BarChart2 },
+  { href: "/backstage/affiliates",        label: "Affiliates",       icon: Link2 },
+  { href: "/backstage/affiliate-tiers",   label: "Comm. Tiers",      icon: Award, sub: true },
 ];
 
 async function logout() {

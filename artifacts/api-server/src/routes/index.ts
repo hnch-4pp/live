@@ -9,6 +9,7 @@ import storageRouter from "./storage";
 import stripeRouter from "./stripe";
 import subscriptionsRouter from "./subscriptions";
 import notificationsRouter from "./notifications";
+import affiliatesRouter from "./affiliates";
 
 const router: IRouter = Router();
 
@@ -19,6 +20,7 @@ router.use(subscriptionsRouter);
 router.use(placesRouter);
 router.use(storageRouter);
 router.use(notificationsRouter);
+router.use(affiliatesRouter);
 router.use(hunchesRouter);
 router.use(categoriesRouter);
 router.use(adminRouter);

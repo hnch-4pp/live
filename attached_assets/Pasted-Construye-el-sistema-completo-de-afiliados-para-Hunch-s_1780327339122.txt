@@ -1,0 +1,522 @@
+Construye el sistema completo de afiliados para Hunch siguiendo estas especificaciones.
+
+Contexto:
+Hunch es una plataforma donde usuarios usan tickets o monthly passes para participar en predicciones. Queremos crear un programa de afiliados para creadores, expertos e influencers, usando links personalizados tipo:
+
+hunch.fan/escorpiondorado
+
+El objetivo es que cada afiliado tenga su propio slug, landing page, tracking de conversiones, dashboard de revenue y cálculo automático de comisiones.
+
+## 1. Roles y permisos
+
+Implementar estos roles:
+
+- Admin
+- Affiliate / Creator
+- User
+
+El Admin debe poder:
+
+- Crear afiliados manualmente
+- Invitar afiliados por email
+- Aprobar o rechazar solicitudes de afiliados
+- Editar slug del afiliado
+- Activar o desactivar afiliados
+- Ver métricas globales del programa
+- Configurar tiers de comisión
+- Configurar porcentajes de comisión
+- Ver revenue generado por cada afiliado
+- Ver comisiones pendientes, aprobadas y pagadas
+
+El Affiliate debe poder:
+
+- Crear cuenta desde /affiliate
+- Ver su dashboard
+- Ver su link personalizado
+- Ver usuarios registrados por su link
+- Ver conversiones a pago
+- Ver revenue generado
+- Ver comisión estimada
+- Ver historial de pagos
+- Editar su perfil público
+- Personalizar su landing page básica
+
+El User debe poder:
+
+- Registrarse desde el link de un afiliado
+- Recibir beneficio de 50% de descuento en el primer mes del monthly pass elegido
+- Quedar ligado al afiliado correspondiente para efectos de comisión
+
+## 2. Rutas necesarias
+
+Crear estas rutas:
+
+### Pública
+
+/affiliate
+
+Landing para explicar el programa de afiliados y permitir que un creador aplique o cree su cuenta.
+
+Debe incluir:
+
+- Hero section
+- Beneficios para creadores
+- Cómo funciona
+- Modelo de comisión por tiers
+- Formulario de aplicación
+- CTA para crear cuenta
+
+### Landing dinámica del afiliado
+
+/:affiliateSlug
+
+Ejemplo:
+
+/escorpiondorado
+
+Esta página debe cargar la información pública del afiliado y funcionar como landing page personalizada.
+
+Debe incluir:
+
+- Nombre del afiliado
+- Foto/avatar
+- Bio
+- Categoría o nicho
+- Mensaje personalizado
+- Hunches destacados si existen
+- CTA para registrarse
+- Explicación del beneficio: “Regístrate con este link y recibe 50% de descuento en tu primer mes de monthly pass”
+- Tracking automático del affiliateSlug
+
+Cuando un usuario llegue desde esta página, guardar el affiliateSlug en cookie/local storage por al menos 30 días.
+
+### Registro con afiliado
+
+/signup?ref=escorpiondorado
+
+También debe soportar registro si el usuario viene desde /escorpiondorado.
+
+Al crear la cuenta:
+
+- Asociar el userId con affiliateId
+- Guardar referral_source
+- Guardar timestamp
+- Guardar cookie/referrer si existe
+- Evitar sobrescribir el affiliateId si el usuario ya había sido atribuido previamente
+
+### Dashboard de afiliado
+
+/affiliate/dashboard
+
+Debe mostrar:
+
+- Link personalizado
+- Total clicks
+- Total signups
+- Usuarios activos
+- Usuarios convertidos a pago
+- Revenue total generado
+- Comisión estimada
+- Comisión pendiente
+- Comisión aprobada
+- Comisión pagada
+- Gráfica de revenue por mes
+- Tabla de conversiones
+- Tabla de pagos
+
+### Admin afiliados
+
+/admin/affiliates
+
+Debe permitir:
+
+- Ver todos los afiliados
+- Buscar afiliados
+- Filtrar por estado
+- Crear afiliado
+- Invitar afiliado
+- Aprobar afiliado
+- Suspender afiliado
+- Editar afiliado
+- Ver detalle de métricas
+- Ver usuarios referidos
+- Ver conversiones
+- Ver comisiones
+
+### Admin configuración de tiers
+
+/admin/affiliate-tiers
+
+Debe permitir configurar tiers dinámicamente.
+
+Tiers iniciales:
+
+Tier 1:
+- Nombre: Starter
+- Rango: 0 a 50 usuarios premium activos referidos
+- Comisión: 20%
+
+Tier 2:
+- Nombre: Growth
+- Rango: 51 a 250 usuarios premium activos referidos
+- Comisión: 25%
+
+Tier 3:
+- Nombre: Pro
+- Rango: 251 a 1000 usuarios premium activos referidos
+- Comisión: 30%
+
+Tier 4:
+- Nombre: Elite
+- Rango: 1001+ usuarios premium activos referidos
+- Comisión: 35%
+
+El Admin debe poder editar:
+
+- Nombre del tier
+- Mínimo de usuarios premium activos
+- Máximo de usuarios premium activos
+- Porcentaje de comisión
+- Estado activo/inactivo
+
+## 3. Base de datos
+
+Crear o actualizar el schema con estas tablas:
+
+### affiliates
+
+Campos:
+
+- id
+- user_id
+- name
+- slug
+- email
+- avatar_url
+- bio
+- niche
+- status: pending, active, suspended, rejected
+- custom_message
+- created_at
+- updated_at
+- approved_at
+- approved_by
+
+El slug debe ser único.
+
+### affiliate_clicks
+
+Campos:
+
+- id
+- affiliate_id
+- slug
+- visitor_id
+- ip_hash
+- user_agent
+- landing_page
+- created_at
+
+### referrals
+
+Campos:
+
+- id
+- affiliate_id
+- referred_user_id
+- referral_slug
+- status: signed_up, converted, active, cancelled
+- signup_at
+- converted_at
+- first_purchase_at
+- created_at
+
+Un usuario sólo puede tener un affiliate_id principal.
+
+### affiliate_tiers
+
+Campos:
+
+- id
+- name
+- min_active_premium_users
+- max_active_premium_users
+- commission_percentage
+- is_active
+- created_at
+- updated_at
+
+### affiliate_commissions
+
+Campos:
+
+- id
+- affiliate_id
+- referred_user_id
+- subscription_id
+- transaction_id
+- revenue_amount
+- commission_percentage
+- commission_amount
+- commission_type: subscription, ticket_purchase, bonus
+- status: pending, approved, paid, rejected
+- earned_at
+- approved_at
+- paid_at
+- created_at
+
+### affiliate_payouts
+
+Campos:
+
+- id
+- affiliate_id
+- amount
+- status: pending, processing, paid, failed
+- payment_method
+- payment_reference
+- period_start
+- period_end
+- created_at
+- paid_at
+
+## 4. Lógica de atribución
+
+Cuando un usuario visite /:affiliateSlug:
+
+- Buscar affiliate activo por slug
+- Registrar click
+- Guardar affiliateSlug en cookie/local storage
+- Mantener atribución durante 30 días
+
+Cuando el usuario se registre:
+
+- Revisar si hay ref en query params
+- Revisar si hay affiliateSlug guardado en cookie/local storage
+- Asociar el usuario al affiliate correspondiente
+- Crear registro en referrals
+- No sobrescribir una atribución ya existente
+
+Regla de atribución:
+
+- First-touch attribution
+- Duración de cookie: 30 días
+- Un usuario sólo puede estar asociado a un afiliado
+
+## 5. Beneficio para usuarios referidos
+
+Los usuarios que se registren por un afiliado reciben:
+
+50% de descuento durante el primer mes del monthly pass que elijan.
+
+Implementar lógica para:
+
+- Detectar que el usuario viene referido por afiliado
+- Aplicar descuento sólo al primer mes
+- Mostrar el descuento en checkout
+- Guardar que el beneficio ya fue utilizado
+- Evitar abuso creando múltiples cuentas
+
+Crear campo recomendado en user/subscription:
+
+- referred_discount_used: boolean
+- referred_discount_applied_at
+- affiliate_discount_code
+- original_price
+- discounted_price
+
+El descuento debe aplicar únicamente a monthly passes, no a compras individuales de tickets.
+
+## 6. Cálculo de comisiones
+
+Las comisiones se pagan sobre revenue neto generado por usuarios referidos.
+
+Reglas iniciales:
+
+- Premium mensual: comisión recurrente según tier
+- Compra de tickets: 10%
+- Primer mes con descuento: calcular comisión sobre el monto efectivamente pagado, no sobre precio completo
+- No pagar comisión por usuarios free
+- No pagar comisión por tickets gratuitos
+- No pagar comisión por refunds, chargebacks o pagos fallidos
+
+Comisión de suscripción:
+
+commission_amount = revenue_amount * commission_percentage
+
+El porcentaje depende del tier actual del afiliado.
+
+El tier se calcula con base en el número de usuarios premium activos referidos.
+
+Ejemplo:
+
+- 0 a 50 usuarios premium activos: 20%
+- 51 a 250: 25%
+- 251 a 1000: 30%
+- 1001+: 35%
+
+Compra de tickets:
+
+commission_amount = ticket_purchase_revenue * 10%
+
+## 7. Dashboard del afiliado
+
+Crear métricas:
+
+- Clicks totales
+- Signups totales
+- Conversion rate signup/click
+- Usuarios premium activos
+- Revenue total
+- Revenue mensual
+- Comisión total generada
+- Comisión pendiente
+- Comisión aprobada
+- Comisión pagada
+- Tier actual
+- Siguiente tier
+- Usuarios premium faltantes para siguiente tier
+
+Crear tablas:
+
+### Conversiones
+
+Columnas:
+
+- Fecha
+- Usuario
+- Estado
+- Plan comprado
+- Revenue generado
+- Comisión generada
+
+### Revenue histórico
+
+Columnas:
+
+- Mes
+- Revenue
+- Comisión
+- Usuarios premium activos
+
+### Payouts
+
+Columnas:
+
+- Periodo
+- Monto
+- Estado
+- Fecha de pago
+- Referencia
+
+## 8. Admin dashboard
+
+Crear métricas globales:
+
+- Total afiliados
+- Afiliados activos
+- Clicks totales
+- Signups referidos
+- Usuarios premium referidos
+- Revenue total afiliado
+- Comisiones pendientes
+- Comisiones pagadas
+- Top afiliados por revenue
+- Top afiliados por usuarios premium
+- Top afiliados por conversión
+
+## 9. UX/UI
+
+Usar un diseño limpio, moderno y consistente con Hunch.
+
+El dashboard debe sentirse tipo creator economy / SaaS.
+
+Componentes recomendados:
+
+- Cards de métricas
+- Charts de revenue
+- Tabla filtrable
+- Botón para copiar link
+- Badge de tier actual
+- Progress bar hacia siguiente tier
+- Estado de pago
+- Estado de afiliado
+
+En la landing pública /affiliate, usar copy atractivo:
+
+Título sugerido:
+“Convierte tu comunidad en una comunidad de predicción”
+
+Subtítulo:
+“Invita a tus seguidores a jugar Hunch, crea tu propio link personalizado y gana comisiones recurrentes por los usuarios premium que generes.”
+
+CTA:
+“Aplicar al programa de afiliados”
+
+## 10. Emails / invitaciones
+
+Crear sistema básico para invitaciones desde admin.
+
+El Admin debe poder ingresar:
+
+- Nombre del creador
+- Email
+- Slug sugerido
+- Mensaje opcional
+
+El sistema debe enviar una invitación con un link para completar registro.
+
+Si no hay integración de email disponible, crear la estructura backend y dejar una función mock/sendAffiliateInviteEmail() claramente comentada para conectar después con Resend, SendGrid o Postmark.
+
+## 11. Seguridad y validaciones
+
+Validar:
+
+- Slugs únicos
+- Slugs limpios, lowercase, sin espacios
+- Evitar slugs reservados como admin, affiliate, login, signup, api, dashboard, checkout
+- Sólo admins pueden editar tiers
+- Sólo admins pueden aprobar afiliados
+- Un afiliado sólo puede ver sus propias métricas
+- No exponer información sensible de usuarios referidos
+- Evitar duplicación de comisiones
+- Evitar comisión en pagos fallidos
+- Evitar self-referrals si el afiliado compra su propio plan
+
+## 12. Entregables esperados
+
+Construye:
+
+- Backend necesario
+- Base de datos / migrations
+- Modelos
+- API routes
+- Frontend pages
+- Admin pages
+- Affiliate dashboard
+- Landing pages dinámicas
+- Tracking de clicks
+- Tracking de referrals
+- Cálculo de comisiones
+- Configuración editable de tiers
+- Aplicación de descuento de 50% en primer mes
+- Seed data de tiers iniciales
+- Datos demo para probar el dashboard
+
+## 13. Importante
+
+No construyas sólo pantallas estáticas.
+
+Todo debe quedar conectado a la base de datos y listo para probar flujo completo:
+
+1. Admin crea o invita afiliado
+2. Afiliado tiene slug
+3. Usuario visita hunch.fan/slug
+4. Usuario se registra
+5. Usuario compra monthly pass con 50% off primer mes
+6. Sistema liga usuario con afiliado
+7. Sistema calcula comisión
+8. Afiliado ve conversión y revenue en dashboard
+9. Admin ve métricas y puede configurar tiers
+
+Prioriza funcionalidad real sobre diseño perfecto.

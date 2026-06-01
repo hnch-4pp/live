@@ -12,6 +12,7 @@ declare module "express-session" {
       passwordHash?: string;
       passwordSet?: boolean;
       username?: string;
+      affiliateRef?: string;
     };
     loginEmail?: string;
   }
