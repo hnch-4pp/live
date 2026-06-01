@@ -228,7 +228,7 @@ export default function AdminUserDetail() {
           <div className="flex items-center gap-4">
             <div className="w-14 h-14 rounded-2xl bg-violet-100 flex items-center justify-center shrink-0 overflow-hidden">
               {detail.avatarUrl
-                ? <img src={`/api/storage${detail.avatarUrl}`} alt="avatar" className="w-full h-full object-cover" />
+                ? <img src={detail.avatarUrl.startsWith("http://") || detail.avatarUrl.startsWith("https://") ? detail.avatarUrl : `/api/storage${detail.avatarUrl}`} alt="avatar" className="w-full h-full object-cover" />
                 : <span className="text-lg font-bold text-violet-600">{initials}</span>
               }
             </div>

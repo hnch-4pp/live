@@ -157,7 +157,7 @@ function AuthButtons() {
         >
           <div className="w-7 h-7 rounded-full bg-primary/15 flex items-center justify-center shrink-0 overflow-hidden">
             {user.avatarUrl ? (
-              <img src={`/api/storage${user.avatarUrl}`} alt="avatar" className="w-full h-full object-cover" />
+              <img src={user.avatarUrl.startsWith("http://") || user.avatarUrl.startsWith("https://") ? user.avatarUrl : `/api/storage${user.avatarUrl}`} alt="avatar" className="w-full h-full object-cover" />
             ) : (
               <span className="text-[10px] font-bold text-primary">{navInitials}</span>
             )}
