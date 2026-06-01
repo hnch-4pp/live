@@ -30,13 +30,9 @@ interface MetricsData {
   period: Period;
   total: number;
   previousTotal: number;
-  data: { label: string; count: number }[];
-}
-
-interface CumulativeUsersData {
-  period: Period;
   totalNow: number;
-  data: { label: string; total: number }[];
+  totalBeforePeriod: number;
+  data: { label: string; count: number }[];
 }
 
 interface ActiveUsersData {
@@ -180,10 +176,6 @@ export default function AdminMetrics() {
   // Shared period for all user charts
   const [period, setPeriod] = useState<Period>("last_7_days");
 
-  // Cumulative user totals state
-  const [cumData, setCumData] = useState<CumulativeUsersData | null>(null);
-  const [cumLoading, setCumLoading] = useState(true);
-
   // New user registrations state
   const [regData, setRegData] = useState<MetricsData | null>(null);
   const [regLoading, setRegLoading] = useState(true);
@@ -230,15 +222,6 @@ export default function AdminMetrics() {
   }
 
   useEffect(() => {
-    setCumLoading(true);
-    setCumData(null);
-    adminFetch(`/admin/metrics/users/cumulative?period=${period}`)
-      .then(async (r) => { if (!r.ok) throw new Error(`${r.status}`); return r.json() as Promise<CumulativeUsersData>; })
-      .then((d) => { if (Array.isArray(d?.data)) { setCumData(d); } setCumLoading(false); })
-      .catch(() => setCumLoading(false));
-  }, [period]);
-
-  useEffect(() => {
     setRegLoading(true);
     setRegData(null);
     adminFetch(`/admin/metrics/users?period=${period}`)
@@ -272,6 +255,18 @@ export default function AdminMetrics() {
       .then((d) => { if (Array.isArray(d?.data)) { setRevData(d); } setRevLoading(false); })
       .catch(() => setRevLoading(false));
   }, [revPeriod]);
+
+  // Derive cumulative series from registration data (no separate endpoint needed)
+  const cumSeries: { label: string; total: number }[] | null = regData
+    ? (() => {
+        let running = regData.totalBeforePeriod ?? 0;
+        return regData.data.map((bucket) => {
+          running += bucket.count;
+          return { label: bucket.label, total: running };
+        });
+      })()
+    : null;
+  const cumTotalNow = regData?.totalNow ?? 0;
 
   const regMaxCount = regData?.data ? Math.max(...regData.data.map((d) => d.count), 1) : 1;
   const chartData: { label: string; count: number }[] = auData?.[auView] ?? [];
@@ -327,24 +322,23 @@ export default function AdminMetrics() {
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-6">
             <div className="bg-white border border-gray-200 rounded-2xl p-5">
               <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Total users now</p>
-              {cumLoading ? <StatSkeleton /> : (
-                <span className="text-3xl font-bold text-gray-900">{cumData?.totalNow?.toLocaleString() ?? 0}</span>
+              {regLoading ? <StatSkeleton /> : (
+                <span className="text-3xl font-bold text-gray-900">{cumTotalNow.toLocaleString()}</span>
               )}
               <p className="text-xs text-gray-400 mt-1">all time</p>
             </div>
             <div className="bg-white border border-gray-200 rounded-2xl p-5">
               <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">At period start</p>
-              {cumLoading ? <StatSkeleton /> : (
-                <span className="text-3xl font-bold text-gray-900">{cumData?.data[0]?.total?.toLocaleString() ?? 0}</span>
+              {regLoading ? <StatSkeleton /> : (
+                <span className="text-3xl font-bold text-gray-900">{(cumSeries?.[0]?.total ?? 0).toLocaleString()}</span>
               )}
               <p className="text-xs text-gray-400 mt-1">{PERIODS.find((p) => p.value === period)?.label}</p>
             </div>
             <div className="bg-white border border-gray-200 rounded-2xl p-5">
               <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Growth in period</p>
-              {cumLoading ? <StatSkeleton /> : (() => {
-                const start = cumData?.data[0]?.total ?? 0;
-                const end = cumData?.totalNow ?? 0;
-                const gained = end - start;
+              {regLoading ? <StatSkeleton /> : (() => {
+                const start = cumSeries?.[0]?.total ?? 0;
+                const gained = cumTotalNow - start;
                 return (
                   <div className="flex items-end gap-3">
                     <span className="text-3xl font-bold text-gray-900">+{gained.toLocaleString()}</span>
@@ -362,11 +356,11 @@ export default function AdminMetrics() {
 
           {/* Chart */}
           <div className="bg-white border border-gray-200 rounded-2xl p-6">
-            {cumLoading ? (
+            {regLoading ? (
               <div className="h-72 flex items-center justify-center">
                 <div className="text-sm text-gray-400">Loading chart...</div>
               </div>
-            ) : !cumData || cumData.data.length === 0 ? (
+            ) : !cumSeries || cumSeries.length === 0 ? (
               <div className="h-72 flex items-center justify-center">
                 <div className="text-sm text-gray-400">No data for this period</div>
               </div>
@@ -376,10 +370,10 @@ export default function AdminMetrics() {
                   <p className="text-sm font-semibold text-gray-700">
                     {PERIODS.find((p) => p.value === period)?.label} — cumulative growth
                   </p>
-                  <p className="text-xs text-gray-400">{cumData.totalNow.toLocaleString()} total</p>
+                  <p className="text-xs text-gray-400">{cumTotalNow.toLocaleString()} total</p>
                 </div>
                 <ResponsiveContainer width="100%" height={280}>
-                  <LineChart data={cumData.data} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
+                  <LineChart data={cumSeries} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
                     <defs>
                       <linearGradient id="cumGradient" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="5%"  stopColor="#4f46e5" stopOpacity={0.15} />
@@ -395,7 +389,7 @@ export default function AdminMetrics() {
                       dataKey="total"
                       stroke="#4f46e5"
                       strokeWidth={2.5}
-                      dot={cumData.data.length <= 14 ? { r: 4, fill: "#4f46e5", strokeWidth: 0 } : false}
+                      dot={cumSeries.length <= 14 ? { r: 4, fill: "#4f46e5", strokeWidth: 0 } : false}
                       activeDot={{ r: 5, fill: "#4f46e5", strokeWidth: 0 }}
                     />
                   </LineChart>
