@@ -148,6 +148,15 @@ async function getAffiliateTier(affiliateId: number): Promise<{
   return { current, next, activePremiumCount };
 }
 
+// ─── Public: list active commission tiers ────────────────────────────────────
+
+router.get("/affiliates/tiers", async (_req, res): Promise<void> => {
+  const tiers = await db.select().from(affiliateTiersTable)
+    .where(eq(affiliateTiersTable.isActive, true))
+    .orderBy(affiliateTiersTable.minActivePremiumUsers);
+  res.json({ tiers });
+});
+
 // ─── Public: get affiliate by slug ───────────────────────────────────────────
 
 router.get("/affiliates/public/:slug", async (req, res): Promise<void> => {

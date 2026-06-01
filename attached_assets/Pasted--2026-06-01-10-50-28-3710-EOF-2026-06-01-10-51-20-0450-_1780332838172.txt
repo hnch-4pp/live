@@ -1,0 +1,126 @@
+-- 2026-06-01 10:50:28.3710
+EOF
+
+-- 2026-06-01 10:51:20.0450
+ALTER TABLE users ADD COLUMN IF NOT EXISTS referral_discount_applied_at timestamptz;
+
+-- 2026-06-01 10:53:33.7280
+DO $$ BEGIN
+  CREATE TYPE affiliate_status AS ENUM ('pending','active','suspended','rejected');
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+-- 2026-06-01 10:53:33.7960
+DO $$ BEGIN
+  CREATE TYPE referral_status AS ENUM ('signed_up','converted','active','cancelled');
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+-- 2026-06-01 10:53:33.8630
+DO $$ BEGIN
+  CREATE TYPE commission_type AS ENUM ('subscription','ticket_purchase','bonus');
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+-- 2026-06-01 10:53:33.9330
+DO $$ BEGIN
+  CREATE TYPE commission_status AS ENUM ('pending','approved','paid','rejected');
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+-- 2026-06-01 10:53:34.0000
+DO $$ BEGIN
+  CREATE TYPE payout_status AS ENUM ('pending','processing','paid','failed');
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+-- 2026-06-01 10:53:34.0720
+CREATE TABLE IF NOT EXISTS affiliates (
+  id serial PRIMARY KEY,
+  user_id integer REFERENCES users(id) ON DELETE SET NULL,
+  name text NOT NULL,
+  slug text NOT NULL UNIQUE,
+  email text NOT NULL,
+  avatar_url text,
+  bio text,
+  niche text,
+  status affiliate_status NOT NULL DEFAULT 'pending',
+  custom_message text,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  approved_at timestamptz,
+  approved_by integer
+);
+
+-- 2026-06-01 10:53:34.1410
+CREATE TABLE IF NOT EXISTS affiliate_clicks (
+  id serial PRIMARY KEY,
+  affiliate_id integer NOT NULL REFERENCES affiliates(id) ON DELETE CASCADE,
+  slug text NOT NULL,
+  visitor_id text,
+  ip_hash text,
+  user_agent text,
+  landing_page text,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+-- 2026-06-01 10:53:34.2110
+CREATE TABLE IF NOT EXISTS referrals (
+  id serial PRIMARY KEY,
+  affiliate_id integer NOT NULL REFERENCES affiliates(id) ON DELETE CASCADE,
+  referred_user_id integer NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  referral_slug text NOT NULL,
+  status referral_status NOT NULL DEFAULT 'signed_up',
+  signup_at timestamptz NOT NULL DEFAULT now(),
+  converted_at timestamptz,
+  first_purchase_at timestamptz,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+-- 2026-06-01 10:53:34.2810
+CREATE TABLE IF NOT EXISTS affiliate_tiers (
+  id serial PRIMARY KEY,
+  name text NOT NULL,
+  min_active_premium_users integer NOT NULL DEFAULT 0,
+  max_active_premium_users integer,
+  commission_percentage integer NOT NULL,
+  is_active boolean NOT NULL DEFAULT true,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+
+-- 2026-06-01 10:53:34.3510
+CREATE TABLE IF NOT EXISTS affiliate_commissions (
+  id serial PRIMARY KEY,
+  affiliate_id integer NOT NULL REFERENCES affiliates(id) ON DELETE CASCADE,
+  referred_user_id integer NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  subscription_id integer,
+  transaction_id integer,
+  revenue_amount integer NOT NULL,
+  commission_percentage integer NOT NULL,
+  commission_amount integer NOT NULL,
+  commission_type commission_type NOT NULL DEFAULT 'subscription',
+  status commission_status NOT NULL DEFAULT 'pending',
+  earned_at timestamptz NOT NULL DEFAULT now(),
+  approved_at timestamptz,
+  paid_at timestamptz,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+-- 2026-06-01 10:53:34.4220
+CREATE TABLE IF NOT EXISTS affiliate_payouts (
+  id serial PRIMARY KEY,
+  affiliate_id integer NOT NULL REFERENCES affiliates(id) ON DELETE CASCADE,
+  amount integer NOT NULL,
+  status payout_status NOT NULL DEFAULT 'pending',
+  payment_method text,
+  payment_reference text,
+  period_start timestamptz,
+  period_end timestamptz,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  paid_at timestamptz
+);
+
+-- 2026-06-01 10:53:34.4900
+ALTER TABLE users ADD COLUMN IF NOT EXISTS referred_by_affiliate_id integer;
+
+-- 2026-06-01 10:53:34.5580
+ALTER TABLE users ADD COLUMN IF NOT EXISTS referral_discount_used boolean NOT NULL DEFAULT false;
+
+-- 2026-06-01 10:53:34.6260
+ALTER TABLE users ADD COLUMN IF NOT EXISTS referral_discount_applied_at timestamptz;

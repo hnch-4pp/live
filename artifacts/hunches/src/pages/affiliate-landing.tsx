@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
+import { useQuery } from "@tanstack/react-query";
 import { Layout } from "@/components/layout";
 import { apiUrl } from "@/lib/apiFetch";
 import { Input } from "@/components/ui/input";
@@ -7,12 +8,27 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Loader2, TrendingUp, Users, DollarSign, Zap, CheckCircle, ArrowRight, Copy, Check } from "lucide-react";
 
-const TIERS = [
-  { name: "Starter", range: "0 – 50 premium users", pct: "20%", color: "bg-zinc-100 text-zinc-700" },
-  { name: "Growth",  range: "51 – 250 premium users", pct: "25%", color: "bg-violet-100 text-violet-700" },
-  { name: "Pro",     range: "251 – 1000 premium users", pct: "30%", color: "bg-indigo-100 text-indigo-700" },
-  { name: "Elite",   range: "1001+ premium users", pct: "35%", color: "bg-amber-100 text-amber-700" },
+const TIER_COLORS = [
+  "bg-zinc-100 text-zinc-700",
+  "bg-violet-100 text-violet-700",
+  "bg-indigo-100 text-indigo-700",
+  "bg-amber-100 text-amber-700",
+  "bg-emerald-100 text-emerald-700",
+  "bg-rose-100 text-rose-700",
 ];
+
+interface Tier {
+  id: number;
+  name: string;
+  minActivePremiumUsers: number;
+  maxActivePremiumUsers: number | null;
+  commissionPercentage: number;
+}
+
+function tierRange(t: Tier): string {
+  if (t.maxActivePremiumUsers == null) return `${t.minActivePremiumUsers}+ premium users`;
+  return `${t.minActivePremiumUsers} – ${t.maxActivePremiumUsers} premium users`;
+}
 
 function Feature({ icon, title, desc }: { icon: React.ReactNode; title: string; desc: string }) {
   return (
@@ -30,6 +46,17 @@ function Feature({ icon, title, desc }: { icon: React.ReactNode; title: string; 
 
 export default function AffiliateLanding() {
   const [, setLocation] = useLocation();
+
+  const { data: tiersData } = useQuery<{ tiers: Tier[] }>({
+    queryKey: ["affiliate-tiers-public"],
+    queryFn: async () => {
+      const res = await fetch(apiUrl("/api/affiliates/tiers"));
+      if (!res.ok) throw new Error("Failed to load tiers");
+      return res.json() as Promise<{ tiers: Tier[] }>;
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+  const tiers = tiersData?.tiers ?? [];
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -153,15 +180,27 @@ export default function AffiliateLanding() {
           <div className="max-w-4xl mx-auto">
             <h2 className="text-2xl font-bold text-center mb-2">Modelo de comisiones</h2>
             <p className="text-muted-foreground text-center mb-10">Tu tier sube automaticamente conforme crece tu comunidad premium.</p>
-            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              {TIERS.map(t => (
-                <div key={t.name} className="p-5 rounded-2xl bg-background border border-border text-center">
-                  <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-bold mb-3 ${t.color}`}>{t.name}</span>
-                  <p className="text-3xl font-black text-foreground mb-1">{t.pct}</p>
-                  <p className="text-xs text-muted-foreground">{t.range}</p>
-                </div>
-              ))}
-            </div>
+            {tiers.length > 0 ? (
+              <div className={`grid gap-4 ${tiers.length <= 2 ? "sm:grid-cols-2" : tiers.length === 3 ? "sm:grid-cols-3" : "sm:grid-cols-2 lg:grid-cols-4"}`}>
+                {tiers.map((t, i) => (
+                  <div key={t.id} className="p-5 rounded-2xl bg-background border border-border text-center">
+                    <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-bold mb-3 ${TIER_COLORS[i % TIER_COLORS.length]}`}>{t.name}</span>
+                    <p className="text-3xl font-black text-foreground mb-1">{t.commissionPercentage}%</p>
+                    <p className="text-xs text-muted-foreground">{tierRange(t)}</p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                {[1, 2, 3, 4].map(i => (
+                  <div key={i} className="p-5 rounded-2xl bg-background border border-border text-center animate-pulse">
+                    <div className="h-5 w-16 rounded-full bg-muted mx-auto mb-3" />
+                    <div className="h-8 w-12 rounded bg-muted mx-auto mb-2" />
+                    <div className="h-3 w-24 rounded bg-muted mx-auto" />
+                  </div>
+                ))}
+              </div>
+            )}
             <p className="text-center text-xs text-muted-foreground mt-6">
               Las comisiones se calculan sobre el revenue neto generado por tus usuarios premium activos.
               Tickets: 10% de comision fija.
