@@ -6,6 +6,7 @@ import { useTranslation } from "react-i18next";
 import i18n from "@/i18n";
 import { useListCategories } from "@workspace/api-client-react";
 import { useAuth } from "@/hooks/use-auth";
+import { apiUrl } from "@/lib/apiFetch";
 
 const ICON_MAP: Record<string, React.ElementType> = {
   "Trophy":       Trophy,
@@ -139,7 +140,7 @@ function AuthButtons() {
 
   useEffect(() => {
     if (!user) { setIsAffiliate(false); return; }
-    fetch("/api/affiliate/me", { credentials: "include" })
+    fetch(apiUrl("/api/affiliate/me"), { credentials: "include" })
       .then((r) => setIsAffiliate(r.ok))
       .catch(() => setIsAffiliate(false));
   }, [user?.id]);
