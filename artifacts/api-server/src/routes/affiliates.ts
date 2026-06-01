@@ -80,6 +80,31 @@ async function requireUser(
   next();
 }
 
+// ─── Helper: find affiliate by userId, fall back to email, auto-link ─────────
+
+async function findAffiliateForUser(userId: number): Promise<typeof affiliatesTable.$inferSelect | null> {
+  // Primary: match by userId
+  const [byId] = await db.select().from(affiliatesTable)
+    .where(eq(affiliatesTable.userId, userId)).limit(1);
+  if (byId) return byId;
+
+  // Fallback: match by email (affiliate created before user signed up)
+  const [user] = await db.select({ email: usersTable.email }).from(usersTable)
+    .where(eq(usersTable.id, userId)).limit(1);
+  if (!user) return null;
+
+  const [byEmail] = await db.select().from(affiliatesTable)
+    .where(eq(affiliatesTable.email, user.email)).limit(1);
+  if (!byEmail) return null;
+
+  // Auto-link: set userId on the affiliate record for future lookups
+  await db.update(affiliatesTable)
+    .set({ userId })
+    .where(eq(affiliatesTable.id, byEmail.id));
+
+  return { ...byEmail, userId };
+}
+
 async function requireActiveAffiliate(
   req: import("express").Request,
   res: import("express").Response,
@@ -89,8 +114,7 @@ async function requireActiveAffiliate(
     res.status(401).json({ error: "Not authenticated" });
     return;
   }
-  const [aff] = await db.select().from(affiliatesTable)
-    .where(eq(affiliatesTable.userId, req.session.userId)).limit(1);
+  const aff = await findAffiliateForUser(req.session.userId);
   if (!aff) {
     res.status(403).json({ error: "Affiliate account not found" });
     return;
@@ -258,8 +282,7 @@ router.post("/affiliates/apply", async (req, res): Promise<void> => {
 // ─── Affiliate: get my affiliate record ──────────────────────────────────────
 
 router.get("/affiliate/me", requireUser, async (req, res): Promise<void> => {
-  const [aff] = await db.select().from(affiliatesTable)
-    .where(eq(affiliatesTable.userId, req.session!.userId!)).limit(1);
+  const aff = await findAffiliateForUser(req.session!.userId!);
   if (!aff) { res.status(404).json({ error: "Not an affiliate" }); return; }
   res.json(aff);
 });
