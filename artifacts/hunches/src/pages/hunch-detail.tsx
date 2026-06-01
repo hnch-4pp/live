@@ -19,6 +19,27 @@ import { useGetHunch, useSubmitPrediction, getGetHunchQueryKey, useGetHunchWinne
 import { useTranslation } from "react-i18next";
 import { useAuth } from "@/hooks/use-auth";
 
+function fmtNumericLabel(label: string): string {
+  const stripped = label.replace(/,/g, "");
+  const n = parseFloat(stripped);
+  if (!isFinite(n) || stripped.trim() === "") return label;
+  const parts = stripped.split(".");
+  const intPart = Math.trunc(Number(parts[0])).toLocaleString("en-US");
+  return parts.length > 1 ? intPart + "." + parts[1] : intPart;
+}
+
+function fmtNumericInput(raw: string): string {
+  if (raw === "" || raw === "-") return raw;
+  const stripped = raw.replace(/,/g, "");
+  const parts = stripped.split(".");
+  const intStr = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  return parts.length > 1 ? intStr + "." + parts[1] : intStr;
+}
+
+function isNumericType(t: string | undefined): boolean {
+  return t === "integer" || t === "decimal";
+}
+
 function ordinal(n: number): string {
   const s = ["th", "st", "nd", "rd"];
   const v = n % 100;
@@ -106,7 +127,7 @@ function DistributionChart({
       const count = parsed
         .filter((o) => isLast ? o.val >= lo && o.val <= hi : o.val >= lo && o.val < hi)
         .reduce((s, o) => s + o.count, 0);
-      const fmt = (n: number) => Number.isInteger(n) ? String(n) : n.toFixed(1);
+      const fmt = (n: number) => Number.isInteger(n) ? n.toLocaleString("en-US") : n.toLocaleString("en-US", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
       return { label: fmt(lo), fullLabel: numBins === 1 ? fmt(lo) : `${fmt(lo)} – ${fmt(hi)}`, count };
     });
 
@@ -619,19 +640,24 @@ export default function HunchDetail() {
               )}
 
               {/* Single-question input */}
-              {isOpen && !submitted && !isMulti && (
-                <div className="mb-4">
-                  <input
-                    type="text"
-                    value={freeText}
-                    onChange={(e) => setFreeText(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === "Enter") handlePredict(); }}
-                    placeholder={t("type_your_answer")}
-                    maxLength={200}
-                    className="w-full rounded-xl border border-border bg-white px-4 py-3 text-sm font-medium text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
-                  />
-                </div>
-              )}
+              {isOpen && !submitted && !isMulti && (() => {
+                const singleAnswerType = (hunch as any)?.answerType;
+                const isNumSingle = isNumericType(singleAnswerType);
+                return (
+                  <div className="mb-4">
+                    <input
+                      type="text"
+                      inputMode={singleAnswerType === "decimal" ? "decimal" : isNumSingle ? "numeric" : undefined}
+                      value={isNumSingle ? fmtNumericInput(freeText) : freeText}
+                      onChange={(e) => setFreeText(isNumSingle ? e.target.value.replace(/,/g, "") : e.target.value)}
+                      onKeyDown={(e) => { if (e.key === "Enter") handlePredict(); }}
+                      placeholder={t("type_your_answer")}
+                      maxLength={200}
+                      className="w-full rounded-xl border border-border bg-white px-4 py-3 text-sm font-medium text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
+                    />
+                  </div>
+                );
+              })()}
 
               {/* Multi-question inputs */}
               {isOpen && !submitted && isMulti && questions.length > 0 && (
@@ -647,10 +673,11 @@ export default function HunchDetail() {
                         </div>
                       </div>
                       <input
-                        type={q.answerType === "integer" ? "number" : q.answerType === "decimal" ? "number" : "text"}
-                        step={q.answerType === "decimal" ? "any" : undefined}
-                        value={multiAnswers[q.id] ?? ""}
-                        onChange={(e) => setMultiAnswers((prev) => ({ ...prev, [q.id]: e.target.value }))}
+                        type="text"
+                        inputMode={q.answerType === "decimal" ? "decimal" : isNumericType(q.answerType) ? "numeric" : undefined}
+                        value={isNumericType(q.answerType) ? fmtNumericInput(multiAnswers[q.id] ?? "") : (multiAnswers[q.id] ?? "")}
+                        onChange={(e) => setMultiAnswers((prev) => ({ ...prev, [q.id]: isNumericType(q.answerType) ? e.target.value.replace(/,/g, "") : e.target.value }))}
+
                         placeholder={getAnswerTypePlaceholder(q.answerType, q.placeholder)}
                         maxLength={200}
                         className="w-full rounded-xl border border-border bg-white px-4 py-2.5 text-sm font-medium text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
@@ -664,7 +691,7 @@ export default function HunchDetail() {
               {submitted && !isMulti && (
                 <div className="flex items-center gap-2 mb-4 p-3 bg-primary/5 border border-primary/20 rounded-xl">
                   <CheckCircle2 className="w-4 h-4 text-primary flex-shrink-0" />
-                  <span className="text-sm font-semibold text-primary">{freeText}</span>
+                  <span className="text-sm font-semibold text-primary">{isNumericType((hunch as any)?.answerType) ? fmtNumericLabel(freeText) : freeText}</span>
                 </div>
               )}
 
@@ -677,7 +704,7 @@ export default function HunchDetail() {
                   <div className="space-y-1 pl-6">
                     {questions.map((q, idx) => (
                       <div key={q.id} className="text-xs text-muted-foreground">
-                        <span className="font-medium text-foreground">{idx + 1}.</span> {q.prompt}: <span className="font-semibold text-foreground">{multiAnswers[q.id]}</span>
+                        <span className="font-medium text-foreground">{idx + 1}.</span> {q.prompt}: <span className="font-semibold text-foreground">{isNumericType(q.answerType) ? fmtNumericLabel(multiAnswers[q.id] ?? "") : multiAnswers[q.id]}</span>
                       </div>
                     ))}
                   </div>
@@ -720,7 +747,7 @@ export default function HunchDetail() {
                       <>
                         <p className="text-sm text-muted-foreground mb-1">Your answer</p>
                         <div className="bg-muted rounded-xl px-4 py-2.5 mb-4">
-                          <span className="text-sm font-semibold text-foreground">{freeText}</span>
+                          <span className="text-sm font-semibold text-foreground">{isNumericType((hunch as any)?.answerType) ? fmtNumericLabel(freeText) : freeText}</span>
                         </div>
                       </>
                     )}
@@ -734,7 +761,7 @@ export default function HunchDetail() {
                               <span className="font-semibold text-foreground">{idx + 1}.</span> {q.prompt}
                             </p>
                             <p className="text-sm font-semibold text-foreground mt-0.5 pl-3.5">
-                              {multiAnswers[q.id] ?? "—"}
+                              {isNumericType(q.answerType) ? fmtNumericLabel(multiAnswers[q.id] ?? "") || "—" : (multiAnswers[q.id] ?? "—")}
                             </p>
                           </div>
                         ))}

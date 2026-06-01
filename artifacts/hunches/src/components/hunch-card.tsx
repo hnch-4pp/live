@@ -15,6 +15,15 @@ const DATE_FNS_LOCALES: Record<string, Locale> = {
   es,
 };
 
+function fmtLabel(label: string): string {
+  const stripped = label.replace(/,/g, "");
+  const n = parseFloat(stripped);
+  if (!isFinite(n) || stripped.trim() === "") return label;
+  const parts = stripped.split(".");
+  const intPart = Math.trunc(Number(parts[0])).toLocaleString("en-US");
+  return parts.length > 1 ? intPart + "." + parts[1] : intPart;
+}
+
 const CATEGORY_GRADIENTS: Record<string, string> = {
   sports:        "from-blue-900/80 to-blue-700/60",
   music:         "from-purple-900/80 to-pink-700/60",
@@ -147,7 +156,7 @@ export function HunchCard({ hunch, featured = false }: HunchCardProps) {
                 <div key={option.id}>
                   <div className="flex justify-between items-baseline mb-1">
                     <span className={`text-sm truncate pr-3 ${isWinner ? "text-primary font-semibold" : "text-foreground font-medium"}`}>
-                      {option.label}
+                      {fmtLabel(option.label)}
                     </span>
                     <span className={`text-sm font-semibold font-mono tabular-nums flex-shrink-0 ${isLeading || isWinner ? "text-primary" : "text-muted-foreground"}`}>
                       {Math.round(option.percentage)}%

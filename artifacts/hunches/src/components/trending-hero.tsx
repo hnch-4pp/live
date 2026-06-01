@@ -94,7 +94,7 @@ function DistributionChart({
   const isNumeric = numericOptions.length >= 2;
 
   const fmtX = (n: number) =>
-    Number.isInteger(n) ? String(n) : n.toFixed(1);
+    Number.isInteger(n) ? n.toLocaleString("en-US") : n.toLocaleString("en-US", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 
   // ── Numeric path: KDE area chart ─────────────────────────────────────────
   if (isNumeric) {
