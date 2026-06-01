@@ -589,29 +589,33 @@ async function sendAffiliateInviteEmail({
 
 // ─── Admin: affiliate tiers CRUD ──────────────────────────────────────────────
 
-router.get("/admin/affiliate-tiers", requireAdmin, requireAdminHeader, async (req, res): Promise<void> => {
+async function getTiersHandler(_req: import("express").Request, res: import("express").Response): Promise<void> {
   const tiers = await db.select().from(affiliateTiersTable).orderBy(affiliateTiersTable.minActivePremiumUsers);
   res.json({ tiers });
-});
+}
 
-router.post("/admin/affiliate-tiers", requireAdmin, requireAdminHeader, async (req, res): Promise<void> => {
+async function createTierHandler(req: import("express").Request, res: import("express").Response): Promise<void> {
   const { name, minActivePremiumUsers, maxActivePremiumUsers, commissionPercentage } = req.body as {
-    name?: string; minActivePremiumUsers?: number; maxActivePremiumUsers?: number | null; commissionPercentage?: number;
+    name?: string; minActivePremiumUsers?: unknown; maxActivePremiumUsers?: unknown; commissionPercentage?: unknown;
   };
   if (!name?.trim()) { res.status(400).json({ error: "Name required" }); return; }
-  if (commissionPercentage == null || commissionPercentage < 0 || commissionPercentage > 100) {
-    res.status(400).json({ error: "Valid commission percentage required" }); return;
+  const pct = Number(commissionPercentage);
+  if (isNaN(pct) || pct < 0 || pct > 100) {
+    res.status(400).json({ error: "Commission percentage must be a number between 0 and 100" }); return;
   }
+  const minUsers = Number(minActivePremiumUsers ?? 0);
+  const maxUsersRaw = maxActivePremiumUsers != null && String(maxActivePremiumUsers).trim() !== "" ? Number(maxActivePremiumUsers) : null;
   const [tier] = await db.insert(affiliateTiersTable).values({
     name: name.trim(),
-    minActivePremiumUsers: minActivePremiumUsers ?? 0,
-    maxActivePremiumUsers: maxActivePremiumUsers ?? null,
-    commissionPercentage,
+    minActivePremiumUsers: isNaN(minUsers) ? 0 : minUsers,
+    maxActivePremiumUsers: maxUsersRaw !== null && isNaN(maxUsersRaw) ? null : maxUsersRaw,
+    commissionPercentage: pct,
+    isActive: true,
   }).returning();
   res.json({ ok: true, tier });
-});
+}
 
-router.put("/admin/affiliate-tiers/:id", requireAdmin, requireAdminHeader, async (req, res): Promise<void> => {
+async function updateTierHandler(req: import("express").Request, res: import("express").Response): Promise<void> {
   const id = Number(req.params["id"]);
   const { name, minActivePremiumUsers, maxActivePremiumUsers, commissionPercentage, isActive } = req.body as {
     name?: string; minActivePremiumUsers?: number; maxActivePremiumUsers?: number | null;
@@ -619,19 +623,31 @@ router.put("/admin/affiliate-tiers/:id", requireAdmin, requireAdminHeader, async
   };
   const updates: Partial<typeof affiliateTiersTable.$inferInsert> = { updatedAt: new Date() };
   if (name?.trim()) updates.name = name.trim();
-  if (minActivePremiumUsers != null) updates.minActivePremiumUsers = minActivePremiumUsers;
-  if (maxActivePremiumUsers !== undefined) updates.maxActivePremiumUsers = maxActivePremiumUsers ?? null;
-  if (commissionPercentage != null) updates.commissionPercentage = commissionPercentage;
+  if (minActivePremiumUsers != null) updates.minActivePremiumUsers = Number(minActivePremiumUsers);
+  if (maxActivePremiumUsers !== undefined) updates.maxActivePremiumUsers = maxActivePremiumUsers != null ? Number(maxActivePremiumUsers) : null;
+  if (commissionPercentage != null) updates.commissionPercentage = Number(commissionPercentage);
   if (isActive != null) updates.isActive = isActive;
   await db.update(affiliateTiersTable).set(updates).where(eq(affiliateTiersTable.id, id));
   res.json({ ok: true });
-});
+}
 
-router.delete("/admin/affiliate-tiers/:id", requireAdmin, requireAdminHeader, async (req, res): Promise<void> => {
+async function deleteTierHandler(req: import("express").Request, res: import("express").Response): Promise<void> {
   const id = Number(req.params["id"]);
   await db.delete(affiliateTiersTable).where(eq(affiliateTiersTable.id, id));
   res.json({ ok: true });
-});
+}
+
+// Primary paths
+router.get("/admin/affiliate-tiers", requireAdmin, requireAdminHeader, getTiersHandler);
+router.post("/admin/affiliate-tiers", requireAdmin, requireAdminHeader, createTierHandler);
+router.put("/admin/affiliate-tiers/:id", requireAdmin, requireAdminHeader, updateTierHandler);
+router.delete("/admin/affiliate-tiers/:id", requireAdmin, requireAdminHeader, deleteTierHandler);
+
+// Legacy alias paths (for any clients that call /affiliates/admin/... instead of /admin/...)
+router.get("/affiliates/admin/affiliate-tiers", requireAdmin, requireAdminHeader, getTiersHandler);
+router.post("/affiliates/admin/affiliate-tiers", requireAdmin, requireAdminHeader, createTierHandler);
+router.put("/affiliates/admin/affiliate-tiers/:id", requireAdmin, requireAdminHeader, updateTierHandler);
+router.delete("/affiliates/admin/affiliate-tiers/:id", requireAdmin, requireAdminHeader, deleteTierHandler);
 
 // ─── Admin: global metrics ────────────────────────────────────────────────────
 

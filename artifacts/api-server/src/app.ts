@@ -105,9 +105,18 @@ app.use("/api", router);
 
 // Global error handler — must have 4 params for Express to treat it as error middleware
 app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
-  const message = err instanceof Error ? err.message : String(err);
   logger.error({ err }, "Unhandled server error");
-  res.status(500).json({ error: message || "Internal server error" });
+  let message = "Internal server error";
+  if (err instanceof Error) {
+    const raw = err.message;
+    // Don't expose raw SQL query strings to clients
+    if (raw.startsWith("Failed query:") || raw.includes("insert into") || raw.includes("select ")) {
+      message = "Database operation failed. Please try again.";
+    } else {
+      message = raw || message;
+    }
+  }
+  res.status(500).json({ error: message });
 });
 
 export default app;
