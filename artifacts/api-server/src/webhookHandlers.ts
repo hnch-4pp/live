@@ -4,6 +4,7 @@ import { db, usersTable, subscriptionsTable, ticketTransactionsTable, appSetting
 import { getUncachableStripeClient } from "./stripeClient";
 import { logger } from "./lib/logger";
 import { sql } from "drizzle-orm";
+import { SUBSCRIPTION_TIERS } from "./subscriptionTiers";
 
 // ── Webhook secret management ───────────────────────────────────────────────
 
@@ -117,6 +118,9 @@ async function handleInvoicePaymentSucceeded(invoice: Stripe.Invoice): Promise<v
     return;
   }
 
+  const tierConfig = SUBSCRIPTION_TIERS[sub.tier as keyof typeof SUBSCRIPTION_TIERS];
+  const revenueCents = tierConfig?.amountCents ?? null;
+
   await db.transaction(async (tx) => {
     await tx.execute(
       sql`UPDATE users SET tickets = tickets + ${sub.ticketsPerMonth} WHERE id = ${sub.userId}`,
@@ -125,6 +129,7 @@ async function handleInvoicePaymentSucceeded(invoice: Stripe.Invoice): Promise<v
       userId: sub.userId,
       type: "subscription",
       amount: sub.ticketsPerMonth,
+      revenueCents,
       label: `Monthly tickets — ${sub.tier} plan`,
       reference: invoiceId,
     });

@@ -38,6 +38,13 @@ interface ActiveUsersData {
   mau: { label: string; count: number }[];
 }
 
+interface RevenueData {
+  period: Period;
+  total: number;
+  previousTotal: number;
+  data: { label: string; subscriptions: number; purchases: number; total: number }[];
+}
+
 type AuView = "dau" | "wau" | "mau";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -87,6 +94,21 @@ function TrendBadge({ current, previous }: { current: number; previous: number }
 }
 
 // ── Custom Tooltips ───────────────────────────────────────────────────────────
+
+const RevTooltip = ({ active, payload, label }: { active?: boolean; payload?: { name?: string; value?: number | string }[]; label?: string }) => {
+  if (!active || !payload?.length) return null;
+  const subs  = Number(payload.find((p) => p.name === "subscriptions")?.value ?? 0);
+  const packs = Number(payload.find((p) => p.name === "purchases")?.value ?? 0);
+  const total = subs + packs;
+  return (
+    <div className="bg-white border border-gray-200 rounded-xl shadow-lg px-4 py-3 min-w-[160px]">
+      <p className="text-xs font-semibold text-gray-500 mb-2">{label}</p>
+      <p className="text-lg font-bold text-amber-600 mb-1">${(total / 100).toFixed(2)} <span className="text-sm font-normal text-gray-500">total</span></p>
+      {subs > 0  && <p className="text-xs text-gray-500">Suscripciones: <span className="font-semibold">${(subs  / 100).toFixed(2)}</span></p>}
+      {packs > 0 && <p className="text-xs text-gray-500">Packs: <span className="font-semibold">${(packs / 100).toFixed(2)}</span></p>}
+    </div>
+  );
+};
 
 const SubTooltip = ({ active, payload, label }: { active?: boolean; payload?: { value?: number | string }[]; label?: string }) => {
   if (!active || !payload?.length) return null;
@@ -150,6 +172,11 @@ export default function AdminMetrics() {
   const [subData, setSubData] = useState<MetricsData | null>(null);
   const [subLoading, setSubLoading] = useState(true);
 
+  // Revenue (dollar amounts) state
+  const [revPeriod, setRevPeriod] = useState<Period>("last_7_days");
+  const [revData, setRevData] = useState<RevenueData | null>(null);
+  const [revLoading, setRevLoading] = useState(true);
+
   useEffect(() => {
     setRegLoading(true);
     setRegData(null);
@@ -176,9 +203,20 @@ export default function AdminMetrics() {
       .catch(() => setSubLoading(false));
   }, [subPeriod]);
 
+  useEffect(() => {
+    setRevLoading(true);
+    setRevData(null);
+    adminFetch(`/admin/metrics/revenue?period=${revPeriod}`)
+      .then((r) => r.json())
+      .then((d: RevenueData) => { setRevData(d); setRevLoading(false); })
+      .catch(() => setRevLoading(false));
+  }, [revPeriod]);
+
   const regMaxCount = regData ? Math.max(...regData.data.map((d) => d.count), 1) : 1;
   const chartData: { label: string; count: number }[] = auData?.[auView] ?? [];
   const subMaxCount = subData ? Math.max(...subData.data.map((d) => d.count), 1) : 1;
+  const revMaxTotal = revData ? Math.max(...revData.data.map((d) => d.total), 1) : 1;
+  const fmtDollars = (cents: number) => `$${(cents / 100).toFixed(2)}`;
 
   return (
     <AdminLayout>
@@ -439,6 +477,134 @@ export default function AdminMetrics() {
             <span className="text-xs font-bold uppercase tracking-widest text-gray-400">Ingresos</span>
             <div className="flex-1 h-px bg-gray-200" />
           </div>
+
+        {/* Ingresos generados (suscripciones + packs) */}
+        <section>
+          <div className="flex items-center gap-2 mb-1">
+            <div className="w-7 h-7 bg-amber-100 rounded-lg flex items-center justify-center">
+              <CreditCard className="w-4 h-4 text-amber-600" />
+            </div>
+            <h2 className="text-base font-bold text-gray-800">Ingresos generados</h2>
+          </div>
+          <p className="text-xs text-gray-400 mb-5 ml-9">Dinero recaudado por suscripciones y compras de ticket packs</p>
+
+          <div className="flex flex-wrap gap-1.5 mb-6">
+            {PERIODS.map((p) => (
+              <button
+                key={p.value}
+                onClick={() => setRevPeriod(p.value)}
+                className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition-colors ${
+                  revPeriod === p.value
+                    ? "bg-amber-500 text-white shadow-sm"
+                    : "bg-white text-gray-600 border border-gray-200 hover:border-amber-300 hover:text-amber-700"
+                }`}
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+            <div className="bg-white border border-gray-200 rounded-2xl p-5">
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Total período</p>
+              {revLoading ? <StatSkeleton /> : (
+                <div className="flex items-end gap-3">
+                  <span className="text-3xl font-bold text-gray-900">{fmtDollars(revData?.total ?? 0)}</span>
+                  {revData && <TrendBadge current={revData.total} previous={revData.previousTotal} />}
+                </div>
+              )}
+              <p className="text-xs text-gray-400 mt-1">vs. período anterior</p>
+            </div>
+
+            <div className="bg-white border border-gray-200 rounded-2xl p-5">
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Período anterior</p>
+              {revLoading ? <StatSkeleton /> : (
+                <span className="text-3xl font-bold text-gray-900">{fmtDollars(revData?.previousTotal ?? 0)}</span>
+              )}
+            </div>
+
+            <div className="bg-white border border-gray-200 rounded-2xl p-5">
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Suscripciones</p>
+              {revLoading ? <StatSkeleton /> : (
+                <span className="text-3xl font-bold text-gray-900">
+                  {fmtDollars(revData?.data.reduce((s, d) => s + d.subscriptions, 0) ?? 0)}
+                </span>
+              )}
+            </div>
+
+            <div className="bg-white border border-gray-200 rounded-2xl p-5">
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Ticket packs</p>
+              {revLoading ? <StatSkeleton /> : (
+                <span className="text-3xl font-bold text-gray-900">
+                  {fmtDollars(revData?.data.reduce((s, d) => s + d.purchases, 0) ?? 0)}
+                </span>
+              )}
+            </div>
+          </div>
+
+          <div className="bg-white border border-gray-200 rounded-2xl p-6">
+            {revLoading ? (
+              <div className="h-72 flex items-center justify-center">
+                <div className="text-sm text-gray-400">Loading chart...</div>
+              </div>
+            ) : !revData || revMaxTotal === 1 && !revData.data.some((d) => d.total > 0) ? (
+              <div className="h-72 flex items-center justify-center">
+                <div className="text-sm text-gray-400">No revenue data for this period</div>
+              </div>
+            ) : (
+              <>
+                <div className="flex items-center justify-between mb-5">
+                  <div className="flex items-center gap-4">
+                    <p className="text-sm font-semibold text-gray-700">
+                      {PERIODS.find((p) => p.value === revPeriod)?.label}
+                    </p>
+                    <div className="flex items-center gap-3 text-xs text-gray-500">
+                      <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-amber-400 inline-block" />Suscripciones</span>
+                      <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-orange-400 inline-block" />Ticket packs</span>
+                    </div>
+                  </div>
+                  <p className="text-xs text-gray-400">{fmtDollars(revData.total)} total</p>
+                </div>
+                <ResponsiveContainer width="100%" height={280}>
+                  <AreaChart data={revData.data} margin={{ top: 4, right: 4, left: 4, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="revSubGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%"  stopColor="#f59e0b" stopOpacity={0.22} />
+                        <stop offset="95%" stopColor="#f59e0b" stopOpacity={0} />
+                      </linearGradient>
+                      <linearGradient id="revPackGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%"  stopColor="#f97316" stopOpacity={0.22} />
+                        <stop offset="95%" stopColor="#f97316" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
+                    <XAxis dataKey="label" tick={{ fontSize: 11, fill: "#9ca3af" }} tickLine={false} axisLine={false} interval="preserveStartEnd" />
+                    <YAxis
+                      tick={{ fontSize: 11, fill: "#9ca3af" }}
+                      tickLine={false}
+                      axisLine={false}
+                      allowDecimals={false}
+                      width={52}
+                      tickFormatter={(v: number) => `$${(v / 100).toFixed(0)}`}
+                    />
+                    <Tooltip
+                      content={(props) => (
+                        <RevTooltip
+                          active={props.active}
+                          payload={props.payload as { name?: string; value?: number | string }[]}
+                          label={props.label}
+                        />
+                      )}
+                      cursor={{ stroke: "#f59e0b", strokeWidth: 1, strokeDasharray: "4 2" }}
+                    />
+                    <Area type="monotone" dataKey="subscriptions" name="subscriptions" stackId="rev" stroke="#f59e0b" strokeWidth={2} fill="url(#revSubGradient)" dot={false} activeDot={{ r: 4, fill: "#f59e0b", strokeWidth: 0 }} />
+                    <Area type="monotone" dataKey="purchases"     name="purchases"     stackId="rev" stroke="#f97316" strokeWidth={2} fill="url(#revPackGradient)" dot={false} activeDot={{ r: 4, fill: "#f97316", strokeWidth: 0 }} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </>
+            )}
+          </div>
+        </section>
 
         {/* Nuevas suscripciones premium */}
         <section>

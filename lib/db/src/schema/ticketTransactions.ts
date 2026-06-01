@@ -8,6 +8,7 @@ export const ticketTransactionsTable = pgTable("ticket_transactions", {
   userId: integer("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
   type: ticketTxTypeEnum("type").notNull(),
   amount: integer("amount").notNull(),
+  revenueCents: integer("revenue_cents"),
   label: text("label").notNull(),
   reference: text("reference"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

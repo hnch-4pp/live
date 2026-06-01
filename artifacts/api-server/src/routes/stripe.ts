@@ -173,6 +173,7 @@ router.get("/stripe/checkout-success", async (req, res): Promise<void> => {
       userId,
       type: "purchase",
       amount: ticketAmount,
+      revenueCents: session.amount_total ?? null,
       label: `${packName} purchased`,
       reference: session_id,
     });
