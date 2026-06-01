@@ -1,5 +1,5 @@
 import {
-  pgTable, serial, text, integer, timestamp, boolean, pgEnum,
+  pgTable, serial, text, integer, timestamp, boolean, pgEnum, jsonb,
 } from "drizzle-orm/pg-core";
 import { usersTable } from "./users";
 
@@ -36,6 +36,7 @@ export const affiliatesTable = pgTable("affiliates", {
   niche: text("niche"),
   status: affiliateStatusEnum("status").notNull().default("pending"),
   customMessage: text("custom_message"),
+  socialLinks: jsonb("social_links").$type<Record<string, string>>(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   approvedAt: timestamp("approved_at", { withTimezone: true }),

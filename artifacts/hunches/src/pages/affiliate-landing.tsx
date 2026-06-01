@@ -67,6 +67,14 @@ export default function AffiliateLanding() {
   const [success, setSuccess] = useState(false);
   const [slugCopied, setSlugCopied] = useState(false);
 
+  const [socialLinks, setSocialLinks] = useState<Record<string, string>>({
+    x: "", instagram: "", tiktok: "", youtube: "",
+    facebook: "", discord: "", twitch: "", linkedin: "",
+  });
+  function setSocial(platform: string, value: string) {
+    setSocialLinks(prev => ({ ...prev, [platform]: value }));
+  }
+
   const preview = slug.trim()
     ? `hunch.fan/${slug.toLowerCase().replace(/[^a-z0-9-]/g, "-").replace(/-+/g, "-")}`
     : "";
@@ -88,7 +96,7 @@ export default function AffiliateLanding() {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email, slug, bio }),
+        body: JSON.stringify({ name, email, slug, bio, socialLinks }),
       });
       const data = await res.json() as { ok?: boolean; error?: string };
       if (!res.ok) { setError(data.error ?? "Something went wrong"); return; }
@@ -262,6 +270,38 @@ export default function AffiliateLanding() {
                     className="w-full px-3 py-2.5 rounded-xl border border-input bg-background text-sm resize-none focus:outline-none focus:ring-2 focus:ring-ring"
                   />
                 </div>
+
+                <div className="space-y-3">
+                  <div>
+                    <p className="text-sm font-medium text-foreground">Perfiles sociales <span className="text-muted-foreground font-normal">(al menos uno)</span></p>
+                    <p className="text-xs text-muted-foreground mt-0.5">Comparte las URLs de tus canales o perfiles.</p>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {[
+                      { key: "x",         label: "X (Twitter)",  placeholder: "https://x.com/tunombre" },
+                      { key: "instagram",  label: "Instagram",    placeholder: "https://instagram.com/tunombre" },
+                      { key: "tiktok",     label: "TikTok",       placeholder: "https://tiktok.com/@tunombre" },
+                      { key: "youtube",    label: "YouTube",      placeholder: "https://youtube.com/@tunombre" },
+                      { key: "facebook",   label: "Facebook",     placeholder: "https://facebook.com/tunombre" },
+                      { key: "discord",    label: "Discord",      placeholder: "https://discord.gg/tuservidor" },
+                      { key: "twitch",     label: "Twitch",       placeholder: "https://twitch.tv/tunombre" },
+                      { key: "linkedin",   label: "LinkedIn",     placeholder: "https://linkedin.com/in/tunombre" },
+                    ].map(({ key, label, placeholder }) => (
+                      <div key={key} className="space-y-1">
+                        <Label htmlFor={`social-${key}`} className="text-xs text-muted-foreground">{label}</Label>
+                        <Input
+                          id={`social-${key}`}
+                          type="url"
+                          value={socialLinks[key] ?? ""}
+                          onChange={e => setSocial(key, e.target.value)}
+                          placeholder={placeholder}
+                          className="rounded-xl h-9 text-sm"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
                 {error && (
                   <p className="text-sm text-destructive bg-destructive/10 rounded-lg px-3 py-2 border border-destructive/20">{error}</p>
                 )}

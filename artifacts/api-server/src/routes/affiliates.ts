@@ -209,9 +209,10 @@ router.post("/affiliates/click", async (req, res): Promise<void> => {
 // ─── Public: apply to affiliate program ──────────────────────────────────────
 
 router.post("/affiliates/apply", async (req, res): Promise<void> => {
-  const { name, email, slug, bio, niche, customMessage } = req.body as {
+  const { name, email, slug, bio, niche, customMessage, socialLinks } = req.body as {
     name?: string; email?: string; slug?: string;
     bio?: string; niche?: string; customMessage?: string;
+    socialLinks?: Record<string, string>;
   };
 
   if (!name?.trim()) { res.status(400).json({ error: "Name required" }); return; }
@@ -231,6 +232,14 @@ router.post("/affiliates/apply", async (req, res): Promise<void> => {
 
   const userId = req.session?.userId ?? null;
 
+  const cleanedLinks: Record<string, string> = {};
+  if (socialLinks && typeof socialLinks === "object") {
+    for (const [k, v] of Object.entries(socialLinks)) {
+      const trimmed = String(v).trim();
+      if (trimmed) cleanedLinks[k] = trimmed;
+    }
+  }
+
   const [aff] = await db.insert(affiliatesTable).values({
     userId,
     name: name.trim(),
@@ -239,6 +248,7 @@ router.post("/affiliates/apply", async (req, res): Promise<void> => {
     bio: bio?.trim() ?? null,
     niche: niche?.trim() ?? null,
     customMessage: customMessage?.trim() ?? null,
+    socialLinks: Object.keys(cleanedLinks).length > 0 ? cleanedLinks : null,
     status: "pending",
   }).returning();
 
