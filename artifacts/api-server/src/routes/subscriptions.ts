@@ -3,6 +3,24 @@ import { eq, and } from "drizzle-orm";
 import { db, usersTable, subscriptionsTable } from "@workspace/db";
 import { getUncachableStripeClient } from "../stripeClient";
 import { SUBSCRIPTION_TIERS, type TierId } from "../subscriptionTiers";
+import type Stripe from "stripe";
+
+const AFFILIATE_COUPON_ID = "HUNCH_AFFILIATE_50OFF_FIRST";
+
+async function getOrCreateAffiliateCoupon(stripe: Stripe): Promise<string> {
+  try {
+    await stripe.coupons.retrieve(AFFILIATE_COUPON_ID);
+    return AFFILIATE_COUPON_ID;
+  } catch {
+    await stripe.coupons.create({
+      id: AFFILIATE_COUPON_ID,
+      percent_off: 50,
+      duration: "once",
+      name: "Affiliate Referral — 50% off first month",
+    });
+    return AFFILIATE_COUPON_ID;
+  }
+}
 
 const router: IRouter = Router();
 
@@ -49,7 +67,7 @@ router.post("/stripe/subscribe", async (req, res): Promise<void> => {
     return;
   }
 
-  const { tierId, returnUrl } = req.body as { tierId?: TierId; returnUrl?: string };
+  const { tierId, returnUrl, referralDiscount } = req.body as { tierId?: TierId; returnUrl?: string; referralDiscount?: boolean };
   if (!tierId || !SUBSCRIPTION_TIERS[tierId] || tierId === "free") {
     res.status(400).json({ error: "Invalid tier" });
     return;
@@ -124,11 +142,23 @@ router.post("/stripe/subscribe", async (req, res): Promise<void> => {
     return;
   }
 
+  // Apply 50% affiliate referral discount on first month if requested
+  const discounts: { coupon: string }[] = [];
+  if (referralDiscount && user.referredByAffiliateId) {
+    try {
+      const couponId = await getOrCreateAffiliateCoupon(stripe);
+      discounts.push({ coupon: couponId });
+    } catch {
+      // Non-fatal — proceed without discount if coupon setup fails
+    }
+  }
+
   const session = await stripe.checkout.sessions.create({
     customer: customerId,
     payment_method_types: ["card"],
     mode: "subscription",
     line_items: [{ price: matchedPrice.id, quantity: 1 }],
+    ...(discounts.length > 0 ? { discounts } : {}),
     metadata: {
       userId: String(user.id),
       tierId,

@@ -6,6 +6,7 @@ import { getUncachableStripeClient } from "./stripeClient";
 import { logger } from "./lib/logger";
 import { sql } from "drizzle-orm";
 import { SUBSCRIPTION_TIERS } from "./subscriptionTiers";
+import { recordAffiliateCommission } from "./routes/affiliates";
 
 // ── Webhook secret management ───────────────────────────────────────────────
 
@@ -193,6 +194,17 @@ async function handleInvoicePaymentSucceeded(invoice: Stripe.Invoice): Promise<v
   });
 
   logger.info({ userId: sub.userId, tickets: sub.ticketsPerMonth }, "Monthly tickets credited");
+
+  // Record affiliate commission (non-fatal)
+  const amountPaidCents = invoice.amount_paid ?? 0;
+  if (amountPaidCents > 0) {
+    recordAffiliateCommission({
+      userId: sub.userId,
+      subscriptionId: sub.id,
+      revenueAmountCents: amountPaidCents,
+      type: "subscription",
+    }).catch((err: unknown) => logger.warn({ err }, "Failed to record affiliate commission"));
+  }
 }
 
 async function handleSubscriptionCreated(subscription: Stripe.Subscription): Promise<void> {

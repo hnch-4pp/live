@@ -411,12 +411,24 @@ function getAffiliateRefFromUrl(): string {
   } catch { return ""; }
 }
 
+const PAID_PLANS = new Set(["starter", "plus", "pro", "elite"]);
+
+function getPendingPlanFromUrl(): string {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const plan = params.get("plan")?.toLowerCase() ?? "";
+    if (plan) return plan;
+    return "";
+  } catch { return ""; }
+}
+
 export default function Signup() {
   const [, setLocation] = useLocation();
   const { refetch } = useAuth();
   const { t } = useTranslation();
 
   const affiliateRef = getAffiliateRefFromUrl();
+  const [pendingPlan] = useState(() => getPendingPlanFromUrl());
 
   const [step, setStep] = useState<Step>("email");
   const [email, setEmail] = useState("");
@@ -539,6 +551,22 @@ export default function Signup() {
       } else if (step === "dob") {
         await post("/auth/signup/complete", { username: username.trim().toLowerCase(), address: fullAddress, dateOfBirth: dob, ...(affiliateRef ? { affiliateRef } : {}) });
         await refetch();
+        // Affiliate + paid plan: redirect straight to Stripe checkout
+        if (pendingPlan && PAID_PLANS.has(pendingPlan)) {
+          try {
+            const data = await post("/stripe/subscribe", {
+              tierId: pendingPlan,
+              referralDiscount: !!affiliateRef,
+              returnUrl: window.location.origin,
+            }) as { url?: string };
+            if (data.url) {
+              window.location.href = data.url;
+              return;
+            }
+          } catch {
+            // Stripe redirect failed — fall through to normal flow
+          }
+        }
         setStep("ticket-code");
       } else if (step === "ticket-code") {
         setLocation("/");
