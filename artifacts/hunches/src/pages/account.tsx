@@ -67,19 +67,35 @@ function AvatarUpload({
 }: {
   avatarUrl: string | null;
   initials: string;
-  onUploaded: (objectPath: string) => void;
+  onUploaded: (objectPath: string) => Promise<void> | void;
 }) {
   const { t } = useTranslation();
   const fileInputRef = useRef<HTMLInputElement | undefined>(undefined);
   const [preview, setPreview] = useState<string | null>(null);
+  const [uploadStatus, setUploadStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
 
   const { uploadFile, isUploading } = useUpload({
-    onSuccess: ({ publicUrl }) => {
-      onUploaded(publicUrl);
+    basePath: apiUrl("/api/storage"),
+    onSuccess: async ({ publicUrl }) => {
+      setUploadStatus("saving");
+      try {
+        await onUploaded(publicUrl);
+        setUploadStatus("saved");
+        setTimeout(() => setUploadStatus("idle"), 2500);
+      } catch {
+        setUploadStatus("error");
+        setTimeout(() => setUploadStatus("idle"), 3000);
+      }
+    },
+    onError: () => {
+      setPreview(null);
+      setUploadStatus("error");
+      setTimeout(() => setUploadStatus("idle"), 3000);
     },
   });
 
   const handleFile = (file: File) => {
+    setUploadStatus("idle");
     const reader = new FileReader();
     reader.onload = (e) => setPreview(e.target?.result as string);
     reader.readAsDataURL(file);
@@ -87,9 +103,10 @@ function AvatarUpload({
   };
 
   const resolveAvatarSrc = (url: string) =>
-    url.startsWith("http://") || url.startsWith("https://") ? url : `/api/storage${url}`;
+    url.startsWith("http://") || url.startsWith("https://") ? url : `${apiUrl("/api/storage")}${url}`;
 
   const imgSrc = preview ?? (avatarUrl ? resolveAvatarSrc(avatarUrl) : null);
+  const busy = isUploading || uploadStatus === "saving";
 
   return (
     <div className="flex items-center gap-4">
@@ -103,11 +120,11 @@ function AvatarUpload({
         </div>
         <button
           onClick={() => fileInputRef.current?.click()}
-          disabled={isUploading}
+          disabled={busy}
           className="absolute inset-0 rounded-2xl bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
           aria-label="Change avatar"
         >
-          {isUploading ? (
+          {busy ? (
             <Loader2 className="w-5 h-5 text-white animate-spin" />
           ) : (
             <Camera className="w-5 h-5 text-white" />
@@ -123,7 +140,15 @@ function AvatarUpload({
       </div>
       <div>
         <p className="text-sm font-medium text-foreground">{t("acc_photo_label")}</p>
-        <p className="text-xs text-muted-foreground mt-0.5">{t("acc_photo_hint")}</p>
+        {uploadStatus === "saved" ? (
+          <p className="text-xs text-green-600 mt-0.5 font-medium">{t("acc_photo_saved", { defaultValue: "Photo saved" })}</p>
+        ) : uploadStatus === "error" ? (
+          <p className="text-xs text-destructive mt-0.5">{t("acc_photo_error", { defaultValue: "Upload failed. Try again." })}</p>
+        ) : busy ? (
+          <p className="text-xs text-muted-foreground mt-0.5">{t("acc_photo_uploading", { defaultValue: "Saving..." })}</p>
+        ) : (
+          <p className="text-xs text-muted-foreground mt-0.5">{t("acc_photo_hint")}</p>
+        )}
       </div>
     </div>
   );
