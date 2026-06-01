@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { Link, useLocation } from "wouter";
+import { useTranslation } from "react-i18next";
 import { apiUrl } from "@/lib/apiFetch";
 import { LayoutDashboard, ListChecks, Tag, Users, LogOut, ChevronRight, Ticket, Sparkles, Bell, BarChart2 } from "lucide-react";
 
@@ -25,6 +26,7 @@ async function logout() {
 
 export function AdminLayout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
+  const { t } = useTranslation();
 
   useEffect(() => {
     fetch(apiUrl("/api/admin/me"), {
@@ -77,7 +79,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
             className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium text-gray-500 hover:bg-gray-100 hover:text-gray-900 transition-colors"
           >
             <LogOut className="w-4 h-4 shrink-0" />
-            Sign out
+            {t("sign_out")}
           </button>
         </div>
       </aside>

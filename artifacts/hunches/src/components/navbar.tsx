@@ -29,18 +29,7 @@ const ICON_MAP: Record<string, React.ElementType> = {
 
 const LANGUAGES = [
   { code: "en", label: "English", flag: "🇺🇸" },
-  { code: "bn", label: "বাংলা", flag: "🇧🇩" },
-  { code: "de", label: "Deutsch", flag: "🇩🇪" },
   { code: "es", label: "Español", flag: "🇪🇸" },
-  { code: "fr", label: "Français", flag: "🇫🇷" },
-  { code: "hi", label: "हिन्दी", flag: "🇮🇳" },
-  { code: "id", label: "Bahasa Indonesia", flag: "🇮🇩" },
-  { code: "it", label: "Italiano", flag: "🇮🇹" },
-  { code: "ja", label: "日本語", flag: "🇯🇵" },
-  { code: "ko", label: "한국어", flag: "🇰🇷" },
-  { code: "pt", label: "Português", flag: "🇧🇷" },
-  { code: "tr", label: "Türkçe", flag: "🇹🇷" },
-  { code: "zh", label: "中文", flag: "🇨🇳" },
 ];
 
 function LanguageSelector() {
@@ -170,7 +159,7 @@ function AuthButtons() {
         {menuOpen && (
           <div className="absolute top-full mt-2 right-0 w-52 rounded-xl border border-border bg-card shadow-xl shadow-black/10 overflow-hidden z-50">
             <div className="px-4 py-3 border-b border-border">
-              <p className="text-xs text-muted-foreground">Signed in as</p>
+              <p className="text-xs text-muted-foreground">{t("signed_in_as")}</p>
               <p className="text-sm font-semibold text-foreground truncate">{user.username ? `@${user.username}` : user.email}</p>
             </div>
             <button
@@ -178,28 +167,28 @@ function AuthButtons() {
               className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
             >
               <Ticket className="w-4 h-4" />
-              My tickets
+              {t("my_tickets")}
             </button>
             <button
               onClick={() => { setMenuOpen(false); setLocation("/my-hunches"); }}
               className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
             >
               <Target className="w-4 h-4" />
-              My Hunches
+              {t("my_hunches")}
             </button>
             <button
               onClick={() => { setMenuOpen(false); setLocation("/account"); }}
               className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
             >
               <Settings className="w-4 h-4" />
-              Account settings
+              {t("account_settings")}
             </button>
             <button
               onClick={async () => { setMenuOpen(false); await logout(); setLocation("/"); }}
               className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left text-muted-foreground hover:text-foreground hover:bg-muted transition-colors border-t border-border"
             >
               <LogOut className="w-4 h-4" />
-              Sign out
+              {t("sign_out")}
             </button>
           </div>
         )}
@@ -333,7 +322,7 @@ export function Navbar() {
                       !activeCategory ? "text-primary bg-primary/8" : "text-foreground hover:bg-muted"
                     }`}
                   >
-                    All Categories
+                    {t("all_categories")}
                   </button>
                   {categories.map((cat) => (
                     <button
@@ -384,7 +373,7 @@ export function Navbar() {
                   if (e.key === "Enter") commitSearch(searchValue);
                   if (e.key === "Escape") clearSearch();
                 }}
-                placeholder="Search hunches..."
+                placeholder={t("search_placeholder")}
                 className="bg-transparent text-sm font-medium text-foreground placeholder:text-muted-foreground outline-none w-full md:w-44"
               />
               {searchValue && (
