@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { AdminLayout } from "@/components/admin-layout";
 import { useAdminAuth, adminFetch } from "./dashboard";
-import { Users, TrendingUp, TrendingDown, Minus, Activity } from "lucide-react";
+import { Users, TrendingUp, TrendingDown, Minus, Activity, CreditCard } from "lucide-react";
 import {
   AreaChart,
   Area,
@@ -88,6 +88,18 @@ function TrendBadge({ current, previous }: { current: number; previous: number }
 
 // ── Custom Tooltips ───────────────────────────────────────────────────────────
 
+const SubTooltip = ({ active, payload, label }: { active?: boolean; payload?: { value?: number | string }[]; label?: string }) => {
+  if (!active || !payload?.length) return null;
+  return (
+    <div className="bg-white border border-gray-200 rounded-xl shadow-lg px-4 py-3">
+      <p className="text-xs font-semibold text-gray-500 mb-1">{label}</p>
+      <p className="text-lg font-bold text-amber-600">
+        {payload[0].value} <span className="text-sm font-normal text-gray-500">new premium</span>
+      </p>
+    </div>
+  );
+};
+
 const RegTooltip = ({ active, payload, label }: { active?: boolean; payload?: { value: number }[]; label?: string }) => {
   if (!active || !payload?.length) return null;
   return (
@@ -133,6 +145,11 @@ export default function AdminMetrics() {
   const [auData, setAuData] = useState<ActiveUsersData | null>(null);
   const [auLoading, setAuLoading] = useState(true);
 
+  // Subscription / revenue state
+  const [subPeriod, setSubPeriod] = useState<Period>("last_7_days");
+  const [subData, setSubData] = useState<MetricsData | null>(null);
+  const [subLoading, setSubLoading] = useState(true);
+
   useEffect(() => {
     setRegLoading(true);
     setRegData(null);
@@ -150,8 +167,18 @@ export default function AdminMetrics() {
       .catch(() => setAuLoading(false));
   }, []);
 
+  useEffect(() => {
+    setSubLoading(true);
+    setSubData(null);
+    adminFetch(`/admin/metrics/subscriptions?period=${subPeriod}`)
+      .then((r) => r.json())
+      .then((d: MetricsData) => { setSubData(d); setSubLoading(false); })
+      .catch(() => setSubLoading(false));
+  }, [subPeriod]);
+
   const regMaxCount = regData ? Math.max(...regData.data.map((d) => d.count), 1) : 1;
   const chartData: { label: string; count: number }[] = auData?.[auView] ?? [];
+  const subMaxCount = subData ? Math.max(...subData.data.map((d) => d.count), 1) : 1;
 
   return (
     <AdminLayout>
@@ -391,6 +418,125 @@ export default function AdminMetrics() {
                   />
                 </AreaChart>
               </ResponsiveContainer>
+            )}
+          </div>
+        </section>
+
+        {/* ── Section 3: Revenue — New premium subscriptions ───────────────── */}
+        <section>
+          <div className="flex items-center gap-2 mb-1">
+            <div className="w-7 h-7 bg-amber-100 rounded-lg flex items-center justify-center">
+              <CreditCard className="w-4 h-4 text-amber-600" />
+            </div>
+            <h2 className="text-base font-bold text-gray-800">Ingresos — nuevas suscripciones premium</h2>
+          </div>
+          <p className="text-xs text-gray-400 mb-5 ml-9">Usuarios que activaron un plan de pago por primera vez en el período</p>
+
+          {/* Period selector */}
+          <div className="flex flex-wrap gap-1.5 mb-6">
+            {PERIODS.map((p) => (
+              <button
+                key={p.value}
+                onClick={() => setSubPeriod(p.value)}
+                className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition-colors ${
+                  subPeriod === p.value
+                    ? "bg-amber-500 text-white shadow-sm"
+                    : "bg-white text-gray-600 border border-gray-200 hover:border-amber-300 hover:text-amber-700"
+                }`}
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Stat cards */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-6">
+            <div className="bg-white border border-gray-200 rounded-2xl p-5">
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Total en período</p>
+              {subLoading ? <StatSkeleton /> : (
+                <div className="flex items-end gap-3">
+                  <span className="text-3xl font-bold text-gray-900">{subData?.total ?? 0}</span>
+                  {subData && <TrendBadge current={subData.total} previous={subData.previousTotal} />}
+                </div>
+              )}
+              <p className="text-xs text-gray-400 mt-1">vs. período anterior</p>
+            </div>
+
+            <div className="bg-white border border-gray-200 rounded-2xl p-5">
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Período anterior</p>
+              {subLoading ? <StatSkeleton /> : (
+                <span className="text-3xl font-bold text-gray-900">{subData?.previousTotal ?? 0}</span>
+              )}
+            </div>
+
+            <div className="bg-white border border-gray-200 rounded-2xl p-5">
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Pico del período</p>
+              {subLoading ? <StatSkeleton /> : (
+                <div>
+                  <span className="text-3xl font-bold text-gray-900">
+                    {subMaxCount === 1 && !subData?.data.some((d) => d.count > 0) ? 0 : subMaxCount}
+                  </span>
+                  {subData && (
+                    <p className="text-xs text-gray-400 mt-1 truncate">
+                      {subData.data.find((d) => d.count === subMaxCount)?.label ?? "—"}
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Chart */}
+          <div className="bg-white border border-gray-200 rounded-2xl p-6">
+            {subLoading ? (
+              <div className="h-72 flex items-center justify-center">
+                <div className="text-sm text-gray-400">Loading chart...</div>
+              </div>
+            ) : !subData || subData.data.length === 0 ? (
+              <div className="h-72 flex items-center justify-center">
+                <div className="text-sm text-gray-400">No data for this period</div>
+              </div>
+            ) : (
+              <>
+                <div className="flex items-center justify-between mb-5">
+                  <p className="text-sm font-semibold text-gray-700">
+                    {PERIODS.find((p) => p.value === subPeriod)?.label} — nuevas suscripciones
+                  </p>
+                  <p className="text-xs text-gray-400">{subData.total} total</p>
+                </div>
+                <ResponsiveContainer width="100%" height={280}>
+                  <AreaChart data={subData.data} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="subGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%"  stopColor="#f59e0b" stopOpacity={0.18} />
+                        <stop offset="95%" stopColor="#f59e0b" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
+                    <XAxis dataKey="label" tick={{ fontSize: 11, fill: "#9ca3af" }} tickLine={false} axisLine={false} interval="preserveStartEnd" />
+                    <YAxis tick={{ fontSize: 11, fill: "#9ca3af" }} tickLine={false} axisLine={false} allowDecimals={false} width={36} />
+                    <Tooltip
+                      content={(props) => (
+                        <SubTooltip
+                          active={props.active}
+                          payload={props.payload as { value?: number | string }[]}
+                          label={props.label}
+                        />
+                      )}
+                      cursor={{ stroke: "#f59e0b", strokeWidth: 1, strokeDasharray: "4 2" }}
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="count"
+                      stroke="#f59e0b"
+                      strokeWidth={2.5}
+                      fill="url(#subGradient)"
+                      dot={subData.data.length <= 14 ? { r: 4, fill: "#f59e0b", strokeWidth: 0 } : false}
+                      activeDot={{ r: 5, fill: "#f59e0b", strokeWidth: 0 }}
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </>
             )}
           </div>
         </section>
