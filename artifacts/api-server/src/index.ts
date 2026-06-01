@@ -2,12 +2,13 @@ import app from "./app";
 import { logger } from "./lib/logger";
 import { runMigrations } from "stripe-replit-sync";
 import { getStripeSync } from "./stripeClient";
-import { db } from "@workspace/db";
-import { sql } from "drizzle-orm";
+import { db, hunchesTable } from "@workspace/db";
+import { sql, eq, and, gte, lte } from "drizzle-orm";
 import { ensureTicketPacksExist } from "./seedTicketPacks";
 import { ensureSubscriptionProductsExist } from "./seedSubscriptionProducts";
 import { setupStripeWebhook } from "./webhookHandlers";
 import { ObjectStorageService } from "./lib/objectStorage";
+import { sendAdminAlert, isReminderAlreadySent, markReminderSent } from "./adminAlerts";
 
 async function runAppMigrations(): Promise<void> {
   // Add new enum value (safe to re-run)
@@ -183,6 +184,47 @@ if (webhookBase) {
 
 // Run stripe-replit-sync in background (optional data sync, non-critical)
 initStripeSync().catch(() => {/* already logged inside */});
+
+// ── Hunch closing reminder scheduler ──────────────────────────────────────────
+async function runHunchReminders(): Promise<void> {
+  const windows: Array<{ window: "3d" | "1d" | "1h"; minMs: number; maxMs: number; label: string }> = [
+    { window: "3d", minMs: 3 * 24 * 60 * 60 * 1000 - 30 * 60 * 1000, maxMs: 3 * 24 * 60 * 60 * 1000 + 30 * 60 * 1000, label: "3 days" },
+    { window: "1d", minMs:     24 * 60 * 60 * 1000 - 30 * 60 * 1000, maxMs:     24 * 60 * 60 * 1000 + 30 * 60 * 1000, label: "24 hours" },
+    { window: "1h", minMs:          60 * 60 * 1000 - 15 * 60 * 1000, maxMs:          60 * 60 * 1000 + 15 * 60 * 1000, label: "1 hour" },
+  ];
+
+  const now = Date.now();
+  for (const { window, minMs, maxMs, label } of windows) {
+    const from = new Date(now + minMs);
+    const to   = new Date(now + maxMs);
+
+    const hunches = await db
+      .select({ id: hunchesTable.id, title: hunchesTable.title, endsAt: hunchesTable.endsAt })
+      .from(hunchesTable)
+      .where(and(eq(hunchesTable.status, "open"), gte(hunchesTable.endsAt, from), lte(hunchesTable.endsAt, to)));
+
+    for (const hunch of hunches) {
+      const already = await isReminderAlreadySent(hunch.id, window);
+      if (already) continue;
+
+      const endsAt = hunch.endsAt ? new Date(hunch.endsAt).toLocaleString() : "unknown";
+      await sendAdminAlert(
+        `hunch_reminder_${window}` as "hunch_reminder_3d" | "hunch_reminder_1d" | "hunch_reminder_1h",
+        `Hunch closing in ${label}: ${hunch.title}`,
+        `Hunch: ${hunch.title}\nID: ${hunch.id}\nCloses at: ${endsAt}`,
+        `Hunches: "${hunch.title}" closes in ${label}`,
+      );
+      await markReminderSent(hunch.id, window);
+    }
+  }
+}
+
+setInterval(() => {
+  runHunchReminders().catch((err) => logger.error({ err }, "Hunch reminder check failed"));
+}, 30 * 60 * 1000); // every 30 minutes
+
+// Run once on startup
+runHunchReminders().catch((err) => logger.error({ err }, "Hunch reminder initial check failed"));
 
 app.listen(port, (err) => {
   if (err) {

@@ -1,6 +1,7 @@
 import Stripe from "stripe";
 import { eq, and } from "drizzle-orm";
 import { db, usersTable, subscriptionsTable, ticketTransactionsTable, appSettingsTable } from "@workspace/db";
+import { sendAdminAlert } from "./adminAlerts";
 import { getUncachableStripeClient } from "./stripeClient";
 import { logger } from "./lib/logger";
 import { sql } from "drizzle-orm";
@@ -128,6 +129,13 @@ export async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Se
   });
 
   logger.info({ userId, ticketAmount, revenueCents, sessionId: session.id }, "Ticket pack credited via webhook");
+
+  sendAdminAlert(
+    "ticket_pack_purchase",
+    "Ticket pack purchased",
+    `User ID: ${userId}\nPack: ${packName}\nTickets: ${ticketAmount}\nRevenue: ${revenueCents != null ? `$${(revenueCents / 100).toFixed(2)}` : "unknown"}\nSession: ${session.id}`,
+    `Hunches: ${packName} — ${ticketAmount} tickets — $${((revenueCents ?? 0) / 100).toFixed(2)}`,
+  ).catch(() => {});
 }
 
 async function handleInvoicePaymentSucceeded(invoice: Stripe.Invoice): Promise<void> {
@@ -230,6 +238,13 @@ async function handleSubscriptionCreated(subscription: Stripe.Subscription): Pro
     });
 
   logger.info({ userId, tierId, subscriptionId: subscription.id }, "Subscription stored in DB");
+
+  sendAdminAlert(
+    "subscription_start",
+    "New monthly pass subscription",
+    `User ID: ${userId}\nPlan: ${tierId}\nTickets/month: ${ticketsPerMonth}\nStripe ID: ${subscription.id}`,
+    `Hunches: new ${tierId} pass — user ${userId}`,
+  ).catch(() => {});
 }
 
 async function handleSubscriptionUpdated(subscription: Stripe.Subscription): Promise<void> {
@@ -273,6 +288,13 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription): Pro
     .where(eq(subscriptionsTable.stripeSubscriptionId, subscription.id));
 
   logger.info({ subscriptionId: subscription.id }, "Subscription canceled");
+
+  sendAdminAlert(
+    "subscription_cancel",
+    "Monthly pass cancelled",
+    `Stripe subscription ID: ${subscription.id}\nStatus: canceled`,
+    `Hunches: subscription cancelled — ${subscription.id}`,
+  ).catch(() => {});
 }
 
 // ── Main processor ──────────────────────────────────────────────────────────

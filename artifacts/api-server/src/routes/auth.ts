@@ -6,6 +6,7 @@ import {
   ticketTransactionsTable, predictionsTable, optionsTable, hunchesTable, categoriesTable,
 } from "@workspace/db";
 import bcrypt from "bcryptjs";
+import { sendAdminAlert } from "../adminAlerts";
 
 const router: IRouter = Router();
 
@@ -299,6 +300,13 @@ router.post("/auth/signup/complete", async (req, res): Promise<void> => {
   req.session.pendingSignup = undefined;
   req.session.userId = user.id;
   res.json({ ok: true, user: { id: user.id, email: user.email } });
+
+  sendAdminAlert(
+    "new_user",
+    "New user registered",
+    `Email: ${user.email}\nPhone: ${user.phone}\nUsername: @${user.username}`,
+    `Hunches: new signup — ${user.email}`,
+  ).catch(() => {});
 });
 
 // ── Login flow ─────────────────────────────────────────────────────────────
@@ -537,11 +545,20 @@ router.delete("/auth/me", async (req, res): Promise<void> => {
   const { confirm } = req.body as { confirm?: boolean };
   if (!confirm) { res.status(400).json({ error: "Confirmation required." }); return; }
 
+  const [user] = await db.select({ email: usersTable.email }).from(usersTable).where(eq(usersTable.id, req.session.userId)).limit(1);
   await db.delete(usersTable).where(eq(usersTable.id, req.session.userId));
+
   req.session.destroy(() => {
     res.clearCookie("hunch.sid");
     res.json({ ok: true });
   });
+
+  sendAdminAlert(
+    "account_delete",
+    "User deleted their account",
+    `Email: ${user?.email ?? "unknown"}\nUser ID: ${req.session.userId}`,
+    `Hunches: account deleted — ${user?.email ?? "unknown"}`,
+  ).catch(() => {});
 });
 
 router.post("/auth/logout", (req, res): void => {

@@ -21,6 +21,7 @@ import {
 import { eq, or, ilike, sql, desc, and, asc } from "drizzle-orm";
 import { getUncachableStripeClient } from "../stripeClient";
 import { handleCheckoutSessionCompleted } from "../webhookHandlers";
+import { getAdminAlertPrefs, saveAdminAlertPrefs, DEFAULT_ALERT_PREFS } from "../adminAlerts";
 
 function parsePrizeAmount(value: string): number {
   const m = value.match(/\$?(\d+(?:\.\d+)?)/);
@@ -1750,6 +1751,35 @@ router.get("/admin/metrics/active-users", requireAdmin, requireAdminHeader, asyn
     res.json({ current: { dau: 0, wau: 0, mau: 0 }, dau: [], wau: [], mau: [] });
   }
 });
+
+// ─── Admin: Alert preferences ────────────────────────────────────────────────
+
+router.get(
+  "/admin/alert-prefs",
+  requireAdmin,
+  requireAdminHeader,
+  async (_req, res): Promise<void> => {
+    const prefs = await getAdminAlertPrefs();
+    res.json(prefs);
+  },
+);
+
+router.patch(
+  "/admin/alert-prefs",
+  requireAdmin,
+  requireAdminHeader,
+  async (req, res): Promise<void> => {
+    const body = req.body as Partial<typeof DEFAULT_ALERT_PREFS>;
+    const current = await getAdminAlertPrefs();
+    const updated = {
+      adminEmail: typeof body.adminEmail === "string" ? body.adminEmail : current.adminEmail,
+      adminPhone: typeof body.adminPhone === "string" ? body.adminPhone : current.adminPhone,
+      events: { ...current.events, ...(body.events ?? {}) },
+    };
+    await saveAdminAlertPrefs(updated);
+    res.json(updated);
+  },
+);
 
 // ─── Admin: Recover unprocessed Stripe purchases ─────────────────────────────
 
