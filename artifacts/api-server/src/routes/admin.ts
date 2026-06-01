@@ -20,6 +20,7 @@ import {
 } from "@workspace/db";
 import { eq, or, ilike, sql, desc, and, asc } from "drizzle-orm";
 import { getUncachableStripeClient } from "../stripeClient";
+import { handleCheckoutSessionCompleted } from "../webhookHandlers";
 
 function parsePrizeAmount(value: string): number {
   const m = value.match(/\$?(\d+(?:\.\d+)?)/);
@@ -1747,6 +1748,56 @@ router.get("/admin/metrics/active-users", requireAdmin, requireAdminHeader, asyn
   });
   } catch (err) {
     res.json({ current: { dau: 0, wau: 0, mau: 0 }, dau: [], wau: [], mau: [] });
+  }
+});
+
+// ─── Admin: Recover unprocessed Stripe purchases ─────────────────────────────
+
+router.post("/admin/recover-stripe-purchases", requireAdmin, requireAdminHeader, async (req, res): Promise<void> => {
+  try {
+    const stripe = await getUncachableStripeClient();
+
+    const sessions = await stripe.checkout.sessions.list({
+      limit: 100,
+    });
+
+    let processed = 0;
+    let skipped = 0;
+    const errors: string[] = [];
+
+    for (const session of sessions.data) {
+      if (session.payment_status !== "paid" || session.mode !== "payment") {
+        skipped++;
+        continue;
+      }
+      try {
+        const [existing] = await db
+          .select({ id: ticketTransactionsTable.id })
+          .from(ticketTransactionsTable)
+          .where(
+            and(
+              eq(ticketTransactionsTable.reference, session.id),
+              eq(ticketTransactionsTable.type, "purchase"),
+            ),
+          )
+          .limit(1);
+
+        if (existing) {
+          skipped++;
+          continue;
+        }
+
+        await handleCheckoutSessionCompleted(session);
+        processed++;
+      } catch (err) {
+        errors.push(`${session.id}: ${err instanceof Error ? err.message : String(err)}`);
+      }
+    }
+
+    res.json({ ok: true, processed, skipped, errors });
+  } catch (err) {
+    req.log.error({ err }, "recover-stripe-purchases failed");
+    res.status(500).json({ ok: false, error: err instanceof Error ? err.message : String(err) });
   }
 });
 

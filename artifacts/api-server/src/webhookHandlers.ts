@@ -81,7 +81,7 @@ export async function setupStripeWebhook(webhookBaseUrl: string): Promise<void> 
 
 // ── Event handlers ──────────────────────────────────────────────────────────
 
-async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session): Promise<void> {
+export async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session): Promise<void> {
   // Only process one-time payment sessions (not subscriptions, which are handled by invoice events)
   if (session.mode !== "payment") return;
 

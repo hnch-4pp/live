@@ -177,6 +177,32 @@ export default function AdminMetrics() {
   const [revData, setRevData] = useState<RevenueData | null>(null);
   const [revLoading, setRevLoading] = useState(true);
 
+  // Stripe purchase recovery
+  const [recovering, setRecovering] = useState(false);
+  const [recoveryResult, setRecoveryResult] = useState<{ processed: number; skipped: number; errors: string[] } | null>(null);
+
+  async function recoverPurchases() {
+    setRecovering(true);
+    setRecoveryResult(null);
+    try {
+      const r = await adminFetch("/admin/recover-stripe-purchases", { method: "POST" });
+      const d = await r.json() as { ok: boolean; processed: number; skipped: number; errors: string[] };
+      setRecoveryResult(d);
+      if (d.processed > 0) {
+        setRevLoading(true);
+        setRevData(null);
+        adminFetch(`/admin/metrics/revenue?period=${revPeriod}`)
+          .then(async (r2) => { if (!r2.ok) throw new Error(`${r2.status}`); return r2.json() as Promise<RevenueData>; })
+          .then((d2) => { if (Array.isArray(d2?.data)) { setRevData(d2); } setRevLoading(false); })
+          .catch(() => setRevLoading(false));
+      }
+    } catch {
+      setRecoveryResult({ processed: 0, skipped: 0, errors: ["Request failed"] });
+    } finally {
+      setRecovering(false);
+    }
+  }
+
   useEffect(() => {
     setRegLoading(true);
     setRegData(null);
@@ -476,7 +502,23 @@ export default function AdminMetrics() {
           <div className="flex items-center gap-3 mb-8">
             <span className="text-xs font-bold uppercase tracking-widest text-gray-400">Ingresos</span>
             <div className="flex-1 h-px bg-gray-200" />
+            <button
+              onClick={() => void recoverPurchases()}
+              disabled={recovering}
+              className="px-3 py-1.5 rounded-full text-xs font-semibold bg-white border border-gray-200 text-gray-600 hover:border-amber-300 hover:text-amber-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {recovering ? "Recovering..." : "Recover Stripe purchases"}
+            </button>
           </div>
+          {recoveryResult && (
+            <div className={`mb-6 px-4 py-3 rounded-xl text-xs font-medium border ${recoveryResult.errors.length > 0 ? "bg-red-50 border-red-200 text-red-700" : "bg-green-50 border-green-200 text-green-700"}`}>
+              {recoveryResult.processed > 0
+                ? `${recoveryResult.processed} purchase(s) recovered successfully.`
+                : recoveryResult.errors.length > 0
+                  ? `Error: ${recoveryResult.errors[0]}`
+                  : `No unprocessed purchases found (${recoveryResult.skipped} already recorded).`}
+            </div>
+          )}
 
         {/* Ingresos generados (suscripciones + packs) */}
         <section>
