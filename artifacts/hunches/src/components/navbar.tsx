@@ -1,7 +1,7 @@
 import { Link, useLocation, useSearch } from "wouter";
 import { Button } from "@/components/ui/button";
 import { useEffect, useRef, useState } from "react";
-import { Globe, ChevronDown, Search, X, Trophy, Music, Film, Clapperboard, TrendingUp, Star, Zap as ZapIcon, Globe2, Heart as HeartIcon, LogOut, Settings, Ticket, Target } from "lucide-react";
+import { Globe, ChevronDown, Search, X, Trophy, Music, Film, Clapperboard, TrendingUp, Star, Zap as ZapIcon, Globe2, Heart as HeartIcon, LogOut, Settings, Ticket, Target, Users } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import i18n from "@/i18n";
 import { useListCategories } from "@workspace/api-client-react";
@@ -126,6 +126,7 @@ function AuthButtons() {
   const { user, isLoading, logout } = useAuth();
   const [, setLocation] = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [isAffiliate, setIsAffiliate] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -135,6 +136,13 @@ function AuthButtons() {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  useEffect(() => {
+    if (!user) { setIsAffiliate(false); return; }
+    fetch("/api/affiliate/me", { credentials: "include" })
+      .then((r) => setIsAffiliate(r.ok))
+      .catch(() => setIsAffiliate(false));
+  }, [user?.id]);
 
   if (isLoading) return <div className="w-20 h-8 bg-muted rounded-lg animate-pulse" />;
 
@@ -176,6 +184,15 @@ function AuthButtons() {
               <Target className="w-4 h-4" />
               {t("my_hunches")}
             </button>
+            {isAffiliate && (
+              <button
+                onClick={() => { setMenuOpen(false); setLocation("/affiliate/dashboard"); }}
+                className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left text-primary font-medium hover:text-primary/80 hover:bg-primary/5 transition-colors"
+              >
+                <Users className="w-4 h-4" />
+                {t("affiliate_dashboard", { defaultValue: "Affiliate Dashboard" })}
+              </button>
+            )}
             <button
               onClick={() => { setMenuOpen(false); setLocation("/account"); }}
               className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
