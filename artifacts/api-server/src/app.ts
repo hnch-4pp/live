@@ -2,6 +2,8 @@ import express, { type Express, type Request, type Response, type NextFunction }
 import cors from "cors";
 import pinoHttp from "pino-http";
 import session from "express-session";
+import connectPg from "connect-pg-simple";
+import pg from "pg";
 import router from "./routes";
 import { logger } from "./lib/logger";
 import { WebhookHandlers } from "./webhookHandlers";
@@ -11,6 +13,10 @@ app.set("trust proxy", 1);
 
 const sessionSecret = process.env["SESSION_SECRET"];
 if (!sessionSecret) throw new Error("SESSION_SECRET env var is required");
+
+// ── PostgreSQL session store ───────────────────────────────────────────────
+const PgSession = connectPg(session);
+const pgPool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
 
 // ── Stripe webhook ─────────────────────────────────────────────────────────
 // MUST be registered BEFORE express.json() so req.body stays a raw Buffer.
@@ -37,6 +43,11 @@ app.post(
 // ── Standard middleware ────────────────────────────────────────────────────
 app.use(
   session({
+    store: new PgSession({
+      pool: pgPool,
+      tableName: "session",
+      createTableIfMissing: true,
+    }),
     name: "hunch.sid",
     secret: sessionSecret,
     resave: false,
@@ -45,7 +56,7 @@ app.use(
       httpOnly: true,
       sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
       secure: process.env.NODE_ENV === "production",
-      maxAge: 4 * 60 * 60 * 1000,
+      maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days — survives deploys
     },
   }),
 );

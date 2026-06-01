@@ -125,6 +125,19 @@ async function runAppMigrations(): Promise<void> {
     )
   `);
 
+  // Session store table (used by connect-pg-simple)
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS "session" (
+      "sid"    VARCHAR NOT NULL COLLATE "default",
+      "sess"   JSON NOT NULL,
+      "expire" TIMESTAMP(6) NOT NULL,
+      PRIMARY KEY ("sid") NOT DEFERRABLE INITIALLY IMMEDIATE
+    )
+  `);
+  await db.execute(sql`
+    CREATE INDEX IF NOT EXISTS "IDX_session_expire" ON "session" ("expire")
+  `);
+
   logger.info("App schema migrations applied");
 }
 
