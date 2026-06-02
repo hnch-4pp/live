@@ -1,11 +1,11 @@
-import { useEffect } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useLocation, useSearch } from "wouter";
 import { Layout } from "@/components/layout";
 import { HunchCard } from "@/components/hunch-card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useListHunches, useGetFeaturedHunches, useGetHunchStats, useListCategories } from "@workspace/api-client-react";
-import { TrendingUp, Users, Gift, SlidersHorizontal, Zap, ArrowRight } from "lucide-react";
+import { TrendingUp, Users, Gift, SlidersHorizontal, Zap, ArrowRight, ArrowUpDown } from "lucide-react";
 import { TrendingHero } from "@/components/trending-hero";
 import { useTranslation } from "react-i18next";
 
@@ -49,6 +49,20 @@ export default function Home() {
   };
 
   const isFiltered = !!(categoryParam || statusParam || qParam);
+
+  type SortKey = "ending-soon" | "newest" | "oldest";
+  const [sortBy, setSortBy] = useState<SortKey>("ending-soon");
+
+  const sortedHunches = useMemo(() => {
+    const arr = [...(hunchesData?.hunches ?? [])];
+    if (sortBy === "ending-soon") {
+      return arr.sort((a, b) => new Date(a.endsAt).getTime() - new Date(b.endsAt).getTime());
+    } else if (sortBy === "newest") {
+      return arr.sort((a, b) => b.id - a.id);
+    } else {
+      return arr.sort((a, b) => a.id - b.id);
+    }
+  }, [hunchesData?.hunches, sortBy]);
 
   return (
     <Layout>
@@ -130,10 +144,32 @@ export default function Home() {
 
             {/* Grid */}
             <div className="flex-1 min-w-0">
-              <div className="flex items-center justify-between mb-6">
+              <div className="flex items-start justify-between gap-4 mb-6">
                 <div>
                   <h2 className="text-2xl font-display font-bold text-foreground">{t("all_hunches")}</h2>
                   <p className="text-sm text-muted-foreground mt-0.5">{t("all_hunches_sub")}</p>
+                </div>
+                <div className="flex items-center gap-1.5 shrink-0 mt-1">
+                  <ArrowUpDown className="w-3.5 h-3.5 text-muted-foreground" />
+                  <div className="flex items-center gap-0.5 bg-muted rounded-lg p-0.5">
+                    {([ 
+                      { key: "ending-soon", label: t("sort_ending_soon", { defaultValue: "Ending soon" }) },
+                      { key: "newest",      label: t("sort_newest",      { defaultValue: "Newest" }) },
+                      { key: "oldest",      label: t("sort_oldest",      { defaultValue: "Oldest" }) },
+                    ] as { key: SortKey; label: string }[]).map(({ key, label }) => (
+                      <button
+                        key={key}
+                        onClick={() => setSortBy(key)}
+                        className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
+                          sortBy === key
+                            ? "bg-background text-foreground shadow-sm"
+                            : "text-muted-foreground hover:text-foreground"
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
 
@@ -143,9 +179,9 @@ export default function Home() {
                     <Skeleton key={i} className="h-[320px] rounded-2xl" />
                   ))}
                 </div>
-              ) : hunchesData?.hunches && hunchesData.hunches.length > 0 ? (
+              ) : sortedHunches.length > 0 ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
-                  {hunchesData.hunches.map(hunch => (
+                  {sortedHunches.map(hunch => (
                     <HunchCard key={hunch.id} hunch={hunch} />
                   ))}
                 </div>
