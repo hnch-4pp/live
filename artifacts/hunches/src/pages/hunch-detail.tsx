@@ -235,6 +235,7 @@ export default function HunchDetail() {
   const [prizeOpen, setPrizeOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
 
   const handleShare = async () => {
     const url = window.location.href;
@@ -440,6 +441,57 @@ export default function HunchDetail() {
                 ))}
               </div>
             )}
+
+            {/* Prize Pool — main content */}
+            <div className="bg-card border border-border rounded-2xl p-6 card-shadow">
+              <div className="flex items-center justify-between gap-2 mb-4">
+                <div className="flex items-center gap-2">
+                  {getPrizeIcon(hunch.prize.type)}
+                  <h3 className="text-base font-display font-bold text-foreground">{t("prize_pool")}</h3>
+                </div>
+                {hunch.prizeTiers && hunch.prizeTiers.length > 1 && hunch.prizePoolTotal && (
+                  <span className="text-xl font-display font-bold text-foreground">{hunch.prizePoolTotal}</span>
+                )}
+              </div>
+
+              {hunch.prizeTiers && hunch.prizeTiers.length > 1 ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {hunch.prizeTiers.map((tier) => (
+                    <div key={tier.rank} className="flex items-center gap-3 p-3 rounded-xl bg-muted/40 border border-border">
+                      <span className="text-xs font-bold text-primary bg-primary/10 rounded-lg px-2.5 py-1 whitespace-nowrap shrink-0 min-w-[72px] text-center">
+                        {ordinal(tier.rank)} place
+                      </span>
+                      <span className="text-sm text-foreground font-medium flex-1 truncate">{tier.prize.label}</span>
+                      {tier.prize.imageUrl && (
+                        <button
+                          type="button"
+                          onClick={() => setLightboxUrl(tier.prize.imageUrl!)}
+                          className="shrink-0 w-10 h-10 rounded-lg overflow-hidden border border-border hover:ring-2 hover:ring-primary/40 transition-all"
+                        >
+                          <img src={tier.prize.imageUrl} alt={tier.prize.label} className="w-full h-full object-cover" />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="flex items-center gap-4">
+                  {hunch.prize.imageUrl && (
+                    <button
+                      type="button"
+                      onClick={() => setLightboxUrl(hunch.prize.imageUrl!)}
+                      className="shrink-0 w-16 h-16 rounded-xl overflow-hidden border border-border hover:ring-2 hover:ring-primary/40 transition-all"
+                    >
+                      <img src={hunch.prize.imageUrl} alt={hunch.prize.label} className="w-full h-full object-cover" />
+                    </button>
+                  )}
+                  <div>
+                    <div className="text-2xl font-display font-bold text-foreground">{hunch.prize.value}</div>
+                    <div className="text-sm text-muted-foreground">{hunch.prize.label}</div>
+                  </div>
+                </div>
+              )}
+            </div>
 
             {/* Context */}
             <div className="bg-card border border-border rounded-2xl p-6 card-shadow">
@@ -804,6 +856,23 @@ export default function HunchDetail() {
           </div>
         </div>
       </div>
+      {/* Lightbox */}
+      {lightboxUrl && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+          onClick={() => setLightboxUrl(null)}
+        >
+          <div className="relative max-w-2xl w-full" onClick={(e) => e.stopPropagation()}>
+            <button
+              onClick={() => setLightboxUrl(null)}
+              className="absolute -top-3 -right-3 w-8 h-8 bg-white rounded-full flex items-center justify-center shadow-lg hover:bg-gray-100 transition-colors z-10"
+            >
+              <X className="w-4 h-4 text-gray-700" />
+            </button>
+            <img src={lightboxUrl} alt="Prize" className="w-full rounded-2xl shadow-2xl" />
+          </div>
+        </div>
+      )}
     </Layout>
   );
 }
