@@ -31,6 +31,7 @@ export function Footer() {
           <div className="space-y-4">
             <h4 className="font-display font-semibold text-sm text-foreground">{t("footer_platform")}</h4>
             <ul className="space-y-2.5 text-sm text-muted-foreground">
+              <li><Link href="/affiliate" className="hover:text-primary transition-colors">Affiliates</Link></li>
               <li><Link href="/responsible" className="hover:text-primary transition-colors">{t("footer_responsible")}</Link></li>
               <li><Link href="/pricing" className="hover:text-primary transition-colors">{t("footer_pricing")}</Link></li>
               <li><a href="#" className="hover:text-primary transition-colors">{t("footer_how")}</a></li>
