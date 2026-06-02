@@ -42,13 +42,12 @@ function toSlug(title: string): string {
 
 const router = Router();
 
-async function findOrCreatePrize(label: string): Promise<number> {
-  const trimmed = label.trim();
-  const existing = await db.select().from(prizesTable).where(eq(prizesTable.label, trimmed)).limit(1);
-  if (existing[0]) return existing[0].id;
+async function createPrize(label: string, value?: string, imageUrl?: string | null): Promise<number> {
+  const trimmedLabel = label.trim();
+  const resolvedValue = value?.trim() || trimmedLabel;
   const [created] = await db
     .insert(prizesTable)
-    .values({ label: trimmed, type: "gift_card", value: trimmed })
+    .values({ label: trimmedLabel, type: "gift_card", value: resolvedValue, imageUrl: imageUrl ?? null })
     .returning();
   return created.id;
 }
@@ -190,7 +189,12 @@ router.get(
     const [hunch] = await db.select().from(hunchesTable).where(eq(hunchesTable.id, id));
     if (!hunch) { res.status(404).json({ error: "Not found" }); return; }
     const tiers = await db
-      .select({ rank: hunchPrizeTiersTable.rank, prizeLabel: prizesTable.label })
+      .select({
+        rank: hunchPrizeTiersTable.rank,
+        prizeLabel: prizesTable.label,
+        prizeValue: prizesTable.value,
+        prizeImageUrl: prizesTable.imageUrl,
+      })
       .from(hunchPrizeTiersTable)
       .leftJoin(prizesTable, eq(hunchPrizeTiersTable.prizeId, prizesTable.id))
       .where(eq(hunchPrizeTiersTable.hunchId, id))
@@ -264,7 +268,7 @@ router.post(
     } = req.body as Record<string, string | boolean | number | undefined>;
 
     const rawTiers = Array.isArray(req.body.prizeTiers)
-      ? (req.body.prizeTiers as { rank: number; prizeLabel: string }[]).filter((t) => t.prizeLabel?.trim())
+      ? (req.body.prizeTiers as { rank: number; prizeLabel: string; prizeValue?: string; prizeImageUrl?: string }[]).filter((t) => t.prizeLabel?.trim())
       : [];
 
     if (!title || !description || !categoryId || rawTiers.length === 0 || !endsAt) {
@@ -273,7 +277,7 @@ router.post(
     }
 
     const resolvedTiers = await Promise.all(
-      rawTiers.map(async (t) => ({ rank: t.rank, prizeId: await findOrCreatePrize(t.prizeLabel) }))
+      rawTiers.map(async (t) => ({ rank: t.rank, prizeId: await createPrize(t.prizeLabel, t.prizeValue, t.prizeImageUrl) }))
     );
     const firstPrizeId = resolvedTiers[0].prizeId;
 
@@ -389,10 +393,10 @@ router.patch(
 
     // Prize tiers
     if (Array.isArray(req.body.prizeTiers)) {
-      const rawTiers = (req.body.prizeTiers as { rank: number; prizeLabel: string }[]).filter((t) => t.prizeLabel?.trim());
+      const rawTiers = (req.body.prizeTiers as { rank: number; prizeLabel: string; prizeValue?: string; prizeImageUrl?: string }[]).filter((t) => t.prizeLabel?.trim());
       if (rawTiers.length > 0) {
         const resolvedTiers = await Promise.all(
-          rawTiers.map(async (t) => ({ rank: t.rank, prizeId: await findOrCreatePrize(t.prizeLabel) }))
+          rawTiers.map(async (t) => ({ rank: t.rank, prizeId: await createPrize(t.prizeLabel, t.prizeValue, t.prizeImageUrl) }))
         );
         updates["prizeId"] = resolvedTiers[0].prizeId;
         await db.delete(hunchPrizeTiersTable).where(eq(hunchPrizeTiersTable.hunchId, id));

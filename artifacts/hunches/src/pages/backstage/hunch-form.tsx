@@ -235,7 +235,7 @@ export default function HunchForm() {
   const isEditing = !!params.id;
 
   const [form, setForm]           = useState({ ...EMPTY });
-  const [prizeTiers, setPrizeTiers] = useState<{ rank: number; prizeLabel: string }[]>([{ rank: 1, prizeLabel: "" }]);
+  const [prizeTiers, setPrizeTiers] = useState<{ rank: number; prizeLabel: string; prizeValue: string; prizeImageUrl: string }[]>([{ rank: 1, prizeLabel: "", prizeValue: "", prizeImageUrl: "" }]);
   const [questions, setQuestions] = useState<Question[]>([
     { prompt: "", answerType: "integer", placeholder: "", sortOrder: 0 },
     { prompt: "", answerType: "integer", placeholder: "", sortOrder: 1 },
@@ -290,7 +290,12 @@ export default function HunchForm() {
           try { setResultSources(JSON.parse(h.resultSources) as ResultSource[]); } catch { /* ignore */ }
         }
         if (Array.isArray(h.prizeTiers) && h.prizeTiers.length > 0) {
-          setPrizeTiers(h.prizeTiers.map((t: { rank: number; prizeLabel?: string }) => ({ rank: t.rank, prizeLabel: t.prizeLabel ?? "" })));
+          setPrizeTiers(h.prizeTiers.map((t: { rank: number; prizeLabel?: string; prizeValue?: string; prizeImageUrl?: string }) => ({
+            rank: t.rank,
+            prizeLabel: t.prizeLabel ?? "",
+            prizeValue: t.prizeValue ?? "",
+            prizeImageUrl: t.prizeImageUrl ?? "",
+          })));
         }
         if (h.winnerUserId) setWinnerUserId(h.winnerUserId as number);
         if (Array.isArray(h.questions) && h.questions.length > 0) {
@@ -324,7 +329,9 @@ export default function HunchForm() {
         return;
       }
 
-      const validTiers = prizeTiers.filter((t) => t.prizeLabel?.trim());
+      const validTiers = prizeTiers
+        .filter((t) => t.prizeLabel?.trim())
+        .map((t) => ({ rank: t.rank, prizeLabel: t.prizeLabel, prizeValue: t.prizeValue || t.prizeLabel, prizeImageUrl: t.prizeImageUrl || null }));
       const body: Record<string, unknown> = {
         ...form,
         endsAt: parsedEndsAt.toISOString(),
@@ -625,37 +632,77 @@ export default function HunchForm() {
 
             <div className="space-y-3">
               {prizeTiers.map((tier, idx) => (
-                <div key={idx} className="flex items-center gap-3">
-                  <span className="text-xs font-bold text-violet-600 bg-violet-50 border border-violet-200 rounded-lg px-2.5 py-1.5 w-20 text-center shrink-0">
-                    {ordinal(tier.rank)} place
-                  </span>
-                  <input
-                    type="text"
-                    value={tier.prizeLabel}
-                    onChange={(e) => {
-                      const updated = prizeTiers.map((t, i) => i === idx ? { ...t, prizeLabel: e.target.value } : t);
-                      setPrizeTiers(updated);
-                    }}
-                    placeholder="e.g. Amazon Gift Card $50"
-                    className={`${inputCls} flex-1`}
-                  />
-                  {prizeTiers.length > 1 && (
-                    <button
-                      type="button"
-                      onClick={() => setPrizeTiers(
-                        prizeTiers.filter((_, i) => i !== idx).map((t, i) => ({ ...t, rank: i + 1 }))
-                      )}
-                      className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  )}
+                <div key={idx} className="border border-gray-100 rounded-xl p-3 space-y-3 bg-gray-50/50">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-violet-600 bg-violet-50 border border-violet-200 rounded-lg px-2.5 py-1.5 w-20 text-center shrink-0">
+                      {ordinal(tier.rank)} place
+                    </span>
+                    {prizeTiers.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => setPrizeTiers(
+                          prizeTiers.filter((_, i) => i !== idx).map((t, i) => ({ ...t, rank: i + 1 }))
+                        )}
+                        className="ml-auto p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Image upload */}
+                  <div>
+                    <label className="block text-xs font-medium text-gray-500 mb-1.5">Prize image</label>
+                    <ImageUploadField
+                      value={tier.prizeImageUrl}
+                      onChange={(url) => setPrizeTiers((prev) => prev.map((t, i) => i === idx ? { ...t, prizeImageUrl: url } : t))}
+                    />
+                  </div>
+
+                  {/* Label + Value side by side */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-500 mb-1.5">Title <span className="text-red-500">*</span></label>
+                      <input
+                        type="text"
+                        value={tier.prizeLabel}
+                        onChange={(e) => setPrizeTiers((prev) => prev.map((t, i) => i === idx ? { ...t, prizeLabel: e.target.value } : t))}
+                        placeholder="e.g. Amazon Gift Card"
+                        className={inputCls}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-500 mb-1.5">Value</label>
+                      <input
+                        type="text"
+                        value={tier.prizeValue}
+                        onChange={(e) => setPrizeTiers((prev) => prev.map((t, i) => i === idx ? { ...t, prizeValue: e.target.value } : t))}
+                        placeholder="e.g. $50"
+                        className={inputCls}
+                      />
+                    </div>
+                  </div>
                 </div>
               ))}
             </div>
+
+            {/* Total */}
+            {prizeTiers.length > 1 && (() => {
+              const total = prizeTiers.reduce((sum, t) => {
+                const m = t.prizeValue.match(/\$?(\d+(?:\.\d+)?)/);
+                return sum + (m ? parseFloat(m[1]) : 0);
+              }, 0);
+              return total > 0 ? (
+                <div className="flex items-center justify-between text-sm pt-1 border-t border-gray-100">
+                  <span className="text-gray-500">Total prize pool</span>
+                  <span className="font-bold text-gray-900">${total.toLocaleString()}</span>
+                </div>
+              ) : null;
+            })()}
+
             <button
               type="button"
-              onClick={() => setPrizeTiers([...prizeTiers, { rank: prizeTiers.length + 1, prizeLabel: "" }])}
+              onClick={() => setPrizeTiers([...prizeTiers, { rank: prizeTiers.length + 1, prizeLabel: "", prizeValue: "", prizeImageUrl: "" }])}
               className="inline-flex items-center gap-1.5 text-sm text-violet-600 hover:text-violet-700 font-medium"
             >
               <Plus className="w-4 h-4" />
