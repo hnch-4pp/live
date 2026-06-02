@@ -28,7 +28,7 @@ export default function Home() {
   const { data: categories, isLoading: categoriesLoading } = useListCategories();
   const { data: hunchesData, isLoading: hunchesLoading } = useListHunches({
     category: categoryParam || undefined,
-    status: statusParam as any || undefined,
+    status: (statusParam === "all" ? undefined : (statusParam as any || "open")),
     q: qParam,
     limit: 20,
     lang,
@@ -87,7 +87,7 @@ export default function Home() {
                 </h3>
                 <div className="space-y-1 mb-5">
                   {[
-                    { label: t("filter_all"), value: null },
+                    { label: t("filter_all"), value: "all" },
                     { label: t("filter_open"), value: "open" },
                     { label: t("filter_closed"), value: "closed" },
                     { label: t("filter_resolved"), value: "resolved" },
@@ -96,7 +96,7 @@ export default function Home() {
                       key={label}
                       onClick={() => handleStatusFilter(value)}
                       className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors font-medium ${
-                        statusParam === value || (!statusParam && value === null)
+                        statusParam === value || (!statusParam && value === "open")
                           ? "bg-primary/10 text-primary"
                           : "text-muted-foreground hover:bg-muted hover:text-foreground"
                       }`}
