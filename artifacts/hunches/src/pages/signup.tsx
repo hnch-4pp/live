@@ -699,7 +699,7 @@ export default function Signup() {
             {step === "email-otp" && (
               <div className="space-y-4">
                 <p className="text-sm text-center text-muted-foreground">
-                  {t("signup_sent_to", { email: <span key="e" className="font-medium text-foreground">{email}</span> })}
+                  {t("signup_sent_to", { email })}
                 </p>
                 <OtpInput value={emailOtp} onChange={setEmailOtp} />
                 {devHint && (
@@ -736,7 +736,7 @@ export default function Signup() {
             {step === "phone-otp" && (
               <div className="space-y-4">
                 <p className="text-sm text-center text-muted-foreground">
-                  {t("signup_sent_to", { email: <span key="p" className="font-medium text-foreground">{displayPhone}</span> })}
+                  {t("signup_sent_to", { email: displayPhone })}
                 </p>
                 <OtpInput value={phoneOtp} onChange={setPhoneOtp} />
                 {devHint && (
