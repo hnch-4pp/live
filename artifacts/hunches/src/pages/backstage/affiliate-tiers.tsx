@@ -110,8 +110,9 @@ export default function AdminAffiliateTiers() {
     queryKey: ["admin-affiliate-tiers"],
     queryFn: async () => {
       const res = await adminFetch("/admin/affiliate-tiers");
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const d = await res.json() as { tiers: Tier[] };
-      return d.tiers;
+      return d.tiers ?? [];
     },
   });
 

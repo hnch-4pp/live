@@ -297,8 +297,9 @@ export default function AdminAffiliates() {
       if (q) params.set("q", q);
       if (statusFilter) params.set("status", statusFilter);
       const res = await adminFetch(`/admin/affiliates?${params}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const d = await res.json() as { affiliates: Affiliate[] };
-      return d.affiliates;
+      return d.affiliates ?? [];
     },
   });
 
@@ -306,6 +307,7 @@ export default function AdminAffiliates() {
     queryKey: ["admin-affiliates-metrics"],
     queryFn: async () => {
       const res = await adminFetch("/admin/affiliates-metrics");
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       return res.json();
     },
   });
