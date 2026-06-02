@@ -226,6 +226,27 @@ setInterval(() => {
 // Run once on startup
 runHunchReminders().catch((err) => logger.error({ err }, "Hunch reminder initial check failed"));
 
+// ── Auto-close expired hunches ─────────────────────────────────────────────────
+async function runAutoClose(): Promise<void> {
+  const now = new Date();
+  const result = await db
+    .update(hunchesTable)
+    .set({ status: "closed" })
+    .where(and(eq(hunchesTable.status, "open"), lte(hunchesTable.endsAt, now)))
+    .returning({ id: hunchesTable.id, title: hunchesTable.title });
+
+  if (result.length > 0) {
+    logger.info({ count: result.length, ids: result.map((h) => h.id) }, "Auto-closed expired hunches");
+  }
+}
+
+setInterval(() => {
+  runAutoClose().catch((err) => logger.error({ err }, "Auto-close check failed"));
+}, 5 * 60 * 1000); // every 5 minutes
+
+// Run once on startup to catch any hunches that expired while server was down
+runAutoClose().catch((err) => logger.error({ err }, "Auto-close initial check failed"));
+
 app.listen(port, (err) => {
   if (err) {
     logger.error({ err }, "Error listening on port");
