@@ -412,13 +412,24 @@ function getAffiliateRefFromUrl(): string {
 }
 
 const PAID_PLANS = new Set(["starter", "plus", "pro", "elite"]);
+const PENDING_PLAN_LS_KEY = "hunch_pending_plan";
+const PENDING_PLAN_TTL = 2 * 60 * 60 * 1000; // 2 hours
 
 function getPendingPlanFromUrl(): string {
   try {
     const params = new URLSearchParams(window.location.search);
     const plan = params.get("plan")?.toLowerCase() ?? "";
-    if (plan) return plan;
-    return "";
+    if (plan) {
+      // Mirror to localStorage so it survives any navigation
+      try { localStorage.setItem(PENDING_PLAN_LS_KEY, JSON.stringify({ planId: plan, ts: Date.now() })); } catch {}
+      return plan;
+    }
+    // Fallback: read from localStorage (set by affiliate-slug handleSubscribe)
+    const raw = localStorage.getItem(PENDING_PLAN_LS_KEY);
+    if (!raw) return "";
+    const { planId, ts } = JSON.parse(raw) as { planId: string; ts: number };
+    if (Date.now() - ts > PENDING_PLAN_TTL) { localStorage.removeItem(PENDING_PLAN_LS_KEY); return ""; }
+    return planId ?? "";
   } catch { return ""; }
 }
 
@@ -551,25 +562,22 @@ export default function Signup() {
       } else if (step === "dob") {
         await post("/auth/signup/complete", { username: username.trim().toLowerCase(), address: fullAddress, dateOfBirth: dob, ...(affiliateRef ? { affiliateRef } : {}) });
         await refetch();
-        // Affiliate + paid plan: redirect straight to Stripe checkout
-        if (pendingPlan && PAID_PLANS.has(pendingPlan)) {
-          try {
-            const data = await post("/stripe/subscribe", {
-              tierId: pendingPlan,
-              referralDiscount: !!affiliateRef,
-              returnUrl: window.location.origin,
-            }) as { url?: string };
-            if (data.url) {
-              window.location.href = data.url;
-              return;
-            }
-          } catch {
-            // Stripe redirect failed — fall through to normal flow
-          }
-        }
         setStep("ticket-code");
       } else if (step === "ticket-code") {
-        setLocation("/");
+        if (pendingPlan && PAID_PLANS.has(pendingPlan)) {
+          // Go to Stripe checkout — errors surface to the user via the outer catch
+          const data = await post("/stripe/subscribe", {
+            tierId: pendingPlan,
+            referralDiscount: !!affiliateRef,
+            returnUrl: window.location.origin,
+          }) as { url?: string };
+          if (data.url) {
+            localStorage.removeItem(PENDING_PLAN_LS_KEY);
+            window.location.href = data.url;
+          }
+        } else {
+          setLocation("/");
+        }
       }
     } catch (e: any) {
       setError(e.message);
@@ -643,7 +651,9 @@ export default function Signup() {
     username: t("continue_btn"),
     address: t("continue_btn"),
     dob: loading ? t("signup_cta_creating") : t("signup_cta_create"),
-    "ticket-code": promoApplied ? t("signup_cta_continue_to_hunch") : t("signup_cta_skip"),
+    "ticket-code": (pendingPlan && PAID_PLANS.has(pendingPlan))
+      ? "Ir al pago"
+      : promoApplied ? t("signup_cta_continue_to_hunch") : t("signup_cta_skip"),
   };
 
   return (
@@ -1002,6 +1012,15 @@ export default function Signup() {
             {/* Ticket code */}
             {step === "ticket-code" && (
               <div className="space-y-4">
+                {pendingPlan && PAID_PLANS.has(pendingPlan) && (
+                  <div className="rounded-xl border border-violet-200 bg-violet-50 px-4 py-3 flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-semibold text-violet-800 capitalize">Plan {pendingPlan}</p>
+                      <p className="text-xs text-violet-600">50% OFF primer mes con tu link de afiliado</p>
+                    </div>
+                    <span className="text-xs font-bold text-violet-700 bg-violet-100 rounded-full px-2.5 py-1">50% OFF</span>
+                  </div>
+                )}
                 {promoApplied && promoInfo ? (
                   <div className="text-center space-y-3">
                     <div className="w-14 h-14 rounded-2xl bg-green-100 flex items-center justify-center mx-auto">
@@ -1061,6 +1080,16 @@ export default function Signup() {
             >
               {loading ? t("please_wait") : CTALabel[step]}
             </Button>
+
+            {step === "ticket-code" && pendingPlan && PAID_PLANS.has(pendingPlan) && (
+              <button
+                type="button"
+                onClick={() => { localStorage.removeItem(PENDING_PLAN_LS_KEY); setLocation("/"); }}
+                className="w-full text-center text-xs text-muted-foreground hover:text-foreground transition-colors py-1"
+              >
+                Omitir por ahora
+              </button>
+            )}
           </div>
 
           <div className="mt-5 flex items-center justify-between">

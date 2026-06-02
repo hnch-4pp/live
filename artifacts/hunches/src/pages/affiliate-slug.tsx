@@ -115,6 +115,9 @@ export default function AffiliateSlugPage() {
   }
 
   function handleSubscribe(planId: string) {
+    try {
+      localStorage.setItem("hunch_pending_plan", JSON.stringify({ planId, ts: Date.now() }));
+    } catch {}
     setLocation(`/signup?ref=${encodeURIComponent(slug)}&plan=${planId}`);
   }
 
