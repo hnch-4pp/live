@@ -233,6 +233,7 @@ export default function HunchDetail() {
 
   const [submitted, setSubmitted] = useState(false);
   const [prizeOpen, setPrizeOpen] = useState(false);
+  const [conditionsOpen, setConditionsOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
@@ -496,6 +497,35 @@ export default function HunchDetail() {
                       </div>
                     ))}
                   </div>
+
+                  {/* Multi-prize note */}
+                  {tiers.length > 1 && (
+                    <div className="flex items-start gap-2 mt-4 pt-4 border-t border-border">
+                      <Info className="w-3.5 h-3.5 text-muted-foreground shrink-0 mt-0.5" />
+                      <p className="text-xs text-muted-foreground leading-snug">
+                        The prize pool is divided among the top finishers — one prize per place.
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Prize conditions — collapsible */}
+                  {hunch.prizeConditions && (
+                    <div className="mt-4 pt-4 border-t border-border">
+                      <button
+                        type="button"
+                        onClick={() => setConditionsOpen((o) => !o)}
+                        className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground font-medium w-full text-left transition-colors"
+                      >
+                        {conditionsOpen ? <ChevronUp className="w-3.5 h-3.5 shrink-0" /> : <ChevronDown className="w-3.5 h-3.5 shrink-0" />}
+                        Prize conditions
+                      </button>
+                      {conditionsOpen && (
+                        <p className="mt-2 text-xs text-muted-foreground leading-relaxed whitespace-pre-line">
+                          {hunch.prizeConditions}
+                        </p>
+                      )}
+                    </div>
+                  )}
                 </div>
               );
             })()}
