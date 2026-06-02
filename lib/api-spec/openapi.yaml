@@ -377,6 +377,9 @@ components:
           description: JSON array of source objects [{type,url,label}]
         rules:
           type: ["string", "null"]
+        prizeConditions:
+          type: ["string", "null"]
+          description: Optional terms or conditions for the prizes shown to participants
         ticketCost:
           type: integer
         answerType:

@@ -97,6 +97,11 @@ export interface Hunch {
   resultSources?: string | null;
   /** @nullable */
   rules?: string | null;
+  /**
+     * Optional terms or conditions for the prizes shown to participants
+     * @nullable
+     */
+  prizeConditions?: string | null;
   ticketCost?: number;
   answerType?: string;
   isMulti?: boolean;

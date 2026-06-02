@@ -23,6 +23,7 @@ export const hunchesTable = pgTable("hunches", {
   resultText: text("result_text"), // Admin-written result summary shown after resolution
   resultSources: text("result_sources"), // JSON: Array<{ type, url, label }>
   rules: text("rules"),
+  prizeConditions: text("prize_conditions"),
   answerType: text("answer_type").notNull().default("integer"), // integer | decimal | date | time
   isMulti: boolean("is_multi").notNull().default(false),
   ticketCost: integer("ticket_cost").notNull().default(1),

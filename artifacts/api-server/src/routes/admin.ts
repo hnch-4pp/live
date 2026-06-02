@@ -300,6 +300,7 @@ router.post(
         answerType: (answerType as string) ?? "integer",
         ticketCost: req.body.ticketCost !== undefined ? Number(req.body.ticketCost) : 1,
         rules: req.body.rules ? String(req.body.rules) : null,
+        prizeConditions: req.body.prizeConditions ? String(req.body.prizeConditions) : null,
         isMulti: req.body.isMulti === true || req.body.isMulti === "true",
       })
       .returning();
@@ -373,6 +374,7 @@ router.patch(
     if (answerType !== undefined) updates["answerType"] = String(answerType);
     if (req.body.ticketCost !== undefined) updates["ticketCost"] = Number(req.body.ticketCost);
     if ("rules" in req.body) updates["rules"] = req.body.rules ? String(req.body.rules) : null;
+    if ("prizeConditions" in req.body) updates["prizeConditions"] = req.body.prizeConditions ? String(req.body.prizeConditions) : null;
     if ("isMulti" in req.body) updates["isMulti"] = req.body.isMulti === true || req.body.isMulti === "true";
     if ("winnerAnswers" in req.body) {
       updates["winnerAnswers"] = req.body.winnerAnswers

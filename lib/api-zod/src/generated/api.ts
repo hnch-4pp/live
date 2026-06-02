@@ -115,6 +115,7 @@ export const ListHunchesResponse = zod.object({
   "resultText": zod.string().nullish().describe('Admin-written summary of the outcome shown after resolution'),
   "resultSources": zod.string().nullish().describe('JSON array of source objects [{type,url,label}]'),
   "rules": zod.string().nullish(),
+  "prizeConditions": zod.string().nullish().describe('Optional terms or conditions for the prizes shown to participants'),
   "ticketCost": zod.number().optional(),
   "answerType": zod.string().optional(),
   "isMulti": zod.boolean().optional()
@@ -172,6 +173,7 @@ export const GetFeaturedHunchesResponseItem = zod.object({
   "resultText": zod.string().nullish().describe('Admin-written summary of the outcome shown after resolution'),
   "resultSources": zod.string().nullish().describe('JSON array of source objects [{type,url,label}]'),
   "rules": zod.string().nullish(),
+  "prizeConditions": zod.string().nullish().describe('Optional terms or conditions for the prizes shown to participants'),
   "ticketCost": zod.number().optional(),
   "answerType": zod.string().optional(),
   "isMulti": zod.boolean().optional()
@@ -243,6 +245,7 @@ export const GetHunchResponse = zod.object({
   "resultText": zod.string().nullish().describe('Admin-written summary of the outcome shown after resolution'),
   "resultSources": zod.string().nullish().describe('JSON array of source objects [{type,url,label}]'),
   "rules": zod.string().nullish(),
+  "prizeConditions": zod.string().nullish().describe('Optional terms or conditions for the prizes shown to participants'),
   "ticketCost": zod.number().optional(),
   "answerType": zod.string().optional(),
   "isMulti": zod.boolean().optional()

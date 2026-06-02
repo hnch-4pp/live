@@ -236,6 +236,8 @@ export default function HunchForm() {
 
   const [form, setForm]           = useState({ ...EMPTY });
   const [prizeTiers, setPrizeTiers] = useState<{ rank: number; prizeLabel: string; prizeValue: string; prizeImageUrl: string }[]>([{ rank: 1, prizeLabel: "", prizeValue: "", prizeImageUrl: "" }]);
+  const [prizeConditions, setPrizeConditions] = useState("");
+  const [prizeConditionsOpen, setPrizeConditionsOpen] = useState(false);
   const [questions, setQuestions] = useState<Question[]>([
     { prompt: "", answerType: "integer", placeholder: "", sortOrder: 0 },
     { prompt: "", answerType: "integer", placeholder: "", sortOrder: 1 },
@@ -297,6 +299,10 @@ export default function HunchForm() {
             prizeImageUrl: t.prizeImageUrl ?? "",
           })));
         }
+        if (h.prizeConditions) {
+          setPrizeConditions(h.prizeConditions as string);
+          setPrizeConditionsOpen(true);
+        }
         if (h.winnerUserId) setWinnerUserId(h.winnerUserId as number);
         if (Array.isArray(h.questions) && h.questions.length > 0) {
           setQuestions(h.questions.map((q: { id: number; prompt: string; answerType: string; placeholder?: string; sortOrder: number }) => ({
@@ -336,6 +342,7 @@ export default function HunchForm() {
         ...form,
         endsAt: parsedEndsAt.toISOString(),
         imageUrl: form.imageUrl || null,
+        prizeConditions: prizeConditions.trim() || null,
         imageFocalPoint: form.imageFocalPoint || null,
         winnerOption: form.winnerOption || null,
         resultText: form.resultText || null,
@@ -700,6 +707,12 @@ export default function HunchForm() {
               ) : null;
             })()}
 
+            {prizeTiers.length > 1 && (
+              <p className="text-xs text-amber-600 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
+                When multiple prizes are awarded, the prize pool is divided among the top finishers — one prize per place.
+              </p>
+            )}
+
             <button
               type="button"
               onClick={() => setPrizeTiers([...prizeTiers, { rank: prizeTiers.length + 1, prizeLabel: "", prizeValue: "", prizeImageUrl: "" }])}
@@ -708,6 +721,33 @@ export default function HunchForm() {
               <Plus className="w-4 h-4" />
               Add prize tier
             </button>
+
+            {/* Prize conditions — collapsible */}
+            <div className="border-t border-gray-100 pt-4">
+              <button
+                type="button"
+                onClick={() => setPrizeConditionsOpen((o) => !o)}
+                className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700 font-medium w-full text-left"
+              >
+                <ChevronDown className={`w-4 h-4 transition-transform ${prizeConditionsOpen ? "rotate-180" : ""}`} />
+                Prize conditions
+                {prizeConditions && !prizeConditionsOpen && (
+                  <span className="ml-auto text-xs text-gray-400 font-normal">(set)</span>
+                )}
+              </button>
+              {prizeConditionsOpen && (
+                <div className="mt-3">
+                  <textarea
+                    value={prizeConditions}
+                    onChange={(e) => setPrizeConditions(e.target.value)}
+                    placeholder="e.g. Prize must be claimed within 30 days. Only valid for US residents."
+                    rows={4}
+                    className={`${inputCls} w-full resize-y`}
+                  />
+                  <p className="text-xs text-gray-400 mt-1">Shown to participants alongside the prize details.</p>
+                </div>
+              )}
+            </div>
           </section>
 
           {/* Participants section — editing only */}
