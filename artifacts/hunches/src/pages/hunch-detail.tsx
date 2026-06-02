@@ -443,55 +443,62 @@ export default function HunchDetail() {
             )}
 
             {/* Prize Pool — main content */}
-            <div className="bg-card border border-border rounded-2xl p-6 card-shadow">
-              <div className="flex items-center justify-between gap-2 mb-4">
-                <div className="flex items-center gap-2">
-                  {getPrizeIcon(hunch.prize.type)}
-                  <h3 className="text-base font-display font-bold text-foreground">{t("prize_pool")}</h3>
-                </div>
-                {hunch.prizeTiers && hunch.prizeTiers.length > 1 && hunch.prizePoolTotal && (
-                  <span className="text-xl font-display font-bold text-foreground">{hunch.prizePoolTotal}</span>
-                )}
-              </div>
-
-              {hunch.prizeTiers && hunch.prizeTiers.length > 1 ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {hunch.prizeTiers.map((tier) => (
-                    <div key={tier.rank} className="flex items-center gap-3 p-3 rounded-xl bg-muted/40 border border-border">
-                      <span className="text-xs font-bold text-primary bg-primary/10 rounded-lg px-2.5 py-1 whitespace-nowrap shrink-0 min-w-[72px] text-center">
-                        {ordinal(tier.rank)} place
-                      </span>
-                      <span className="text-sm text-foreground font-medium flex-1 truncate">{tier.prize.label}</span>
-                      {tier.prize.imageUrl && (
-                        <button
-                          type="button"
-                          onClick={() => setLightboxUrl(tier.prize.imageUrl!)}
-                          className="shrink-0 w-10 h-10 rounded-lg overflow-hidden border border-border hover:ring-2 hover:ring-primary/40 transition-all"
-                        >
-                          <img src={tier.prize.imageUrl} alt={tier.prize.label} className="w-full h-full object-cover" />
-                        </button>
-                      )}
+            {(() => {
+              const tiers = hunch.prizeTiers && hunch.prizeTiers.length > 0
+                ? hunch.prizeTiers
+                : [{ rank: 1, prize: hunch.prize }];
+              return (
+                <div className="bg-card border border-border rounded-2xl p-6 card-shadow">
+                  {/* Header */}
+                  <div className="flex items-center justify-between gap-2 mb-5">
+                    <div className="flex items-center gap-2">
+                      {getPrizeIcon(hunch.prize.type)}
+                      <h3 className="text-base font-display font-bold text-foreground">{t("prize_pool")}</h3>
                     </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="flex items-center gap-4">
-                  {hunch.prize.imageUrl && (
-                    <button
-                      type="button"
-                      onClick={() => setLightboxUrl(hunch.prize.imageUrl!)}
-                      className="shrink-0 w-16 h-16 rounded-xl overflow-hidden border border-border hover:ring-2 hover:ring-primary/40 transition-all"
-                    >
-                      <img src={hunch.prize.imageUrl} alt={hunch.prize.label} className="w-full h-full object-cover" />
-                    </button>
-                  )}
-                  <div>
-                    <div className="text-2xl font-display font-bold text-foreground">{hunch.prize.value}</div>
-                    <div className="text-sm text-muted-foreground">{hunch.prize.label}</div>
+                    {hunch.prizePoolTotal && tiers.length > 1 && (
+                      <span className="text-2xl font-display font-bold text-foreground">{hunch.prizePoolTotal}</span>
+                    )}
+                  </div>
+
+                  {/* One row per prize */}
+                  <div className="divide-y divide-border">
+                    {tiers.map((tier) => (
+                      <div key={tier.rank} className="flex items-center gap-4 py-3 first:pt-0 last:pb-0">
+                        {/* Square image */}
+                        <div className="shrink-0">
+                          {tier.prize.imageUrl ? (
+                            <button
+                              type="button"
+                              onClick={() => setLightboxUrl(tier.prize.imageUrl!)}
+                              className="w-12 h-12 rounded-xl overflow-hidden border border-border hover:ring-2 hover:ring-primary/40 transition-all block"
+                            >
+                              <img src={tier.prize.imageUrl} alt={tier.prize.label} className="w-full h-full object-cover" />
+                            </button>
+                          ) : (
+                            <div className="w-12 h-12 rounded-xl bg-primary/10 border border-border flex items-center justify-center">
+                              {getPrizeIcon(tier.prize.type)}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Name + rank */}
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold text-foreground leading-snug truncate">{tier.prize.label}</p>
+                          {tiers.length > 1 && (
+                            <p className="text-xs text-muted-foreground mt-0.5">{ordinal(tier.rank)} place</p>
+                          )}
+                        </div>
+
+                        {/* Value — prominent */}
+                        <div className="shrink-0 text-right">
+                          <span className="text-lg font-display font-bold text-primary">{tier.prize.value}</span>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
-              )}
-            </div>
+              );
+            })()}
 
             {/* Context */}
             <div className="bg-card border border-border rounded-2xl p-6 card-shadow">
