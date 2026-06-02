@@ -148,15 +148,34 @@ async function handleInvoicePaymentSucceeded(invoice: Stripe.Invoice): Promise<v
 
   if (!subscriptionId) return;
 
-  const [sub] = await db
+  let [sub] = await db
     .select()
     .from(subscriptionsTable)
     .where(eq(subscriptionsTable.stripeSubscriptionId, subscriptionId))
     .limit(1);
 
   if (!sub) {
-    logger.warn({ subscriptionId }, "invoice.payment_succeeded: subscription not in DB");
-    return;
+    // customer.subscription.created may not have been processed yet (race condition) — recover from Stripe
+    logger.warn({ subscriptionId }, "invoice.payment_succeeded: subscription not in DB — attempting recovery from Stripe");
+    try {
+      const stripe = await getUncachableStripeClient();
+      const stripeSub = await stripe.subscriptions.retrieve(subscriptionId);
+      await handleSubscriptionCreated(stripeSub);
+      const [recovered] = await db
+        .select()
+        .from(subscriptionsTable)
+        .where(eq(subscriptionsTable.stripeSubscriptionId, subscriptionId))
+        .limit(1);
+      if (!recovered) {
+        logger.warn({ subscriptionId }, "invoice.payment_succeeded: recovery failed — subscription still not in DB");
+        return;
+      }
+      sub = recovered;
+      logger.info({ subscriptionId }, "invoice.payment_succeeded: subscription recovered from Stripe");
+    } catch (err) {
+      logger.warn({ subscriptionId, err }, "invoice.payment_succeeded: could not recover subscription from Stripe");
+      return;
+    }
   }
 
   const invoiceId = invoice.id;
