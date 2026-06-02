@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
-import { Mail, Lock } from "lucide-react";
+import { Mail, Lock, KeyRound } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 function OtpInput({ value, onChange }: { value: string; onChange: (v: string) => void }) {
@@ -46,7 +46,7 @@ function OtpInput({ value, onChange }: { value: string; onChange: (v: string) =>
   );
 }
 
-type Step = "email" | "password" | "otp";
+type Step = "email" | "password" | "otp" | "new-password";
 
 export default function Login() {
   const { t } = useTranslation();
@@ -57,6 +57,9 @@ export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [otp, setOtp] = useState("");
+  const [isResetMode, setIsResetMode] = useState(false);
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmNewPassword, setConfirmNewPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [devHint, setDevHint] = useState("");
@@ -114,7 +117,49 @@ export default function Login() {
     setError("");
     setLoading(true);
     try {
-      await post("/auth/login/verify-otp", { code: otp });
+      if (isResetMode) {
+        await post("/auth/password-reset/verify-otp", { code: otp });
+        setOtp("");
+        setStep("new-password");
+      } else {
+        await post("/auth/login/verify-otp", { code: otp });
+        await refetch();
+        setLocation("/");
+      }
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Something went wrong");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleForgotPassword = async () => {
+    setError("");
+    setDevHint("");
+    setLoading(true);
+    try {
+      const r = await post("/auth/password-reset/request", { email }) as { devCode?: string };
+      if (r.devCode) setDevHint(`Dev mode — reset code: ${r.devCode}`);
+      setIsResetMode(true);
+      setOtp("");
+      setPassword("");
+      setStep("otp");
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Something went wrong");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSetNewPassword = async () => {
+    setError("");
+    if (newPassword !== confirmNewPassword) {
+      setError(t("passwords_no_match"));
+      return;
+    }
+    setLoading(true);
+    try {
+      await post("/auth/password-reset/set", { newPassword });
       await refetch();
       setLocation("/");
     } catch (e: unknown) {
@@ -129,8 +174,13 @@ export default function Login() {
     setDevHint("");
     setLoading(true);
     try {
-      const r = await post("/auth/login/send-otp", { email }) as { devCode?: string };
-      if (r.devCode) setDevHint(`Dev mode — your code is: ${r.devCode}`);
+      if (isResetMode) {
+        const r = await post("/auth/password-reset/request", { email }) as { devCode?: string };
+        if (r.devCode) setDevHint(`Dev mode — reset code: ${r.devCode}`);
+      } else {
+        const r = await post("/auth/login/send-otp", { email }) as { devCode?: string };
+        if (r.devCode) setDevHint(`Dev mode — your code is: ${r.devCode}`);
+      }
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Something went wrong");
     } finally {
@@ -138,19 +188,22 @@ export default function Login() {
     }
   };
 
-  const headingIcon = step === "password"
-    ? <Lock className="w-5 h-5 text-white" />
-    : <Mail className="w-5 h-5 text-white" />;
+  const headingIcon =
+    step === "new-password" ? <KeyRound className="w-5 h-5 text-white" /> :
+    step === "password"     ? <Lock className="w-5 h-5 text-white" /> :
+                              <Mail className="w-5 h-5 text-white" />;
 
   const heading =
-    step === "email"    ? t("welcome_back") :
-    step === "password" ? t("login_enter_password_heading") :
-                          t("login_check_email_heading");
+    step === "email"        ? t("welcome_back") :
+    step === "password"     ? t("login_enter_password_heading") :
+    step === "otp"          ? (isResetMode ? t("login_forgot_heading") : t("login_check_email_heading")) :
+                              t("login_new_password_heading");
 
   const subheading =
-    step === "email"    ? t("login_enter_email_sub") :
-    step === "password" ? email :
-                          t("login_code_sent", { email });
+    step === "email"        ? t("login_enter_email_sub") :
+    step === "password"     ? email :
+    step === "otp"          ? (isResetMode ? t("reset_code_sent", { email }) : t("login_code_sent", { email })) :
+                              t("login_new_password_sub");
 
   return (
     <Layout>
@@ -195,6 +248,16 @@ export default function Login() {
                   placeholder={t("your_password")}
                   className="rounded-xl h-11 bg-background border-border"
                 />
+                <div className="flex justify-end pt-0.5">
+                  <button
+                    type="button"
+                    className="text-xs text-primary hover:underline"
+                    onClick={handleForgotPassword}
+                    disabled={loading}
+                  >
+                    {t("forgot_password")}
+                  </button>
+                </div>
               </div>
             )}
 
@@ -206,6 +269,37 @@ export default function Login() {
                     {devHint}
                   </p>
                 )}
+              </div>
+            )}
+
+            {step === "new-password" && (
+              <div className="space-y-3">
+                <div className="space-y-1.5">
+                  <Label>{t("new_password_label")}</Label>
+                  <Input
+                    type="password"
+                    autoFocus
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    placeholder="••••••••"
+                    className="rounded-xl h-11 bg-background border-border"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>{t("confirm_new_password_label")}</Label>
+                  <Input
+                    type="password"
+                    value={confirmNewPassword}
+                    onChange={(e) => setConfirmNewPassword(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && newPassword.length >= 8 && newPassword === confirmNewPassword) {
+                        void handleSetNewPassword();
+                      }
+                    }}
+                    placeholder="••••••••"
+                    className="rounded-xl h-11 bg-background border-border"
+                  />
+                </div>
               </div>
             )}
 
@@ -242,6 +336,16 @@ export default function Login() {
                 disabled={loading || otp.length < 6}
               >
                 {loading ? t("signing_in") : t("sign_in")}
+              </Button>
+            )}
+
+            {step === "new-password" && (
+              <Button
+                className="w-full bg-primary text-white font-semibold rounded-xl h-11 shadow-sm hover:bg-primary/90"
+                onClick={handleSetNewPassword}
+                disabled={loading || newPassword.length < 8 || newPassword !== confirmNewPassword}
+              >
+                {loading ? t("signing_in") : t("save_password_btn")}
               </Button>
             )}
           </div>
@@ -288,7 +392,13 @@ export default function Login() {
               <>
                 <button
                   className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-                  onClick={() => { setStep("email"); setOtp(""); setError(""); setDevHint(""); }}
+                  onClick={() => {
+                    setStep(isResetMode ? "email" : "email");
+                    setOtp("");
+                    setIsResetMode(false);
+                    setError("");
+                    setDevHint("");
+                  }}
                 >
                   {t("change_email_back")}
                 </button>
@@ -300,6 +410,15 @@ export default function Login() {
                   {t("resend_code")}
                 </button>
               </>
+            )}
+
+            {step === "new-password" && (
+              <button
+                className="text-sm text-muted-foreground hover:text-foreground transition-colors w-full text-center"
+                onClick={() => { setStep("email"); setIsResetMode(false); setNewPassword(""); setConfirmNewPassword(""); setError(""); }}
+              >
+                {t("back_to_login")}
+              </button>
             )}
           </div>
         </div>

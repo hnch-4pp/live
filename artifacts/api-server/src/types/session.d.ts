@@ -15,5 +15,7 @@ declare module "express-session" {
       affiliateRef?: string;
     };
     loginEmail?: string;
+    passwordResetEmail?: string;
+    passwordResetVerified?: boolean;
   }
 }

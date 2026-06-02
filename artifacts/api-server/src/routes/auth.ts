@@ -437,6 +437,121 @@ router.post("/auth/login/password", async (req, res): Promise<void> => {
   res.json({ ok: true, user: { id: user.id, email: user.email } });
 });
 
+// ── Password reset ──────────────────────────────────────────────────────────
+
+async function sendPasswordResetEmail(email: string, code: string): Promise<void> {
+  if (isDev) {
+    console.log(`[AUTH DEV] Password reset OTP for ${email}: ${code}`);
+  }
+
+  const RESEND_API_KEY = process.env.RESEND_API_KEY;
+  if (!RESEND_API_KEY) throw new Error("RESEND_API_KEY not configured");
+
+  const response = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${RESEND_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      from: "Hunch <no-reply@hunch.fan>",
+      to: [email],
+      subject: "Reset your Hunch password",
+      html: `
+        <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px 24px">
+          <h2 style="margin:0 0 8px;font-size:22px;color:#1a1a2e">Reset your password</h2>
+          <p style="margin:0 0 24px;color:#555;font-size:15px">
+            Use the code below to reset your Hunch password. It expires in 10 minutes.
+          </p>
+          <div style="background:#f4f4f8;border-radius:10px;padding:20px 0;text-align:center">
+            <span style="font-size:36px;font-weight:700;letter-spacing:10px;color:#1a1a2e">${code}</span>
+          </div>
+          <p style="margin:24px 0 0;color:#888;font-size:13px">
+            If you didn't request a password reset, you can safely ignore this email.
+          </p>
+          <hr style="margin:24px 0;border:none;border-top:1px solid #eee"/>
+          <p style="margin:0;color:#aaa;font-size:12px">
+            Hunch — a skill-based prediction platform. No money wagered.
+          </p>
+        </div>
+      `,
+    }),
+  });
+
+  if (!response.ok) {
+    const body = await response.text().catch(() => "");
+    throw new Error(`Resend error ${response.status}: ${body}`);
+  }
+}
+
+router.post("/auth/password-reset/request", async (req, res): Promise<void> => {
+  const { email } = req.body as { email?: string };
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    res.status(400).json({ error: "Valid email required" });
+    return;
+  }
+
+  const [user] = await db.select().from(usersTable).where(eq(usersTable.email, email.toLowerCase())).limit(1);
+  if (!user) {
+    res.json({ ok: true });
+    return;
+  }
+
+  const code = await createOtp(email.toLowerCase(), "email");
+  await sendPasswordResetEmail(email, code);
+  req.session.passwordResetEmail = email.toLowerCase();
+  req.session.passwordResetVerified = false;
+  res.json({ ok: true, ...(isDev ? { devCode: code } : {}) });
+});
+
+router.post("/auth/password-reset/verify-otp", async (req, res): Promise<void> => {
+  const { code } = req.body as { code?: string };
+  const email = req.session.passwordResetEmail;
+
+  if (!email) { res.status(400).json({ error: "Session expired. Please start again." }); return; }
+  if (!code) { res.status(400).json({ error: "Code required" }); return; }
+
+  const valid = await verifyOtp(email, "email", code.trim());
+  if (!valid) { res.status(400).json({ error: "Invalid or expired code" }); return; }
+
+  req.session.passwordResetVerified = true;
+  res.json({ ok: true });
+});
+
+router.post("/auth/password-reset/set", async (req, res): Promise<void> => {
+  const { newPassword } = req.body as { newPassword?: string };
+  const email = req.session.passwordResetEmail;
+
+  if (!email || !req.session.passwordResetVerified) {
+    res.status(400).json({ error: "Session expired. Please start again." });
+    return;
+  }
+  if (!newPassword || newPassword.length < 8) {
+    res.status(400).json({ error: "Password must be at least 8 characters." });
+    return;
+  }
+
+  const [user] = await db.select().from(usersTable).where(eq(usersTable.email, email)).limit(1);
+  if (!user) { res.status(404).json({ error: "Account not found." }); return; }
+
+  if (user.status === "suspended") {
+    res.status(403).json({ error: "Your account has been suspended. Please contact support." });
+    return;
+  }
+  if (user.status === "banned") {
+    res.status(403).json({ error: "Your account has been permanently banned." });
+    return;
+  }
+
+  const newHash = await bcrypt.hash(newPassword, 12);
+  await db.execute(sql`UPDATE users SET password_hash = ${newHash} WHERE id = ${user.id}`);
+
+  req.session.passwordResetEmail = undefined;
+  req.session.passwordResetVerified = undefined;
+  req.session.userId = user.id;
+  res.json({ ok: true, user: { id: user.id, email: user.email } });
+});
+
 // ── Session ────────────────────────────────────────────────────────────────
 
 router.get("/auth/me", async (req, res): Promise<void> => {
