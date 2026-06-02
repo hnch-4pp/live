@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useRoute, useLocation } from "wouter";
+import { useParams, useLocation } from "wouter";
 import { AdminLayout } from "@/components/admin-layout";
 import { adminFetch, useAdminAuth } from "./dashboard";
 import {
@@ -147,11 +147,12 @@ const modLabels: Record<ModAction, { title: string; desc: string; confirmLabel: 
 export default function AdminUserDetail() {
   useAdminAuth();
   const [, setLocation] = useLocation();
-  const [, params] = useRoute("/backstage/users/:id");
+  const params = useParams<{ id: string }>();
   const userId = Number(params?.id ?? 0);
 
   const [detail, setDetail] = useState<UserDetail | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [modAction, setModAction] = useState<{ action: ModAction } | null>(null);
   const [modding, setModding] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
@@ -159,10 +160,17 @@ export default function AdminUserDetail() {
 
   const load = async () => {
     setLoading(true);
+    setLoadError(null);
     try {
       const r = await adminFetch(`/admin/users/${userId}/detail`);
-      if (!r.ok) { setLocation("/backstage/users"); return; }
+      if (!r.ok) {
+        const body = await r.json().catch(() => ({})) as { error?: string };
+        setLoadError(body.error ?? `Error ${r.status}`);
+        return;
+      }
       setDetail(await r.json() as UserDetail);
+    } catch {
+      setLoadError("Could not connect to the server");
     } finally {
       setLoading(false);
     }
@@ -200,6 +208,44 @@ export default function AdminUserDetail() {
           <div className="h-32 bg-gray-100 rounded-xl" />
           <div className="grid grid-cols-4 gap-4">
             {[0,1,2,3].map(i => <div key={i} className="h-24 bg-gray-100 rounded-xl" />)}
+          </div>
+        </div>
+      </AdminLayout>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <AdminLayout>
+        <div className="p-8">
+          <button
+            onClick={() => setLocation("/backstage/users")}
+            className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 mb-6 transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Back to Users
+          </button>
+          <div className="bg-white border border-gray-200 rounded-2xl p-10 text-center max-w-md mx-auto mt-10">
+            <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <AlertCircle className="w-5 h-5 text-red-600" />
+            </div>
+            <h2 className="text-lg font-bold text-gray-900 mb-2">Could not load user</h2>
+            <p className="text-sm text-gray-500 mb-6">{loadError}</p>
+            <div className="flex gap-3 justify-center">
+              <button
+                onClick={() => setLocation("/backstage/users")}
+                className="px-4 py-2 text-sm border border-gray-200 rounded-xl text-gray-700 hover:bg-gray-50 transition-colors"
+              >
+                Back to list
+              </button>
+              <button
+                onClick={() => void load()}
+                className="px-4 py-2 text-sm bg-violet-600 text-white rounded-xl hover:bg-violet-700 transition-colors flex items-center gap-1.5"
+              >
+                <RefreshCw className="w-3.5 h-3.5" />
+                Retry
+              </button>
+            </div>
           </div>
         </div>
       </AdminLayout>
