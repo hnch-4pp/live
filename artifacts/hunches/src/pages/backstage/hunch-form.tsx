@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useLocation, useParams } from "wouter";
 import { AdminLayout } from "@/components/admin-layout";
 import { useAdminAuth, adminFetch } from "./dashboard";
-import { Check, ChevronLeft, Hash, Percent, Calendar, Clock, Plus, Trash2, Gift, Layers, List, Users, Trophy, ChevronDown, ChevronUp, Link as LinkIcon, Image, Video, X } from "lucide-react";
+import { apiUrl } from "@/lib/apiFetch";
+import { Check, ChevronLeft, Hash, Percent, Calendar, Clock, Plus, Trash2, Gift, Layers, List, Users, Trophy, ChevronDown, ChevronUp, Link as LinkIcon, Image, Video, X, Upload } from "lucide-react";
 
 function ordinal(n: number): string {
   const s = ["th", "st", "nd", "rd"];
@@ -106,6 +107,122 @@ function AnswerTypePicker({ value, onChange, compact = false }: { value: string;
           </button>
         );
       })}
+    </div>
+  );
+}
+
+function ImageUploadField({ value, onChange, compact = false }: { value: string; onChange: (url: string) => void; compact?: boolean }) {
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const handleFile = async (file: File) => {
+    setUploadError("");
+    setUploading(true);
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const res = await fetch(apiUrl("/api/storage/uploads"), {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "X-Admin-Request": "1",
+          "content-type": file.type || "application/octet-stream",
+          "x-file-name": file.name,
+        },
+        body: arrayBuffer,
+      });
+      if (!res.ok) throw new Error("Upload failed");
+      const data = await res.json() as { publicUrl: string };
+      onChange(data.publicUrl);
+    } catch {
+      setUploadError("Upload failed — try again");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const fileInput = (
+    <input
+      ref={inputRef}
+      type="file"
+      accept="image/*"
+      className="hidden"
+      onChange={(e) => { const f = e.target.files?.[0]; if (f) void handleFile(f); e.target.value = ""; }}
+    />
+  );
+
+  if (compact) {
+    return (
+      <div className="flex-1 flex items-center gap-2 min-w-0">
+        {fileInput}
+        {value ? (
+          <>
+            <img src={value} alt="" className="h-7 w-12 object-cover rounded border border-gray-200 shrink-0" />
+            <span className="text-xs text-gray-500 truncate flex-1 min-w-0">{value.split("/").pop()}</span>
+            <button
+              type="button"
+              onClick={() => inputRef.current?.click()}
+              disabled={uploading}
+              className="text-xs text-violet-600 hover:text-violet-800 font-medium shrink-0 disabled:opacity-50"
+            >
+              {uploading ? "Uploading…" : "Change"}
+            </button>
+            <button type="button" onClick={() => onChange("")} className="text-gray-400 hover:text-red-500 shrink-0">
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </>
+        ) : (
+          <button
+            type="button"
+            onClick={() => inputRef.current?.click()}
+            disabled={uploading}
+            className="flex-1 text-xs border border-dashed border-gray-300 rounded-lg px-3 py-2 text-gray-400 hover:border-violet-400 hover:text-violet-500 transition-colors disabled:opacity-50"
+          >
+            {uploading ? "Uploading…" : "Click to upload image"}
+          </button>
+        )}
+        {uploadError && <span className="text-xs text-red-500 shrink-0">{uploadError}</span>}
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-1">
+      {fileInput}
+      {value ? (
+        <div className="relative rounded-xl overflow-hidden border border-gray-200 group">
+          <img src={value} alt="cover preview" className="w-full h-40 object-cover" />
+          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100">
+            <button
+              type="button"
+              onClick={() => inputRef.current?.click()}
+              disabled={uploading}
+              className="bg-white text-gray-700 text-xs font-semibold px-3 py-1.5 rounded-lg shadow hover:bg-gray-50 disabled:opacity-50"
+            >
+              {uploading ? "Uploading…" : "Change image"}
+            </button>
+            <button
+              type="button"
+              onClick={() => onChange("")}
+              className="bg-white text-red-500 text-xs font-semibold px-3 py-1.5 rounded-lg shadow hover:bg-red-50"
+            >
+              Remove
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={() => inputRef.current?.click()}
+          disabled={uploading}
+          className="w-full border-2 border-dashed border-gray-200 rounded-xl py-8 flex flex-col items-center gap-2 text-gray-400 hover:border-violet-300 hover:text-violet-500 transition-colors disabled:opacity-50"
+        >
+          <Upload className="w-6 h-6" />
+          <span className="text-sm font-medium">{uploading ? "Uploading…" : "Click to upload cover image"}</span>
+          <span className="text-xs">JPG, PNG, WebP — up to 10 MB</span>
+        </button>
+      )}
+      {uploadError && <p className="text-xs text-red-500">{uploadError}</p>}
     </div>
   );
 }
@@ -347,12 +464,10 @@ export default function HunchForm() {
               />
             </Field>
 
-            <Field label="Image URL" hint="Optional — shown as the hunch's cover photo">
-              <input
+            <Field label="Cover image" hint="Optional — shown as the hunch's cover photo">
+              <ImageUploadField
                 value={form.imageUrl}
-                onChange={(e) => setForm({ ...form, imageUrl: e.target.value })}
-                placeholder="https://..."
-                className={inputCls}
+                onChange={(url) => setForm({ ...form, imageUrl: url })}
               />
             </Field>
 
@@ -766,25 +881,35 @@ export default function HunchForm() {
                       <div key={idx} className="flex items-center gap-2">
                         <select
                           value={src.type}
-                          onChange={(e) => setResultSources((s) => s.map((x, i) => i === idx ? { ...x, type: e.target.value as ResultSource["type"] } : x))}
+                          onChange={(e) => setResultSources((s) => s.map((x, i) => i === idx ? { ...x, type: e.target.value as ResultSource["type"], url: "" } : x))}
                           className="text-xs border border-gray-200 rounded-lg px-2 py-2 bg-white shrink-0"
                         >
                           <option value="link">Link</option>
                           <option value="image">Image</option>
                           <option value="video">Video</option>
                         </select>
-                        <input
-                          value={src.url}
-                          onChange={(e) => setResultSources((s) => s.map((x, i) => i === idx ? { ...x, url: e.target.value } : x))}
-                          placeholder="https://..."
-                          className="flex-1 text-xs border border-gray-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-1 focus:ring-violet-400"
-                        />
-                        <input
-                          value={src.label}
-                          onChange={(e) => setResultSources((s) => s.map((x, i) => i === idx ? { ...x, label: e.target.value } : x))}
-                          placeholder="Label (optional)"
-                          className="w-32 text-xs border border-gray-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-1 focus:ring-violet-400"
-                        />
+                        {src.type === "image" ? (
+                          <ImageUploadField
+                            compact
+                            value={src.url}
+                            onChange={(url) => setResultSources((s) => s.map((x, i) => i === idx ? { ...x, url } : x))}
+                          />
+                        ) : (
+                          <input
+                            value={src.url}
+                            onChange={(e) => setResultSources((s) => s.map((x, i) => i === idx ? { ...x, url: e.target.value } : x))}
+                            placeholder="https://..."
+                            className="flex-1 text-xs border border-gray-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-1 focus:ring-violet-400"
+                          />
+                        )}
+                        {src.type !== "image" && (
+                          <input
+                            value={src.label}
+                            onChange={(e) => setResultSources((s) => s.map((x, i) => i === idx ? { ...x, label: e.target.value } : x))}
+                            placeholder="Label (optional)"
+                            className="w-32 text-xs border border-gray-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-1 focus:ring-violet-400"
+                          />
+                        )}
                         <button
                           type="button"
                           onClick={() => setResultSources((s) => s.filter((_, i) => i !== idx))}
