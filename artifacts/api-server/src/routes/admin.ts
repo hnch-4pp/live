@@ -15,6 +15,7 @@ import {
   predictionsTable,
   ticketTransactionsTable,
   subscriptionsTable,
+  appSettingsTable,
   hunchQuestionsTable,
   topNotificationsTable,
 } from "@workspace/db";
@@ -22,6 +23,7 @@ import { eq, or, ilike, sql, desc, and, asc } from "drizzle-orm";
 import { getUncachableStripeClient } from "../stripeClient";
 import { handleCheckoutSessionCompleted } from "../webhookHandlers";
 import { getAdminAlertPrefs, saveAdminAlertPrefs, DEFAULT_ALERT_PREFS } from "../adminAlerts";
+import { SUBSCRIPTION_TIERS } from "../subscriptionTiers";
 
 function parsePrizeAmount(value: string): number {
   const m = value.match(/\$?(\d+(?:\.\d+)?)/);
@@ -1850,6 +1852,235 @@ router.post("/admin/recover-stripe-purchases", requireAdmin, requireAdminHeader,
     res.json({ ok: true, processed, skipped, errors });
   } catch (err) {
     req.log.error({ err }, "recover-stripe-purchases failed");
+    res.status(500).json({ ok: false, error: err instanceof Error ? err.message : String(err) });
+  }
+});
+
+// GET /admin/stripe-diagnostic — shows webhook config, Stripe endpoint URLs, and DB subscription count
+router.get("/admin/stripe-diagnostic", requireAdmin, requireAdminHeader, async (req, res): Promise<void> => {
+  try {
+    const stripe = await getUncachableStripeClient();
+
+    // Webhook secret stored in DB
+    const [secretRow] = await db
+      .select()
+      .from(appSettingsTable)
+      .where(eq(appSettingsTable.key, "stripe_webhook_secret"))
+      .limit(1);
+
+    let storedWebhook: { webhookId: string; secret: string } | null = null;
+    if (secretRow) {
+      try {
+        storedWebhook = JSON.parse(secretRow.value) as { webhookId: string; secret: string };
+      } catch { /* ignore */ }
+    }
+
+    // All Stripe webhook endpoints
+    const endpoints = await stripe.webhookEndpoints.list({ limit: 100 });
+    const webhookList = endpoints.data.map((w) => ({
+      id: w.id,
+      url: w.url,
+      status: w.status,
+      enabledEvents: w.enabled_events,
+    }));
+
+    // DB subscription count
+    const subCountResult = await db.execute(sql`SELECT COUNT(*)::int as count FROM subscriptions`);
+    const subCount = (subCountResult.rows[0] as { count: number } | undefined)?.count ?? 0;
+
+    // DB app_settings keys
+    const settings = await db.select({ key: appSettingsTable.key }).from(appSettingsTable);
+
+    res.json({
+      ok: true,
+      storedWebhookId: storedWebhook?.webhookId ?? null,
+      stripeWebhooks: webhookList,
+      dbSubscriptionCount: subCount,
+      appSettingsKeys: settings.map((s) => s.key),
+    });
+  } catch (err) {
+    req.log.error({ err }, "stripe-diagnostic failed");
+    res.status(500).json({ ok: false, error: err instanceof Error ? err.message : String(err) });
+  }
+});
+
+// POST /admin/reset-stripe-webhook — deletes stored secret and re-registers webhook pointing to current domain
+router.post("/admin/reset-stripe-webhook", requireAdmin, requireAdminHeader, async (req, res): Promise<void> => {
+  try {
+    const stripe = await getUncachableStripeClient();
+
+    // Determine correct base URL
+    const base = process.env.WEBHOOK_BASE_URL?.replace(/\/$/, "")
+      ?? (process.env.REPLIT_DOMAINS ? `https://${process.env.REPLIT_DOMAINS.split(",")[0]}` : null);
+
+    if (!base) {
+      res.status(400).json({ ok: false, error: "Cannot determine base URL (no WEBHOOK_BASE_URL or REPLIT_DOMAINS)" });
+      return;
+    }
+
+    const webhookUrl = `${base}/api/stripe/webhook`;
+
+    // Delete existing secret from app_settings so setupStripeWebhook re-registers
+    await db.delete(appSettingsTable).where(eq(appSettingsTable.key, "stripe_webhook_secret"));
+
+    // Delete any existing Stripe webhook endpoint pointing to this URL (avoid duplicates)
+    const all = await stripe.webhookEndpoints.list({ limit: 100 });
+    for (const w of all.data) {
+      if (w.url === webhookUrl) {
+        await stripe.webhookEndpoints.del(w.id);
+        req.log.info({ id: w.id, url: w.url }, "Deleted old Stripe webhook endpoint");
+      }
+    }
+
+    // Create new webhook
+    const webhook = await stripe.webhookEndpoints.create({
+      url: webhookUrl,
+      enabled_events: [
+        "checkout.session.completed",
+        "invoice.payment_succeeded",
+        "invoice.payment_failed",
+        "customer.subscription.created",
+        "customer.subscription.updated",
+        "customer.subscription.deleted",
+      ],
+    });
+
+    // Store new secret
+    const secretData = JSON.stringify({ webhookId: webhook.id, secret: webhook.secret });
+    await db
+      .insert(appSettingsTable)
+      .values({ key: "stripe_webhook_secret", value: secretData })
+      .onConflictDoUpdate({ target: appSettingsTable.key, set: { value: secretData, updatedAt: new Date() } });
+
+    req.log.info({ webhookId: webhook.id, webhookUrl }, "Stripe webhook re-registered");
+    res.json({ ok: true, webhookId: webhook.id, webhookUrl });
+  } catch (err) {
+    req.log.error({ err }, "reset-stripe-webhook failed");
+    res.status(500).json({ ok: false, error: err instanceof Error ? err.message : String(err) });
+  }
+});
+
+// POST /admin/recover-from-stripe — full Stripe-based recovery
+// Fetches all active subscriptions from Stripe API, upserts subscription records,
+// and credits missing monthly tickets. Does NOT depend on the subscriptions table being populated.
+router.post("/admin/recover-from-stripe", requireAdmin, requireAdminHeader, async (req, res): Promise<void> => {
+  try {
+    const stripe = await getUncachableStripeClient();
+    const { userId: targetUserId } = req.body as { userId?: number };
+
+    // Fetch all subscriptions from Stripe (active + past_due + trialing)
+    const stripeSubsRaw = await stripe.subscriptions.list({
+      limit: 100,
+      status: "all",
+      expand: ["data.customer"],
+    });
+
+    const stripeSubs = stripeSubsRaw.data.filter((s) =>
+      ["active", "trialing", "past_due"].includes(s.status),
+    );
+
+    let subsSynced = 0;
+    let ticketsCredited = 0;
+    let skipped = 0;
+    const errors: string[] = [];
+    const details: { userId: number; tier: string; tickets: number; action: string }[] = [];
+
+    for (const stripeSub of stripeSubs) {
+      try {
+        // Extract userId from subscription metadata, then customer metadata
+        let userId = Number(stripeSub.metadata?.userId ?? "");
+        if (!userId) {
+          const customer = stripeSub.customer as import("stripe").Stripe.Customer | null;
+          userId = Number(customer?.metadata?.userId ?? "");
+        }
+
+        if (!userId || isNaN(userId)) {
+          errors.push(`Stripe sub ${stripeSub.id}: no userId in metadata`);
+          continue;
+        }
+
+        if (targetUserId && userId !== targetUserId) continue;
+
+        const tierId = (stripeSub.metadata?.tierId as string | undefined) ?? "starter";
+        const ticketsPerMonth = Number(stripeSub.metadata?.ticketsPerMonth ?? SUBSCRIPTION_TIERS[tierId as keyof typeof SUBSCRIPTION_TIERS]?.ticketsPerMonth ?? 50);
+        const firstItem = stripeSub.items.data[0];
+        const periodStart = firstItem?.current_period_start
+          ? new Date(firstItem.current_period_start * 1000)
+          : null;
+        const periodEnd = firstItem?.current_period_end
+          ? new Date(firstItem.current_period_end * 1000)
+          : null;
+
+        // Upsert subscription record
+        await db
+          .insert(subscriptionsTable)
+          .values({
+            userId,
+            stripeSubscriptionId: stripeSub.id,
+            stripePriceId: firstItem?.price.id ?? "",
+            tier: tierId,
+            ticketsPerMonth,
+            status: stripeSub.status as "active",
+            currentPeriodStart: periodStart,
+            currentPeriodEnd: periodEnd,
+            cancelAtPeriodEnd: stripeSub.cancel_at_period_end,
+          })
+          .onConflictDoUpdate({
+            target: subscriptionsTable.stripeSubscriptionId,
+            set: {
+              status: stripeSub.status as "active",
+              currentPeriodStart: periodStart,
+              currentPeriodEnd: periodEnd,
+              cancelAtPeriodEnd: stripeSub.cancel_at_period_end,
+              updatedAt: new Date(),
+            },
+          });
+
+        subsSynced++;
+
+        // Check if user already has a subscription ticket transaction in the current billing period
+        const checkFrom = periodStart ?? new Date(0);
+        const [existing] = await db
+          .select({ id: ticketTransactionsTable.id })
+          .from(ticketTransactionsTable)
+          .where(
+            and(
+              eq(ticketTransactionsTable.userId, userId),
+              eq(ticketTransactionsTable.type, "subscription"),
+              sql`${ticketTransactionsTable.createdAt} >= ${checkFrom}`,
+            ),
+          )
+          .limit(1);
+
+        if (existing) {
+          skipped++;
+          details.push({ userId, tier: tierId, tickets: ticketsPerMonth, action: "already_credited" });
+          continue;
+        }
+
+        // Credit tickets
+        await db.transaction(async (tx) => {
+          await tx.execute(sql`UPDATE users SET tickets = tickets + ${ticketsPerMonth} WHERE id = ${userId}`);
+          await tx.insert(ticketTransactionsTable).values({
+            userId,
+            type: "subscription",
+            amount: ticketsPerMonth,
+            revenueCents: null,
+            label: `Monthly tickets — ${tierId} plan (recovered from Stripe)`,
+            reference: `stripe-recovery-${stripeSub.id}-${new Date().toISOString().slice(0, 7)}`,
+          });
+        });
+
+        ticketsCredited++;
+        details.push({ userId, tier: tierId, tickets: ticketsPerMonth, action: "credited" });
+      } catch (err) {
+        errors.push(`Stripe sub ${stripeSub.id}: ${err instanceof Error ? err.message : String(err)}`);
+      }
+    }
+
+    res.json({ ok: true, subsSynced, ticketsCredited, skipped, errors, details });
+  } catch (err) {
+    req.log.error({ err }, "recover-from-stripe failed");
     res.status(500).json({ ok: false, error: err instanceof Error ? err.message : String(err) });
   }
 });

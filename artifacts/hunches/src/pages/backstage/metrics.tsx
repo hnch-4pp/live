@@ -199,7 +199,7 @@ export default function AdminMetrics() {
   const [recovering, setRecovering] = useState(false);
   const [recoveryResult, setRecoveryResult] = useState<{ processed: number; skipped: number; errors: string[] } | null>(null);
 
-  // Stripe subscription ticket recovery
+  // Stripe subscription ticket recovery (DB-based, legacy)
   const [recoveringSubs, setRecoveringSubs] = useState(false);
   const [recoverySubsResult, setRecoverySubsResult] = useState<{ credited: number; skipped: number; errors: string[] } | null>(null);
 
@@ -214,6 +214,67 @@ export default function AdminMetrics() {
       setRecoverySubsResult({ credited: 0, skipped: 0, errors: ["Request failed"] });
     } finally {
       setRecoveringSubs(false);
+    }
+  }
+
+  // Full Stripe-based recovery (reads directly from Stripe API, bypasses local subscriptions table)
+  const [recoveringFromStripe, setRecoveringFromStripe] = useState(false);
+  const [recoverFromStripeResult, setRecoverFromStripeResult] = useState<{
+    subsSynced: number; ticketsCredited: number; skipped: number; errors: string[];
+    details: { userId: number; tier: string; tickets: number; action: string }[];
+  } | null>(null);
+
+  async function recoverFromStripe() {
+    setRecoveringFromStripe(true);
+    setRecoverFromStripeResult(null);
+    try {
+      const r = await adminFetch("/admin/recover-from-stripe", { method: "POST" });
+      const d = await r.json() as typeof recoverFromStripeResult & { ok: boolean };
+      setRecoverFromStripeResult(d);
+    } catch {
+      setRecoverFromStripeResult({ subsSynced: 0, ticketsCredited: 0, skipped: 0, errors: ["Request failed"], details: [] });
+    } finally {
+      setRecoveringFromStripe(false);
+    }
+  }
+
+  // Stripe diagnostic
+  const [loadingDiag, setLoadingDiag] = useState(false);
+  const [diagResult, setDiagResult] = useState<{
+    storedWebhookId: string | null;
+    stripeWebhooks: { id: string; url: string; status: string }[];
+    dbSubscriptionCount: number;
+    appSettingsKeys: string[];
+  } | null>(null);
+
+  async function loadDiagnostic() {
+    setLoadingDiag(true);
+    setDiagResult(null);
+    try {
+      const r = await adminFetch("/admin/stripe-diagnostic");
+      const d = await r.json() as typeof diagResult & { ok: boolean };
+      setDiagResult(d);
+    } catch { /* ignore */ } finally {
+      setLoadingDiag(false);
+    }
+  }
+
+  // Reset Stripe webhook
+  const [resettingWebhook, setResettingWebhook] = useState(false);
+  const [webhookResetResult, setWebhookResetResult] = useState<{ webhookId: string; webhookUrl: string } | { error: string } | null>(null);
+
+  async function resetStripeWebhook() {
+    if (!window.confirm("This will delete the current Stripe webhook and create a new one pointing to this server. Proceed?")) return;
+    setResettingWebhook(true);
+    setWebhookResetResult(null);
+    try {
+      const r = await adminFetch("/admin/reset-stripe-webhook", { method: "POST" });
+      const d = await r.json() as { ok: boolean; webhookId?: string; webhookUrl?: string; error?: string };
+      setWebhookResetResult(d.ok ? { webhookId: d.webhookId!, webhookUrl: d.webhookUrl! } : { error: d.error ?? "Failed" });
+    } catch {
+      setWebhookResetResult({ error: "Request failed" });
+    } finally {
+      setResettingWebhook(false);
     }
   }
 
@@ -638,7 +699,7 @@ export default function AdminMetrics() {
 
         {/* ══ INGRESOS ══════════════════════════════════════════════════════════ */}
         <div className="mb-14">
-          <div className="flex items-center gap-3 mb-8">
+          <div className="flex items-center gap-3 mb-4">
             <span className="text-xs font-bold uppercase tracking-widest text-gray-400">Ingresos</span>
             <div className="flex-1 h-px bg-gray-200" />
             <button
@@ -646,32 +707,84 @@ export default function AdminMetrics() {
               disabled={recovering}
               className="px-3 py-1.5 rounded-full text-xs font-semibold bg-white border border-gray-200 text-gray-600 hover:border-amber-300 hover:text-amber-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {recovering ? "Recovering..." : "Recover Stripe purchases"}
-            </button>
-            <button
-              onClick={() => void recoverSubscriptions()}
-              disabled={recoveringSubs}
-              className="px-3 py-1.5 rounded-full text-xs font-semibold bg-white border border-gray-200 text-gray-600 hover:border-violet-300 hover:text-violet-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {recoveringSubs ? "Recovering..." : "Recover subscription tickets"}
+              {recovering ? "Recovering..." : "Recover purchases"}
             </button>
           </div>
+
+          {/* Stripe Tools Panel */}
+          <div className="mb-8 p-4 rounded-xl bg-violet-50 border border-violet-100">
+            <p className="text-xs font-bold text-violet-700 uppercase tracking-widest mb-3">Herramientas Stripe</p>
+            <div className="flex flex-wrap gap-2 mb-3">
+              <button
+                onClick={() => void loadDiagnostic()}
+                disabled={loadingDiag}
+                className="px-3 py-1.5 rounded-full text-xs font-semibold bg-white border border-violet-200 text-violet-700 hover:bg-violet-100 transition-colors disabled:opacity-50"
+              >
+                {loadingDiag ? "Cargando..." : "Diagnosticar webhook"}
+              </button>
+              <button
+                onClick={() => void recoverFromStripe()}
+                disabled={recoveringFromStripe}
+                className="px-3 py-1.5 rounded-full text-xs font-semibold bg-violet-600 text-white hover:bg-violet-700 transition-colors disabled:opacity-50"
+              >
+                {recoveringFromStripe ? "Recuperando..." : "Recuperar suscripciones (desde Stripe)"}
+              </button>
+              <button
+                onClick={() => void resetStripeWebhook()}
+                disabled={resettingWebhook}
+                className="px-3 py-1.5 rounded-full text-xs font-semibold bg-white border border-red-200 text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50"
+              >
+                {resettingWebhook ? "Resetting..." : "Reset webhook"}
+              </button>
+            </div>
+
+            {/* Diagnostic result */}
+            {diagResult && (
+              <div className="text-xs space-y-1 bg-white rounded-lg p-3 border border-violet-100">
+                <p className="font-semibold text-gray-700">Webhook en DB: <span className="font-mono text-violet-700">{diagResult.storedWebhookId ?? "ninguno"}</span></p>
+                <p className="font-semibold text-gray-700">Suscripciones en DB: <span className="text-amber-700">{diagResult.dbSubscriptionCount}</span></p>
+                <p className="font-semibold text-gray-700 mb-1">Webhooks en Stripe:</p>
+                {diagResult.stripeWebhooks.map((w) => (
+                  <div key={w.id} className={`pl-2 border-l-2 ${w.id === diagResult.storedWebhookId ? "border-violet-400" : "border-gray-200"}`}>
+                    <span className="font-mono text-gray-500">{w.id}</span>{" "}
+                    <span className={w.status === "enabled" ? "text-green-600" : "text-red-500"}>{w.status}</span>{" — "}
+                    <span className="text-gray-700 break-all">{w.url}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Recover from Stripe result */}
+            {recoverFromStripeResult && (
+              <div className={`mt-2 px-3 py-2 rounded-lg text-xs font-medium border ${recoverFromStripeResult.errors.length > 0 ? "bg-red-50 border-red-200 text-red-700" : "bg-green-50 border-green-200 text-green-700"}`}>
+                {recoverFromStripeResult.ticketsCredited > 0
+                  ? `${recoverFromStripeResult.subsSynced} suscripcion(es) sincronizadas, ${recoverFromStripeResult.ticketsCredited} usuario(s) acreditados.`
+                  : recoverFromStripeResult.errors.length > 0
+                    ? `Errores: ${recoverFromStripeResult.errors.slice(0, 3).join(" / ")}`
+                    : `${recoverFromStripeResult.subsSynced} suscripcion(es) sincronizadas. Todos ya tenían sus tickets (${recoverFromStripeResult.skipped} omitidos).`}
+                {recoverFromStripeResult.details.filter((d) => d.action === "credited").map((d) => (
+                  <div key={d.userId} className="mt-1 opacity-80">User {d.userId} ({d.tier}): +{d.tickets} tickets</div>
+                ))}
+              </div>
+            )}
+
+            {/* Webhook reset result */}
+            {webhookResetResult && (
+              <div className={`mt-2 px-3 py-2 rounded-lg text-xs font-medium border ${"error" in webhookResetResult ? "bg-red-50 border-red-200 text-red-700" : "bg-green-50 border-green-200 text-green-700"}`}>
+                {"error" in webhookResetResult
+                  ? `Error: ${webhookResetResult.error}`
+                  : `Webhook re-registrado: ${webhookResetResult.webhookId} → ${webhookResetResult.webhookUrl}`}
+              </div>
+            )}
+          </div>
+
           {recoveryResult && (
-            <div className={`mb-3 px-4 py-3 rounded-xl text-xs font-medium border ${recoveryResult.errors.length > 0 ? "bg-red-50 border-red-200 text-red-700" : "bg-green-50 border-green-200 text-green-700"}`}>
+            <div className={`mb-6 px-4 py-3 rounded-xl text-xs font-medium border ${recoveryResult.errors.length > 0 ? "bg-red-50 border-red-200 text-red-700" : "bg-green-50 border-green-200 text-green-700"}`}>
               {recoveryResult.processed > 0
                 ? `${recoveryResult.processed} purchase(s) recovered successfully.`
                 : recoveryResult.errors.length > 0
                   ? `Error: ${recoveryResult.errors[0]}`
                   : `No unprocessed purchases found (${recoveryResult.skipped} already recorded).`}
-            </div>
-          )}
-          {recoverySubsResult && (
-            <div className={`mb-6 px-4 py-3 rounded-xl text-xs font-medium border ${recoverySubsResult.errors.length > 0 ? "bg-red-50 border-red-200 text-red-700" : "bg-green-50 border-green-200 text-green-700"}`}>
-              {recoverySubsResult.credited > 0
-                ? `${recoverySubsResult.credited} subscription(s) credited successfully.`
-                : recoverySubsResult.errors.length > 0
-                  ? `Error: ${recoverySubsResult.errors[0]}`
-                  : `No missing subscription tickets found (${recoverySubsResult.skipped} already recorded).`}
             </div>
           )}
 
