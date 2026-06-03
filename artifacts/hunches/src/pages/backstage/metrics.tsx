@@ -199,6 +199,24 @@ export default function AdminMetrics() {
   const [recovering, setRecovering] = useState(false);
   const [recoveryResult, setRecoveryResult] = useState<{ processed: number; skipped: number; errors: string[] } | null>(null);
 
+  // Stripe subscription ticket recovery
+  const [recoveringSubs, setRecoveringSubs] = useState(false);
+  const [recoverySubsResult, setRecoverySubsResult] = useState<{ credited: number; skipped: number; errors: string[] } | null>(null);
+
+  async function recoverSubscriptions() {
+    setRecoveringSubs(true);
+    setRecoverySubsResult(null);
+    try {
+      const r = await adminFetch("/admin/recover-stripe-subscriptions", { method: "POST" });
+      const d = await r.json() as { ok: boolean; credited: number; skipped: number; errors: string[] };
+      setRecoverySubsResult(d);
+    } catch {
+      setRecoverySubsResult({ credited: 0, skipped: 0, errors: ["Request failed"] });
+    } finally {
+      setRecoveringSubs(false);
+    }
+  }
+
   async function recoverPurchases() {
     setRecovering(true);
     setRecoveryResult(null);
@@ -630,14 +648,30 @@ export default function AdminMetrics() {
             >
               {recovering ? "Recovering..." : "Recover Stripe purchases"}
             </button>
+            <button
+              onClick={() => void recoverSubscriptions()}
+              disabled={recoveringSubs}
+              className="px-3 py-1.5 rounded-full text-xs font-semibold bg-white border border-gray-200 text-gray-600 hover:border-violet-300 hover:text-violet-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {recoveringSubs ? "Recovering..." : "Recover subscription tickets"}
+            </button>
           </div>
           {recoveryResult && (
-            <div className={`mb-6 px-4 py-3 rounded-xl text-xs font-medium border ${recoveryResult.errors.length > 0 ? "bg-red-50 border-red-200 text-red-700" : "bg-green-50 border-green-200 text-green-700"}`}>
+            <div className={`mb-3 px-4 py-3 rounded-xl text-xs font-medium border ${recoveryResult.errors.length > 0 ? "bg-red-50 border-red-200 text-red-700" : "bg-green-50 border-green-200 text-green-700"}`}>
               {recoveryResult.processed > 0
                 ? `${recoveryResult.processed} purchase(s) recovered successfully.`
                 : recoveryResult.errors.length > 0
                   ? `Error: ${recoveryResult.errors[0]}`
                   : `No unprocessed purchases found (${recoveryResult.skipped} already recorded).`}
+            </div>
+          )}
+          {recoverySubsResult && (
+            <div className={`mb-6 px-4 py-3 rounded-xl text-xs font-medium border ${recoverySubsResult.errors.length > 0 ? "bg-red-50 border-red-200 text-red-700" : "bg-green-50 border-green-200 text-green-700"}`}>
+              {recoverySubsResult.credited > 0
+                ? `${recoverySubsResult.credited} subscription(s) credited successfully.`
+                : recoverySubsResult.errors.length > 0
+                  ? `Error: ${recoverySubsResult.errors[0]}`
+                  : `No missing subscription tickets found (${recoverySubsResult.skipped} already recorded).`}
             </div>
           )}
 
