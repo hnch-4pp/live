@@ -5,6 +5,7 @@ import session from "express-session";
 import connectPg from "connect-pg-simple";
 import pg from "pg";
 import router from "./routes";
+import ogRouter from "./routes/og";
 import { logger } from "./lib/logger";
 import { WebhookHandlers } from "./webhookHandlers";
 
@@ -101,6 +102,7 @@ app.use(
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+app.use(ogRouter);
 app.use("/api", router);
 
 // Global error handler — must have 4 params for Express to treat it as error middleware
