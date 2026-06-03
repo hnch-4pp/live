@@ -264,11 +264,14 @@ export default function AdminMetrics() {
   const [webhookResetResult, setWebhookResetResult] = useState<{ webhookId: string; webhookUrl: string } | { error: string } | null>(null);
 
   async function resetStripeWebhook() {
-    if (!window.confirm("This will delete the current Stripe webhook and create a new one pointing to this server. Proceed?")) return;
+    if (!window.confirm("This will register a new Stripe webhook pointing to https://hunch.fan. Proceed?")) return;
     setResettingWebhook(true);
     setWebhookResetResult(null);
     try {
-      const r = await adminFetch("/admin/reset-stripe-webhook", { method: "POST" });
+      const r = await adminFetch("/admin/reset-stripe-webhook", {
+        method: "POST",
+        body: JSON.stringify({ baseUrl: "https://hunch.fan" }),
+      });
       const d = await r.json() as { ok: boolean; webhookId?: string; webhookUrl?: string; error?: string };
       setWebhookResetResult(d.ok ? { webhookId: d.webhookId!, webhookUrl: d.webhookUrl! } : { error: d.error ?? "Failed" });
     } catch {

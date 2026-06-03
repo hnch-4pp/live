@@ -1908,10 +1908,13 @@ router.get("/admin/stripe-diagnostic", requireAdmin, requireAdminHeader, async (
 router.post("/admin/reset-stripe-webhook", requireAdmin, requireAdminHeader, async (req, res): Promise<void> => {
   try {
     const stripe = await getUncachableStripeClient();
+    const { baseUrl: bodyBaseUrl } = req.body as { baseUrl?: string };
 
-    // Determine correct base URL
-    const base = process.env.WEBHOOK_BASE_URL?.replace(/\/$/, "")
-      ?? (process.env.REPLIT_DOMAINS ? `https://${process.env.REPLIT_DOMAINS.split(",")[0]}` : null);
+    // Determine correct base URL: body > env > REPLIT_DOMAINS > hardcoded prod domain
+    const base = (bodyBaseUrl?.replace(/\/$/, ""))
+      ?? process.env.WEBHOOK_BASE_URL?.replace(/\/$/, "")
+      ?? (process.env.REPLIT_DOMAINS ? `https://${process.env.REPLIT_DOMAINS.split(",")[0]}` : null)
+      ?? "https://hunch.fan";
 
     if (!base) {
       res.status(400).json({ ok: false, error: "Cannot determine base URL (no WEBHOOK_BASE_URL or REPLIT_DOMAINS)" });
