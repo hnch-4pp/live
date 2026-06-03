@@ -144,12 +144,12 @@ export default function Home() {
 
             {/* Grid */}
             <div className="flex-1 min-w-0">
-              <div className="flex items-start justify-between gap-4 mb-6">
+              <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 sm:gap-4 mb-6">
                 <div>
                   <h2 className="text-2xl font-display font-bold text-foreground">{t("all_hunches")}</h2>
                   <p className="text-sm text-muted-foreground mt-0.5">{t("all_hunches_sub")}</p>
                 </div>
-                <div className="flex items-center gap-1.5 shrink-0 mt-1">
+                <div className="flex items-center gap-1.5 shrink-0 sm:mt-1">
                   <ArrowUpDown className="w-3.5 h-3.5 text-muted-foreground" />
                   <div className="flex items-center gap-0.5 bg-muted rounded-lg p-0.5">
                     {([ 
