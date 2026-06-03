@@ -1854,4 +1854,79 @@ router.post("/admin/recover-stripe-purchases", requireAdmin, requireAdminHeader,
   }
 });
 
+// POST /admin/recover-stripe-subscriptions
+// For each active subscription in DB, checks if the user has a 'subscription' ticket
+// transaction for the current billing period. If not, credits the tickets now.
+// This repairs accounts where invoice.payment_succeeded was received but not processed
+// (e.g. due to Stripe API version mismatch in extractInvoiceSubscriptionId).
+router.post("/admin/recover-stripe-subscriptions", requireAdmin, requireAdminHeader, async (req, res): Promise<void> => {
+  try {
+    const { userId: targetUserId } = req.body as { userId?: number };
+
+    const activeSubs = await db
+      .select()
+      .from(subscriptionsTable)
+      .where(
+        targetUserId
+          ? and(eq(subscriptionsTable.status, "active"), eq(subscriptionsTable.userId, targetUserId))
+          : eq(subscriptionsTable.status, "active"),
+      );
+
+    let credited = 0;
+    let skipped = 0;
+    const errors: string[] = [];
+    const details: { userId: number; tier: string; tickets: number; alreadyHad: boolean }[] = [];
+
+    for (const sub of activeSubs) {
+      try {
+        // Check if user already has a subscription ticket transaction in the current billing period
+        const periodStart = sub.currentPeriodStart ?? new Date(0);
+
+        const [existing] = await db
+          .select({ id: ticketTransactionsTable.id })
+          .from(ticketTransactionsTable)
+          .where(
+            and(
+              eq(ticketTransactionsTable.userId, sub.userId),
+              eq(ticketTransactionsTable.type, "subscription"),
+              sql`${ticketTransactionsTable.createdAt} >= ${periodStart}`,
+            ),
+          )
+          .limit(1);
+
+        if (existing) {
+          skipped++;
+          details.push({ userId: sub.userId, tier: sub.tier, tickets: sub.ticketsPerMonth, alreadyHad: true });
+          continue;
+        }
+
+        // Credit tickets for this billing cycle
+        await db.transaction(async (tx) => {
+          await tx.execute(
+            sql`UPDATE users SET tickets = tickets + ${sub.ticketsPerMonth} WHERE id = ${sub.userId}`,
+          );
+          await tx.insert(ticketTransactionsTable).values({
+            userId: sub.userId,
+            type: "subscription",
+            amount: sub.ticketsPerMonth,
+            revenueCents: null,
+            label: `Monthly tickets — ${sub.tier} plan (recovered)`,
+            reference: `recovered-${sub.stripeSubscriptionId}-${new Date().toISOString().slice(0, 7)}`,
+          });
+        });
+
+        credited++;
+        details.push({ userId: sub.userId, tier: sub.tier, tickets: sub.ticketsPerMonth, alreadyHad: false });
+      } catch (err) {
+        errors.push(`userId ${sub.userId}: ${err instanceof Error ? err.message : String(err)}`);
+      }
+    }
+
+    res.json({ ok: true, credited, skipped, errors, details });
+  } catch (err) {
+    req.log.error({ err }, "recover-stripe-subscriptions failed");
+    res.status(500).json({ ok: false, error: err instanceof Error ? err.message : String(err) });
+  }
+});
+
 export default router;

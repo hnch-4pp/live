@@ -139,14 +139,38 @@ export async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Se
   ).catch(() => {});
 }
 
-async function handleInvoicePaymentSucceeded(invoice: Stripe.Invoice): Promise<void> {
-  const subDetails = invoice.parent?.subscription_details;
-  const subscriptionId =
-    typeof subDetails?.subscription === "string"
-      ? subDetails.subscription
-      : subDetails?.subscription?.id;
+async function extractInvoiceSubscriptionId(invoice: Stripe.Invoice): Promise<string | null> {
+  // Stripe API v2025-01-27.acacia moved subscription info to invoice.parent.subscription_details.
+  // Older webhook endpoints (registered before that API version) still send invoice.subscription.
+  // We check both so the handler works regardless of the webhook's registered API version.
 
-  if (!subscriptionId) return;
+  // New format (API >= 2025-01-27.acacia)
+  const newSub = invoice.parent?.subscription_details?.subscription;
+  if (typeof newSub === "string" && newSub) return newSub;
+  if (newSub && typeof newSub === "object" && "id" in newSub) return (newSub as Stripe.Subscription).id;
+
+  // Old format (API < 2025-01-27.acacia) — field still present at runtime even if not in TS types
+  const legacySub = (invoice as unknown as { subscription?: string | Stripe.Subscription }).subscription;
+  if (typeof legacySub === "string" && legacySub) return legacySub;
+  if (legacySub && typeof legacySub === "object" && "id" in legacySub) return (legacySub as Stripe.Subscription).id;
+
+  return null;
+}
+
+async function handleInvoicePaymentSucceeded(invoice: Stripe.Invoice): Promise<void> {
+  const subscriptionId = await extractInvoiceSubscriptionId(invoice);
+
+  if (!subscriptionId) {
+    logger.warn(
+      {
+        invoiceId: invoice.id,
+        hasParent: !!invoice.parent,
+        parentType: invoice.parent?.type ?? null,
+      },
+      "invoice.payment_succeeded: could not extract subscriptionId — invoice may not be subscription-related",
+    );
+    return;
+  }
 
   let [sub] = await db
     .select()
@@ -370,11 +394,7 @@ export class WebhookHandlers {
         break;
       case "invoice.payment_failed": {
         const inv = event.data.object as Stripe.Invoice;
-        const failedSubDetails = inv.parent?.subscription_details;
-        const subId =
-          typeof failedSubDetails?.subscription === "string"
-            ? failedSubDetails.subscription
-            : failedSubDetails?.subscription?.id;
+        const subId = await extractInvoiceSubscriptionId(inv);
         if (subId) {
           await db
             .update(subscriptionsTable)
