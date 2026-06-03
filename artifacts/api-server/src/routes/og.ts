@@ -30,6 +30,61 @@ function truncate(str: string, max: number): string {
   return str.slice(0, max - 3).trimEnd() + "...";
 }
 
+// ── Production OG page ──────────────────────────────────────────────────────
+// Serves a self-contained minimal page with OG tags + an immediate browser
+// redirect to the canonical SPA URL. No dependency on finding index.html.
+//
+// - Social bots (WhatsApp, Telegram, Twitter…) do NOT execute JS: they read
+//   the OG tags and render the correct preview.
+// - Browsers DO execute the window.location.replace() script and land on the
+//   canonical /hunch/:slug route served by the SPA.
+function buildOgPage({
+  title,
+  description,
+  image,
+  url,
+  redirectTo,
+}: {
+  title: string;
+  description: string;
+  image: string;
+  url: string;
+  redirectTo?: string;
+}): string {
+  const t = escapeAttr(title);
+  const d = escapeAttr(description);
+  const img = escapeAttr(image);
+  const u = escapeAttr(url);
+
+  const redirectScript = redirectTo
+    ? `<script>window.location.replace(${JSON.stringify(redirectTo)})</script>`
+    : "";
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>${t}</title>
+  <meta name="description" content="${d}"/>
+  <meta property="og:title" content="${t}"/>
+  <meta property="og:description" content="${d}"/>
+  <meta property="og:image" content="${img}"/>
+  <meta property="og:url" content="${u}"/>
+  <meta property="og:type" content="website"/>
+  <meta name="twitter:card" content="summary_large_image"/>
+  <meta name="twitter:title" content="${t}"/>
+  <meta name="twitter:description" content="${d}"/>
+  <meta name="twitter:image" content="${img}"/>
+  ${redirectScript}
+</head>
+<body></body>
+</html>`;
+}
+
+// ── Dev-only: inject OG tags into index.html ────────────────────────────────
+// Used only by the /hunch/:slug route in Replit dev (artifact.toml routes
+// /hunch/* to Express). Not used in production.
 let cachedHtml: string | null = null;
 
 function getIndexHtml(): string {
@@ -42,9 +97,9 @@ function getIndexHtml(): string {
         path.join(process.cwd(), "../../artifacts/hunches/index.html"),
       ]
     : [
+        path.join(process.cwd(), "artifacts/hunches/dist/public/index.html"),
         path.join(process.cwd(), "../hunches/dist/public/index.html"),
         path.join(process.cwd(), "../../artifacts/hunches/dist/public/index.html"),
-        path.join(process.cwd(), "../hunches/index.html"),
       ];
 
   for (const p of candidates) {
@@ -60,7 +115,7 @@ function getIndexHtml(): string {
 
 function injectOgTags(
   html: string,
-  { title, description, image, url, restoreUrl }: { title: string; description: string; image: string; url: string; restoreUrl?: string },
+  { title, description, image, url }: { title: string; description: string; image: string; url: string },
 ): string {
   const t = escapeAttr(title);
   const d = escapeAttr(description);
@@ -93,20 +148,15 @@ function injectOgTags(
     result = result.replace("</head>", `    ${extraTags}\n  </head>`);
   }
 
-  // When serving from a redirect path (e.g. /api/og/hunch/:slug), restore the
-  // canonical URL before React Router mounts so client-side routing is correct.
-  if (restoreUrl) {
-    const safe = restoreUrl.replace(/'/g, "\\'");
-    result = result.replace(
-      "<head>",
-      `<head>\n  <script>history.replaceState(null,'','${safe}')</script>`,
-    );
-  }
-
   return result;
 }
 
-async function buildOgResponse(slug: string, restoreUrl?: string): Promise<string> {
+async function fetchHunchData(slug: string): Promise<{
+  title: string;
+  description: string;
+  image: string;
+  url: string;
+}> {
   let title = DEFAULT_TITLE;
   let description = DEFAULT_DESCRIPTION;
   let image = DEFAULT_IMAGE;
@@ -131,24 +181,27 @@ async function buildOgResponse(slug: string, restoreUrl?: string): Promise<strin
   } catch {
   }
 
-  const url = `${APP_URL}/hunch/${slug}`;
-  return injectOgTags(getIndexHtml(), { title, description, image, url, restoreUrl });
+  return { title, description, image, url: `${APP_URL}/hunch/${slug}` };
 }
 
-// Dev / Replit: /hunch/:slug is routed directly to Express via artifact.toml
+// Dev / Replit: /hunch/:slug is routed directly to Express via artifact.toml.
+// Injects OG tags into index.html so the SPA boots normally in the same response.
 router.get("/hunch/:slug", async (req, res): Promise<void> => {
   const slug = String(req.params["slug"] ?? "");
-  const html = await buildOgResponse(slug);
+  const data = await fetchHunchData(slug);
+  const html = injectOgTags(getIndexHtml(), data);
   res.setHeader("Content-Type", "text/html; charset=utf-8");
   res.setHeader("Cache-Control", "public, max-age=60, stale-while-revalidate=300");
   res.send(html);
 });
 
-// Production (Render): static site redirects /hunch/:slug → /api/og/hunch/:slug
-// The restoreUrl ensures history.replaceState rewrites the URL back before React mounts.
+// Production (Render): share button shares this URL so bots see dynamic OG tags.
+// Returns a self-contained page: bots read OG tags; browsers are immediately
+// redirected to the canonical /hunch/:slug SPA route via window.location.replace.
 router.get("/api/og/hunch/:slug", async (req, res): Promise<void> => {
   const slug = String(req.params["slug"] ?? "");
-  const html = await buildOgResponse(slug, `/hunch/${slug}`);
+  const data = await fetchHunchData(slug);
+  const html = buildOgPage({ ...data, redirectTo: `/hunch/${slug}` });
   res.setHeader("Content-Type", "text/html; charset=utf-8");
   res.setHeader("Cache-Control", "public, max-age=60, stale-while-revalidate=300");
   res.send(html);
