@@ -60,7 +60,7 @@ function getIndexHtml(): string {
 
 function injectOgTags(
   html: string,
-  { title, description, image, url }: { title: string; description: string; image: string; url: string },
+  { title, description, image, url, restoreUrl }: { title: string; description: string; image: string; url: string; restoreUrl?: string },
 ): string {
   const t = escapeAttr(title);
   const d = escapeAttr(description);
@@ -93,12 +93,20 @@ function injectOgTags(
     result = result.replace("</head>", `    ${extraTags}\n  </head>`);
   }
 
+  // When serving from a redirect path (e.g. /api/og/hunch/:slug), restore the
+  // canonical URL before React Router mounts so client-side routing is correct.
+  if (restoreUrl) {
+    const safe = restoreUrl.replace(/'/g, "\\'");
+    result = result.replace(
+      "<head>",
+      `<head>\n  <script>history.replaceState(null,'','${safe}')</script>`,
+    );
+  }
+
   return result;
 }
 
-router.get("/hunch/:slug", async (req, res): Promise<void> => {
-  const slug = String(req.params["slug"] ?? "");
-
+async function buildOgResponse(slug: string, restoreUrl?: string): Promise<string> {
   let title = DEFAULT_TITLE;
   let description = DEFAULT_DESCRIPTION;
   let image = DEFAULT_IMAGE;
@@ -124,8 +132,23 @@ router.get("/hunch/:slug", async (req, res): Promise<void> => {
   }
 
   const url = `${APP_URL}/hunch/${slug}`;
+  return injectOgTags(getIndexHtml(), { title, description, image, url, restoreUrl });
+}
 
-  const html = injectOgTags(getIndexHtml(), { title, description, image, url });
+// Dev / Replit: /hunch/:slug is routed directly to Express via artifact.toml
+router.get("/hunch/:slug", async (req, res): Promise<void> => {
+  const slug = String(req.params["slug"] ?? "");
+  const html = await buildOgResponse(slug);
+  res.setHeader("Content-Type", "text/html; charset=utf-8");
+  res.setHeader("Cache-Control", "public, max-age=60, stale-while-revalidate=300");
+  res.send(html);
+});
+
+// Production (Render): static site redirects /hunch/:slug → /api/og/hunch/:slug
+// The restoreUrl ensures history.replaceState rewrites the URL back before React mounts.
+router.get("/api/og/hunch/:slug", async (req, res): Promise<void> => {
+  const slug = String(req.params["slug"] ?? "");
+  const html = await buildOgResponse(slug, `/hunch/${slug}`);
   res.setHeader("Content-Type", "text/html; charset=utf-8");
   res.setHeader("Cache-Control", "public, max-age=60, stale-while-revalidate=300");
   res.send(html);
