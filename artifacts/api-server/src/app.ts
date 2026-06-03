@@ -4,6 +4,8 @@ import pinoHttp from "pino-http";
 import session from "express-session";
 import connectPg from "connect-pg-simple";
 import pg from "pg";
+import path from "path";
+import { existsSync } from "fs";
 import router from "./routes";
 import ogRouter from "./routes/og";
 import { logger } from "./lib/logger";
@@ -104,6 +106,30 @@ app.use(express.urlencoded({ extended: true }));
 
 app.use(ogRouter);
 app.use("/api", router);
+
+// ── Frontend static file serving (production) ──────────────────────────────
+// When Express serves all traffic (not split with a separate static site),
+// it must serve the Vite-built frontend AND provide an SPA fallback so React
+// Router handles client-side navigation. The OG router above must remain
+// mounted first so /hunch/:slug is intercepted before static serving.
+if (process.env.NODE_ENV === "production") {
+  const frontendCandidates = [
+    path.join(process.cwd(), "../hunches/dist/public"),
+    path.join(process.cwd(), "../../artifacts/hunches/dist/public"),
+    path.join(process.cwd(), "artifacts/hunches/dist/public"),
+  ];
+  const frontendDist = frontendCandidates.find((p) => existsSync(p));
+
+  if (frontendDist) {
+    app.use(express.static(frontendDist, { index: false }));
+
+    // SPA catch-all: return index.html for any non-API, non-hunch path
+    // so React Router handles client-side routing.
+    app.get(/^(?!\/api\/).*/, (_req: Request, res: Response) => {
+      res.sendFile(path.join(frontendDist, "index.html"));
+    });
+  }
+}
 
 // Global error handler — must have 4 params for Express to treat it as error middleware
 app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
