@@ -23,6 +23,119 @@ import { isTranslatableLanguage, translateOneHunch } from "../translate";
 
 const router: IRouter = Router();
 
+// ── Prediction confirmation email ─────────────────────────────────────────────
+
+async function sendPredictionEmail(
+  email: string,
+  hunch: typeof hunchesTable.$inferSelect,
+  entries: Array<{ question?: string; answer: string }>,
+): Promise<void> {
+  const RESEND_API_KEY = process.env.RESEND_API_KEY;
+  if (!RESEND_API_KEY) return;
+
+  const prize = await db
+    .select()
+    .from(prizesTable)
+    .where(eq(prizesTable.id, hunch.prizeId))
+    .then((r) => r[0]);
+
+  const hunchUrl = `https://hunch.fan/hunches/${hunch.slug ?? hunch.id}`;
+
+  const fmt = new Intl.DateTimeFormat("es-MX", {
+    day: "numeric", month: "long", year: "numeric",
+    hour: "2-digit", minute: "2-digit",
+    timeZone: "America/Mexico_City",
+  });
+  const endsAtStr = fmt.format(new Date(hunch.endsAt));
+
+  const isMulti = entries.length > 1 || entries.some((e) => e.question);
+
+  const predictionsHtml = isMulti
+    ? `<table style="width:100%;border-collapse:collapse">
+        ${entries.map((e, i) => `
+          <tr>
+            <td style="padding:8px 0;border-top:${i > 0 ? "1px solid #f0f0f0" : "none"}">
+              ${e.question ? `<div style="font-size:12px;color:#888;margin-bottom:3px">${e.question}</div>` : ""}
+              <div style="font-size:14px;font-weight:600;color:#1a1a1a">${e.answer}</div>
+            </td>
+          </tr>
+        `).join("")}
+       </table>`
+    : `<div style="font-size:22px;font-weight:700;color:#7c3aed;padding:16px;background:#f9f8ff;border:1px solid #e8e0ff;border-radius:10px;text-align:center">${entries[0]?.answer ?? ""}</div>`;
+
+  const prizeStr = prize
+    ? `${prize.label}${prize.value ? ` — ${prize.value}` : ""}`
+    : "Premio especial";
+
+  const html = `
+    <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:520px;margin:0 auto;background:#ffffff;color:#1a1a1a">
+      <div style="background:#18082e;padding:24px 32px;border-radius:12px 12px 0 0">
+        <span style="font-size:22px;font-weight:800;color:#ffffff;letter-spacing:-0.5px">hunch</span>
+      </div>
+      <div style="padding:32px;border:1px solid #eee;border-top:none;border-radius:0 0 12px 12px">
+        <h1 style="margin:0 0 6px;font-size:22px;font-weight:700;color:#1a1a1a">Prediccion registrada</h1>
+        <p style="margin:0 0 28px;font-size:14px;color:#666">Tu hunch ha sido guardado correctamente. Aqui estan los detalles.</p>
+
+        <div style="background:#f9f8ff;border:1px solid #e8e0ff;border-radius:12px;padding:18px 20px;margin-bottom:20px">
+          <div style="font-size:11px;font-weight:600;color:#7c3aed;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:5px">HUNCH</div>
+          <div style="font-size:16px;font-weight:700;color:#1a1a1a;line-height:1.45">${hunch.title}</div>
+        </div>
+
+        <div style="margin-bottom:20px">
+          <div style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:10px">Tu prediccion</div>
+          ${predictionsHtml}
+        </div>
+
+        <table style="width:100%;border-collapse:collapse;margin-bottom:24px">
+          <tr>
+            <td style="width:50%;padding-right:6px">
+              <div style="background:#f5f5f5;border-radius:10px;padding:14px">
+                <div style="font-size:11px;color:#888;font-weight:500;margin-bottom:4px">Cierra</div>
+                <div style="font-size:13px;font-weight:600;color:#1a1a1a">${endsAtStr}</div>
+              </div>
+            </td>
+            <td style="width:50%;padding-left:6px">
+              <div style="background:#f5f5f5;border-radius:10px;padding:14px">
+                <div style="font-size:11px;color:#888;font-weight:500;margin-bottom:4px">Premio</div>
+                <div style="font-size:13px;font-weight:600;color:#1a1a1a">${prizeStr}</div>
+              </div>
+            </td>
+          </tr>
+        </table>
+
+        <a href="${hunchUrl}"
+           style="display:block;background:#7c3aed;color:#ffffff;text-align:center;text-decoration:none;padding:14px;border-radius:10px;font-weight:600;font-size:15px;margin-bottom:24px">
+          Ver tu prediccion &rarr;
+        </a>
+
+        <hr style="border:none;border-top:1px solid #eee;margin:0 0 18px"/>
+        <p style="margin:0;font-size:12px;color:#aaa;text-align:center">
+          Hunch &mdash; plataforma de predicciones basada en habilidades. No se apuesta dinero.
+        </p>
+      </div>
+    </div>
+  `;
+
+  const response = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${RESEND_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      from: "Hunch <notifications@hunch.app>",
+      to: [email],
+      subject: `Tu prediccion en "${hunch.title}" fue registrada`,
+      html,
+    }),
+  });
+
+  if (!response.ok) {
+    const body = await response.text().catch(() => "");
+    throw new Error(`Resend prediction email error ${response.status}: ${body}`);
+  }
+}
+
 type HunchDetail = Awaited<ReturnType<typeof buildHunch>>;
 
 function parsePrizeAmount(value: string): number {
@@ -661,6 +774,14 @@ router.post("/hunches/:id/predict", async (req, res): Promise<void> => {
       .where(eq(usersTable.id, req.session.userId));
 
     res.status(201).json({ hunchId: hunch.id, predictions: createdPredictions });
+    sendPredictionEmail(
+      currentUser.email,
+      hunch,
+      createdPredictions.map((p) => ({
+        question: questionRows.find((q) => q.id === p.questionId)?.prompt,
+        answer: p.label,
+      })),
+    ).catch(() => {});
     return;
   }
 
@@ -739,6 +860,7 @@ router.post("/hunches/:id/predict", async (req, res): Promise<void> => {
     optionLabel: normalizedLabel,
     createdAt: prediction.createdAt.toISOString(),
   });
+  sendPredictionEmail(currentUser.email, hunch, [{ answer: normalizedLabel }]).catch(() => {});
 });
 
 export default router;
