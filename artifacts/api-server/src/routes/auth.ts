@@ -128,6 +128,100 @@ async function sendPhoneOtp(phone: string, code: string): Promise<void> {
   }
 }
 
+// ── Welcome email ──────────────────────────────────────────────────────────
+
+async function sendWelcomeEmail(email: string): Promise<void> {
+  const RESEND_API_KEY = process.env.RESEND_API_KEY;
+  if (!RESEND_API_KEY) throw new Error("RESEND_API_KEY not configured");
+
+  const html = `
+    <div style="font-family:Georgia,serif;max-width:560px;margin:0 auto;padding:40px 24px;color:#1a1a1a;line-height:1.7;font-size:16px">
+
+      <p style="margin:0 0 20px">Hola,</p>
+
+      <p style="margin:0 0 20px">Quiero darte personalmente las gracias por unirte a Hunch.</p>
+
+      <p style="margin:0 0 20px">En internet todos tienen opiniones.</p>
+
+      <p style="margin:0 0 6px">Todos creen saber quién ganará el partido.</p>
+      <p style="margin:0 0 6px">Qué tecnología será la próxima gran revolución.</p>
+      <p style="margin:0 0 6px">Qué artista romperá récords.</p>
+      <p style="margin:0 0 20px">Qué tendencia explotará antes que las demás.</p>
+
+      <p style="margin:0 0 20px">Pero pocas veces existe una forma de demostrar quién realmente lo vio venir.</p>
+
+      <p style="margin:0 0 20px">Por eso creamos Hunch.</p>
+
+      <p style="margin:0 0 20px">Un lugar donde puedes poner a prueba tu intuición, tu conocimiento y tu capacidad para anticipar lo que sucederá antes que los demás.</p>
+
+      <p style="margin:0 0 20px">Aquí no necesitas ser un experto profesional.</p>
+
+      <p style="margin:0 0 6px">Sólo necesitas una corazonada.</p>
+      <p style="margin:0 0 20px">Un buen Hunch.</p>
+
+      <p style="margin:0 0 20px">Cada vez que participas en un Hunch estás diciendo:</p>
+
+      <p style="margin:0 0 20px;font-style:italic;padding-left:16px;border-left:3px solid #e0e0e0;color:#444">"Yo creo que esto va a pasar."</p>
+
+      <p style="margin:0 0 20px">Y cuando aciertas, no sólo ganas premios, puntos o reconocimiento.</p>
+
+      <p style="margin:0 0 6px">Demuestras que tenías razón.</p>
+      <p style="margin:0 0 20px">Y eso se siente increíble.</p>
+
+      <p style="margin:0 0 20px">Como nuevo miembro, ya tienes acceso para participar en tu primer Hunch.</p>
+
+      <p style="margin:0 0 20px">Te tomará menos de un minuto.</p>
+
+      <p style="margin:0 0 6px">Haz tu predicción.</p>
+      <p style="margin:0 0 6px">Confía en tu instinto.</p>
+      <p style="margin:0 0 20px">Y descubre cómo se siente acertar antes que los demás.</p>
+
+      <p style="margin:0 0 28px">
+        <a href="https://hunch.fan"
+           style="display:inline-block;background:#1a1a1a;color:#fff;text-decoration:none;padding:14px 28px;border-radius:8px;font-family:sans-serif;font-size:15px;font-weight:600">
+          Participa ahora en tu primer Hunch &rarr;
+        </a>
+      </p>
+
+      <p style="margin:0 0 20px">Estamos apenas comenzando y me emociona muchísimo que formes parte de esta comunidad desde el inicio.</p>
+
+      <p style="margin:0 0 6px">Gracias por confiar en nosotros.</p>
+      <p style="margin:0 0 28px">Nos vemos dentro.</p>
+
+      <p style="margin:0 0 4px;font-weight:600">Jerry L</p>
+      <p style="margin:0 0 32px;color:#555;font-size:14px">Fundador de Hunch</p>
+
+      <p style="margin:0 0 32px;color:#555;font-size:14px">
+        <em>P.D. Si algún día tienes una idea para mejorar Hunch, quiero escucharla. Estamos construyendo esto junto con nuestra comunidad.</em>
+      </p>
+
+      <hr style="border:none;border-top:1px solid #eee;margin:0 0 20px"/>
+      <p style="margin:0;color:#aaa;font-family:sans-serif;font-size:12px">
+        Hunch &mdash; plataforma de predicciones basada en habilidades. No se apuesta dinero.
+      </p>
+    </div>
+  `;
+
+  const response = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${RESEND_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      from: "Jerry L de Hunch <jerry@hunch.me>",
+      to: [email],
+      subject: "Ya eres parte de Hunch 🚀",
+      html,
+    }),
+  });
+
+  if (!response.ok) {
+    const body = await response.text().catch(() => "");
+    throw new Error(`Resend welcome email error ${response.status}: ${body}`);
+  }
+}
+
 // ── Signup flow ────────────────────────────────────────────────────────────
 
 router.post("/auth/signup/send-email-otp", async (req, res): Promise<void> => {
@@ -309,6 +403,8 @@ router.post("/auth/signup/complete", async (req, res): Promise<void> => {
   if (affiliateRef) {
     attributeUserToAffiliate(user.id, affiliateRef).catch(() => {});
   }
+
+  sendWelcomeEmail(user.email).catch(() => {});
 
   sendAdminAlert(
     "new_user",
