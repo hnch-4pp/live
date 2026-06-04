@@ -18,6 +18,7 @@ export const usersTable = pgTable("users", {
   referredByAffiliateId: integer("referred_by_affiliate_id"),
   referralDiscountUsed: boolean("referral_discount_used").notNull().default(false),
   referralDiscountAppliedAt: timestamp("referral_discount_applied_at", { withTimezone: true }),
+  referralSource: text("referral_source"),
 });
 
 export type User = typeof usersTable.$inferSelect;

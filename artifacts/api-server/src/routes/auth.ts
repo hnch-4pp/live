@@ -671,7 +671,7 @@ router.get("/auth/me", async (req, res): Promise<void> => {
 
 router.patch("/auth/me", async (req, res): Promise<void> => {
   if (!req.session.userId) { res.status(401).json({ error: "Not authenticated" }); return; }
-  const { username, address, avatarUrl, loginMethod } = req.body as { username?: string; address?: string; avatarUrl?: string | null; loginMethod?: string };
+  const { username, address, avatarUrl, loginMethod, referralSource } = req.body as { username?: string; address?: string; avatarUrl?: string | null; loginMethod?: string; referralSource?: string };
 
   const updates: Partial<typeof usersTable.$inferInsert> = {};
 
@@ -704,6 +704,10 @@ router.patch("/auth/me", async (req, res): Promise<void> => {
     updates.avatarUrl = avatarUrl;
   }
 
+  if (referralSource !== undefined) {
+    updates.referralSource = referralSource.trim().slice(0, 100) || null;
+  }
+
   if (loginMethod !== undefined) {
     if (loginMethod !== "password" && loginMethod !== "otp") {
       res.status(400).json({ error: "loginMethod must be 'password' or 'otp'." });
@@ -711,7 +715,7 @@ router.patch("/auth/me", async (req, res): Promise<void> => {
     }
   }
 
-  if (Object.keys(updates).length === 0 && loginMethod === undefined) {
+  if (Object.keys(updates).length === 0 && loginMethod === undefined && referralSource === undefined) {
     res.status(400).json({ error: "Nothing to update." });
     return;
   }

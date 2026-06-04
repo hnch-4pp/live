@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
-import { ArrowLeft, Mail, Phone, MapPin, Calendar, Search, ChevronDown, Eye, EyeOff, Lock, AtSign, Check, X, Loader2, Ticket } from "lucide-react";
+import { ArrowLeft, Mail, Phone, MapPin, Calendar, Search, ChevronDown, Eye, EyeOff, Lock, AtSign, Check, X, Loader2, Ticket, Users, Newspaper, Mic2, Globe, Instagram, Twitter, Youtube, Music2, Facebook, Bot, Twitch, Linkedin, MessageSquare, HelpCircle } from "lucide-react";
 import { AddressAutocomplete, type ParsedAddress } from "@/components/address-autocomplete";
 
 // ── Country data ─────────────────────────────────────────────────────────────
@@ -325,10 +325,26 @@ function CountryPicker({
 
 // ── Step definitions ──────────────────────────────────────────────────────────
 
-type Step = "email" | "email-otp" | "phone" | "phone-otp" | "password" | "username" | "address" | "dob" | "ticket-code";
+type Step = "email" | "email-otp" | "phone" | "phone-otp" | "password" | "username" | "address" | "dob" | "ticket-code" | "referral-source";
 
+const STEPS: Step[] = ["email", "email-otp", "phone", "phone-otp", "password", "username", "address", "dob", "ticket-code", "referral-source"];
 
-const STEPS: Step[] = ["email", "email-otp", "phone", "phone-otp", "password", "username", "address", "dob", "ticket-code"];
+const REFERRAL_OPTIONS: { key: string; label: string; Icon: React.ComponentType<{ className?: string }> }[] = [
+  { key: "noticias",  label: "Noticias",          Icon: Newspaper },
+  { key: "amigo",     label: "Por un amigo",       Icon: Users },
+  { key: "podcast",   label: "Podcasts",            Icon: Mic2 },
+  { key: "google",    label: "Google",              Icon: Globe },
+  { key: "instagram", label: "Instagram",           Icon: Instagram },
+  { key: "twitter",   label: "Twitter / X",         Icon: Twitter },
+  { key: "youtube",   label: "YouTube",             Icon: Youtube },
+  { key: "tiktok",    label: "TikTok",              Icon: Music2 },
+  { key: "facebook",  label: "Facebook",            Icon: Facebook },
+  { key: "chatgpt",   label: "ChatGPT / AI Chat",   Icon: Bot },
+  { key: "twitch",    label: "Twitch",              Icon: Twitch },
+  { key: "linkedin",  label: "LinkedIn",            Icon: Linkedin },
+  { key: "reddit",    label: "Reddit",              Icon: MessageSquare },
+  { key: "otro",      label: "Otro",                Icon: HelpCircle },
+];
 
 function StepDots({ current }: { current: Step }) {
   const idx = STEPS.indexOf(current);
@@ -340,6 +356,7 @@ function StepDots({ current }: { current: Step }) {
     ["address"],
     ["dob"],
     ["ticket-code"],
+    ["referral-source"],
   ] as Step[][];
   return (
     <div className="flex items-center gap-1.5 justify-center mb-8">
@@ -467,6 +484,7 @@ export default function Signup() {
   const [promoInfo, setPromoInfo] = useState<{ bonusTickets: number; instructions?: string | null; termsAndConditions?: string | null } | null>(null);
   const [promoError, setPromoError] = useState("");
   const [promoLoading, setPromoLoading] = useState(false);
+  const [referralSource, setReferralSource] = useState("");
 
   const fullAddress = [addrStreet, addrApt, addrCity, addrState, addrPostal, addrCountry]
     .filter(Boolean).join(", ");
@@ -564,8 +582,17 @@ export default function Signup() {
         await refetch();
         setStep("ticket-code");
       } else if (step === "ticket-code") {
+        setStep("referral-source");
+      } else if (step === "referral-source") {
+        if (referralSource) {
+          fetch(apiUrl("/api/auth/me"), {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify({ referralSource }),
+          }).catch(() => {});
+        }
         if (pendingPlan && PAID_PLANS.has(pendingPlan)) {
-          // Go to Stripe checkout — errors surface to the user via the outer catch
           const data = await post("/stripe/subscribe", {
             tierId: pendingPlan,
             referralDiscount: !!affiliateRef,
@@ -586,7 +613,7 @@ export default function Signup() {
     }
   };
 
-  const canBack = step !== "email" && step !== "ticket-code";
+  const canBack = step !== "email" && step !== "ticket-code" && step !== "referral-source";
   const back = () => {
     setError("");
     setDevHint("");
@@ -600,6 +627,7 @@ export default function Signup() {
       address: "username",
       dob: "address",
       "ticket-code": null,
+      "referral-source": null,
     };
     const p = prev[step];
     if (p) setStep(p);
@@ -615,6 +643,7 @@ export default function Signup() {
     if (step === "address") return addrStreet.trim().length >= 3 && addrCity.trim().length >= 1 && addrCountry.trim().length >= 1;
     if (step === "dob") return dob.length > 0 && agreedTerms && agreedPrivacy;
     if (step === "ticket-code") return true;
+    if (step === "referral-source") return true;
     return false;
   };
 
@@ -628,6 +657,7 @@ export default function Signup() {
     address: t("signup_step_address"),
     dob: t("signup_step_dob"),
     "ticket-code": t("signup_step_ticket_code"),
+    "referral-source": "¿Cómo te enteraste?",
   };
 
   const STEP_SUBS: Record<Step, string> = {
@@ -640,6 +670,7 @@ export default function Signup() {
     address: t("signup_sub_address"),
     dob: t("signup_sub_dob"),
     "ticket-code": t("signup_sub_ticket_code"),
+    "referral-source": "Selecciona la opción que más aplica.",
   };
 
   const CTALabel: Record<Step, string> = {
@@ -651,9 +682,10 @@ export default function Signup() {
     username: t("continue_btn"),
     address: t("continue_btn"),
     dob: loading ? t("signup_cta_creating") : t("signup_cta_create"),
-    "ticket-code": (pendingPlan && PAID_PLANS.has(pendingPlan))
+    "ticket-code": t("continue_btn"),
+    "referral-source": (pendingPlan && PAID_PLANS.has(pendingPlan))
       ? "Ir al pago"
-      : promoApplied ? t("signup_cta_continue_to_hunch") : t("signup_cta_skip"),
+      : "Entrar a Hunch",
   };
 
   return (
@@ -668,6 +700,7 @@ export default function Signup() {
                step === "username" ? <AtSign className="w-5 h-5 text-white" /> :
                step === "address" ? <MapPin className="w-5 h-5 text-white" /> :
                step === "ticket-code" ? <Ticket className="w-5 h-5 text-white" /> :
+               step === "referral-source" ? <Users className="w-5 h-5 text-white" /> :
                <Calendar className="w-5 h-5 text-white" />}
             </div>
             <h1 className="font-display text-2xl font-bold text-foreground">{STEP_TITLES[step]}</h1>
@@ -1067,6 +1100,30 @@ export default function Signup() {
               </div>
             )}
 
+            {/* Referral source */}
+            {step === "referral-source" && (
+              <div className="grid grid-cols-2 gap-2">
+                {REFERRAL_OPTIONS.map(({ key, label, Icon }) => {
+                  const selected = referralSource === key;
+                  return (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => setReferralSource(selected ? "" : key)}
+                      className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl border text-left transition-all text-sm font-medium ${
+                        selected
+                          ? "border-primary bg-primary/8 text-primary"
+                          : "border-border bg-background text-foreground hover:border-muted-foreground/40 hover:bg-muted/40"
+                      }`}
+                    >
+                      <Icon className={`w-4 h-4 shrink-0 ${selected ? "text-primary" : "text-muted-foreground"}`} />
+                      <span className="leading-tight">{label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
             {error && (
               <p className="text-sm text-destructive bg-destructive/10 rounded-lg px-3 py-2 border border-destructive/20">
                 {error}
@@ -1081,7 +1138,7 @@ export default function Signup() {
               {loading ? t("please_wait") : CTALabel[step]}
             </Button>
 
-            {step === "ticket-code" && pendingPlan && PAID_PLANS.has(pendingPlan) && (
+            {step === "referral-source" && pendingPlan && PAID_PLANS.has(pendingPlan) && (
               <button
                 type="button"
                 onClick={() => { localStorage.removeItem(PENDING_PLAN_LS_KEY); setLocation("/"); }}
