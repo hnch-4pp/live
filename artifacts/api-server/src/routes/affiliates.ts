@@ -623,8 +623,7 @@ async function sendAffiliateInviteEmail({
 }: { name: string; email: string; inviteLink: string; message?: string }) {
   const RESEND_API_KEY = process.env.RESEND_API_KEY;
   if (!RESEND_API_KEY) {
-    console.warn("[AFFILIATES] RESEND_API_KEY not configured — invitation email not sent");
-    return;
+    throw new Error("RESEND_API_KEY not configured — cannot send invitation email");
   }
   const body = `
     <div style="font-family:sans-serif;max-width:520px;margin:0 auto;padding:32px 24px">
