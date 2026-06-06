@@ -143,7 +143,7 @@ function DistributionChart({
             domain={["dataMin", "dataMax"]}
             ticks={[xMin, xMid, xMax]}
             tickFormatter={nearestLabel}
-            tick={{ fontSize: 11, fill: "rgba(255,255,255,0.45)", fontWeight: 500 }}
+            tick={{ fontSize: 11, fill: "rgba(255,255,255,0.85)", fontWeight: 500 }}
             tickLine={false}
             axisLine={{ stroke: "rgba(255,255,255,0.12)" }}
           />
@@ -433,8 +433,8 @@ export function TrendingHero({ hunches }: TrendingHeroProps) {
           {/* Right — distribution chart */}
           {hasOptions && (
             <div className="hidden md:flex flex-col justify-end w-[420px] shrink-0">
-              <p className="text-white/50 text-[11px] font-semibold uppercase tracking-wider mb-1">{t("predictions_dist")}</p>
-              <p className="text-white/30 text-[10px] mb-2">
+              <p className="text-white/90 text-[11px] font-semibold uppercase tracking-wider mb-1">{t("predictions_dist")}</p>
+              <p className="text-white/65 text-[10px] mb-2">
                 {hunch.participantCount !== 1
                   ? t("predictions_so_far_plural", { count: hunch.participantCount.toLocaleString() })
                   : t("predictions_so_far", { count: hunch.participantCount.toLocaleString() })}
