@@ -12,6 +12,7 @@ interface AdminHunch {
   endsAt: string;
   participantCount: number;
   answerType: string;
+  imageUrl: string | null;
 }
 
 export default function AdminHunches() {
@@ -60,6 +61,7 @@ export default function AdminHunches() {
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-gray-50 text-gray-500 text-xs uppercase tracking-wide">
+                <th className="px-5 py-3" />
                 <th className="px-5 py-3 text-left font-semibold">Title</th>
                 <th className="px-5 py-3 text-left font-semibold">Status</th>
                 <th className="px-5 py-3 text-left font-semibold">Answer type</th>
@@ -72,6 +74,13 @@ export default function AdminHunches() {
             <tbody className="divide-y divide-gray-100">
               {hunches.map((h) => (
                 <tr key={h.id} className="hover:bg-gray-50 transition-colors">
+                  <td className="pl-5 pr-2 py-3">
+                    {h.imageUrl ? (
+                      <img src={h.imageUrl} alt="" className="w-12 h-8 object-cover rounded-lg bg-gray-100 shrink-0" />
+                    ) : (
+                      <div className="w-12 h-8 rounded-lg bg-gray-100 shrink-0" />
+                    )}
+                  </td>
                   <td className="px-5 py-3 font-medium text-gray-900 max-w-xs truncate">{h.title}</td>
                   <td className="px-5 py-3"><StatusBadge status={h.status} /></td>
                   <td className="px-5 py-3">
