@@ -4,7 +4,7 @@ import { Layout } from "@/components/layout";
 import { HunchCard } from "@/components/hunch-card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useListHunches, useGetFeaturedHunches, useGetHunchStats, useListCategories } from "@workspace/api-client-react";
+import { useListHunches, useGetFeaturedHunches, useGetHunchStats, useListCategories, useListTrendingTopics } from "@workspace/api-client-react";
 import { TrendingUp, Users, Gift, SlidersHorizontal, Zap, ArrowRight, ArrowUpDown } from "lucide-react";
 import { TrendingHero } from "@/components/trending-hero";
 import { useTranslation } from "react-i18next";
@@ -18,6 +18,7 @@ export default function Home() {
   const categoryParam = searchParams.get("category");
   const statusParam = searchParams.get("status");
   const qParam = searchParams.get("q") || undefined;
+  const tagParam = searchParams.get("tag") || undefined;
 
   const { data: stats, isLoading: statsLoading } = useGetHunchStats();
   const { data: featuredHunches, isLoading: featuredLoading, refetch: refetchFeatured } = useGetFeaturedHunches({ lang });
@@ -26,10 +27,12 @@ export default function Home() {
     return () => clearInterval(id);
   }, [refetchFeatured]);
   const { data: categories, isLoading: categoriesLoading } = useListCategories();
+  const { data: trendingTopics } = useListTrendingTopics();
   const { data: hunchesData, isLoading: hunchesLoading } = useListHunches({
     category: categoryParam || undefined,
     status: (statusParam === "all" ? undefined : (statusParam as any || "open")),
     q: qParam,
+    tag: tagParam,
     limit: 20,
     lang,
   });
@@ -38,6 +41,7 @@ export default function Home() {
     const params = new URLSearchParams(search);
     if (slug) params.set("category", slug);
     else params.delete("category");
+    params.delete("tag");
     setLocation(`/?${params.toString()}`);
   };
 
@@ -48,7 +52,14 @@ export default function Home() {
     setLocation(`/?${params.toString()}`);
   };
 
-  const isFiltered = !!(categoryParam || statusParam || qParam);
+  const handleTagFilter = (tag: string | null) => {
+    const params = new URLSearchParams(search);
+    if (tag) { params.set("tag", tag); params.delete("category"); }
+    else params.delete("tag");
+    setLocation(`/?${params.toString()}`);
+  };
+
+  const isFiltered = !!(categoryParam || statusParam || qParam || tagParam);
 
   type SortKey = "ending-soon" | "newest" | "oldest";
   const [sortBy, setSortBy] = useState<SortKey>("ending-soon");
@@ -73,6 +84,45 @@ export default function Home() {
         ) : featuredHunches && featuredHunches.length > 0 ? (
           <TrendingHero hunches={featuredHunches} />
         ) : null
+      )}
+
+      {/* Trending Topics Strip */}
+      {trendingTopics && trendingTopics.length > 0 && (
+        <div className="border-b border-border bg-background">
+          <div className="container mx-auto px-4 py-4">
+            <div className="flex items-center gap-3 overflow-x-auto scrollbar-none pb-0.5">
+              <span className="shrink-0 text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                <TrendingUp className="w-3.5 h-3.5" /> Trending
+              </span>
+              <button
+                onClick={() => handleTagFilter(null)}
+                className={`shrink-0 flex items-center gap-2 px-3.5 py-1.5 rounded-full text-sm font-medium border transition-colors whitespace-nowrap ${
+                  !tagParam
+                    ? "bg-foreground text-background border-foreground"
+                    : "border-border text-muted-foreground hover:border-foreground hover:text-foreground"
+                }`}
+              >
+                All
+              </button>
+              {trendingTopics.map((topic) => (
+                <button
+                  key={topic.id}
+                  onClick={() => handleTagFilter(tagParam === topic.tag ? null : topic.tag)}
+                  className={`shrink-0 flex items-center gap-2 px-3.5 py-1.5 rounded-full text-sm font-medium border transition-colors whitespace-nowrap ${
+                    tagParam === topic.tag
+                      ? "bg-foreground text-background border-foreground"
+                      : "border-border text-muted-foreground hover:border-foreground hover:text-foreground"
+                  }`}
+                >
+                  {topic.imageUrl && (
+                    <img src={topic.imageUrl} alt="" className="w-4 h-4 rounded-full object-cover shrink-0" />
+                  )}
+                  {topic.name}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Main List */}

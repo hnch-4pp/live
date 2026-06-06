@@ -69,6 +69,7 @@ export const ListHunchesQueryParams = zod.object({
   "limit": zod.coerce.number().default(listHunchesQueryLimitDefault),
   "offset": zod.coerce.number().default(listHunchesQueryOffsetDefault),
   "q": zod.coerce.string().optional().describe('Full-text search query on hunch titles'),
+  "tag": zod.coerce.string().optional().describe('Filter by tag slug (e.g. world-cup)'),
   "lang": zod.coerce.string().optional().describe('Language code for content translation (e.g. es, fr, de)')
 })
 
@@ -118,10 +119,25 @@ export const ListHunchesResponse = zod.object({
   "prizeConditions": zod.string().nullish().describe('Optional terms or conditions for the prizes shown to participants'),
   "ticketCost": zod.number().optional(),
   "answerType": zod.string().optional(),
-  "isMulti": zod.boolean().optional()
+  "isMulti": zod.boolean().optional(),
+  "tags": zod.string().nullish().describe('Comma-separated tag slugs (e.g. world-cup,tennis)')
 })),
   "total": zod.number()
 })
+
+
+/**
+ * @summary List active trending topics
+ */
+export const ListTrendingTopicsResponseItem = zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "tag": zod.string(),
+  "imageUrl": zod.string().nullish(),
+  "sortOrder": zod.number(),
+  "active": zod.boolean()
+})
+export const ListTrendingTopicsResponse = zod.array(ListTrendingTopicsResponseItem)
 
 
 /**
@@ -176,7 +192,8 @@ export const GetFeaturedHunchesResponseItem = zod.object({
   "prizeConditions": zod.string().nullish().describe('Optional terms or conditions for the prizes shown to participants'),
   "ticketCost": zod.number().optional(),
   "answerType": zod.string().optional(),
-  "isMulti": zod.boolean().optional()
+  "isMulti": zod.boolean().optional(),
+  "tags": zod.string().nullish().describe('Comma-separated tag slugs (e.g. world-cup,tennis)')
 })
 export const GetFeaturedHunchesResponse = zod.array(GetFeaturedHunchesResponseItem)
 
@@ -248,7 +265,8 @@ export const GetHunchResponse = zod.object({
   "prizeConditions": zod.string().nullish().describe('Optional terms or conditions for the prizes shown to participants'),
   "ticketCost": zod.number().optional(),
   "answerType": zod.string().optional(),
-  "isMulti": zod.boolean().optional()
+  "isMulti": zod.boolean().optional(),
+  "tags": zod.string().nullish().describe('Comma-separated tag slugs (e.g. world-cup,tennis)')
 })
 
 

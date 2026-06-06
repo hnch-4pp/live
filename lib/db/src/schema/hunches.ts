@@ -30,6 +30,7 @@ export const hunchesTable = pgTable("hunches", {
   endsAt: timestamp("ends_at", { withTimezone: true }).notNull(),
   resolvedAt: timestamp("resolved_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  tags: text("tags"),
 });
 
 export const insertHunchSchema = createInsertSchema(hunchesTable).omit({ id: true, createdAt: true });

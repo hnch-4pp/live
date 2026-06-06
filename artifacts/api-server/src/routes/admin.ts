@@ -18,6 +18,7 @@ import {
   appSettingsTable,
   hunchQuestionsTable,
   topNotificationsTable,
+  trendingTopicsTable,
 } from "@workspace/db";
 import { eq, or, ilike, sql, desc, and, asc } from "drizzle-orm";
 import { getUncachableStripeClient } from "../stripeClient";
@@ -304,6 +305,7 @@ router.post(
         rules: req.body.rules ? String(req.body.rules) : null,
         prizeConditions: req.body.prizeConditions ? String(req.body.prizeConditions) : null,
         isMulti: req.body.isMulti === true || req.body.isMulti === "true",
+        tags: req.body.tags ? String(req.body.tags).trim() || null : null,
       })
       .returning();
 
@@ -378,6 +380,7 @@ router.patch(
     if ("rules" in req.body) updates["rules"] = req.body.rules ? String(req.body.rules) : null;
     if ("prizeConditions" in req.body) updates["prizeConditions"] = req.body.prizeConditions ? String(req.body.prizeConditions) : null;
     if ("isMulti" in req.body) updates["isMulti"] = req.body.isMulti === true || req.body.isMulti === "true";
+    if ("tags" in req.body) updates["tags"] = req.body.tags ? String(req.body.tags).trim() : null;
     if ("winnerAnswers" in req.body) {
       updates["winnerAnswers"] = req.body.winnerAnswers
         ? (typeof req.body.winnerAnswers === "string" ? req.body.winnerAnswers : JSON.stringify(req.body.winnerAnswers))
@@ -2161,6 +2164,51 @@ router.post("/admin/recover-stripe-subscriptions", requireAdmin, requireAdminHea
     req.log.error({ err }, "recover-stripe-subscriptions failed");
     res.status(500).json({ ok: false, error: err instanceof Error ? err.message : String(err) });
   }
+});
+
+// ─── Trending Topics CRUD ─────────────────────────────────────────────────────
+
+router.get("/admin/trending-topics", requireAdmin, requireAdminHeader, async (_req, res): Promise<void> => {
+  const rows = await db
+    .select()
+    .from(trendingTopicsTable)
+    .orderBy(trendingTopicsTable.sortOrder, trendingTopicsTable.id);
+  res.json(rows);
+});
+
+router.post("/admin/trending-topics", requireAdmin, requireAdminHeader, async (req, res): Promise<void> => {
+  const { name, tag, imageUrl, sortOrder, active } = req.body as Record<string, string | number | boolean | undefined>;
+  if (!name || !tag) { res.status(400).json({ error: "name and tag are required" }); return; }
+  const normalized = String(tag).toLowerCase().trim().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
+  const [row] = await db.insert(trendingTopicsTable).values({
+    name: String(name).trim(),
+    tag: normalized,
+    imageUrl: imageUrl ? String(imageUrl) : null,
+    sortOrder: sortOrder !== undefined ? Number(sortOrder) : 0,
+    active: active !== false && active !== "false",
+  }).returning();
+  res.status(201).json(row);
+});
+
+router.patch("/admin/trending-topics/:id", requireAdmin, requireAdminHeader, async (req, res): Promise<void> => {
+  const id = parseInt(String(req.params["id"] ?? "0"), 10);
+  if (!id) { res.status(400).json({ error: "Invalid ID" }); return; }
+  const updates: Record<string, unknown> = {};
+  if (req.body.name !== undefined) updates["name"] = String(req.body.name).trim();
+  if (req.body.tag !== undefined) updates["tag"] = String(req.body.tag).toLowerCase().trim().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
+  if ("imageUrl" in req.body) updates["imageUrl"] = req.body.imageUrl ? String(req.body.imageUrl) : null;
+  if (req.body.sortOrder !== undefined) updates["sortOrder"] = Number(req.body.sortOrder);
+  if (req.body.active !== undefined) updates["active"] = req.body.active !== false && req.body.active !== "false";
+  const [row] = await db.update(trendingTopicsTable).set(updates).where(eq(trendingTopicsTable.id, id)).returning();
+  if (!row) { res.status(404).json({ error: "Not found" }); return; }
+  res.json(row);
+});
+
+router.delete("/admin/trending-topics/:id", requireAdmin, requireAdminHeader, async (req, res): Promise<void> => {
+  const id = parseInt(String(req.params["id"] ?? "0"), 10);
+  if (!id) { res.status(400).json({ error: "Invalid ID" }); return; }
+  await db.delete(trendingTopicsTable).where(eq(trendingTopicsTable.id, id));
+  res.json({ ok: true });
 });
 
 export default router;

@@ -48,6 +48,7 @@ const EMPTY = {
   imageUrl: "",
   imageFocalPoint: "50% 50%",
   rules: "",
+  tags: "",
   status: "open",
   featured: false,
   endsAt: new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 16),
@@ -284,6 +285,7 @@ export default function HunchForm() {
           winnerOption: h.winnerOption ?? "",
           resultText: h.resultText ?? "",
           rules: h.rules ?? "",
+          tags: h.tags ?? "",
           answerType: h.answerType ?? "integer",
           ticketCost: h.ticketCost ?? 1,
           isMulti: h.isMulti ?? false,
@@ -520,6 +522,16 @@ export default function HunchForm() {
                 onChange={(e) => setForm({ ...form, rules: e.target.value })}
                 placeholder="Explain how this hunch will be resolved, what counts as a valid answer, and any special conditions..."
                 className={`${inputCls} resize-none`}
+              />
+            </Field>
+
+            <Field label="Tags" hint="Comma-separated slugs (e.g. world-cup,tennis). Used by Trending Topics to filter hunches.">
+              <input
+                type="text"
+                value={form.tags}
+                onChange={(e) => setForm({ ...form, tags: e.target.value })}
+                placeholder="world-cup,roland-garros"
+                className={inputCls}
               />
             </Field>
           </section>

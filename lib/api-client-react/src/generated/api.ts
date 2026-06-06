@@ -32,6 +32,7 @@ import type {
   PlatformStats,
   Prediction,
   PredictionInput,
+  TrendingTopic,
   UploadUrlRequest,
   UploadUrlResponse
 } from './api.schemas';
@@ -346,6 +347,83 @@ export function useListHunches<TData = Awaited<ReturnType<typeof listHunches>>, 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getListHunchesQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getListTrendingTopicsUrl = () => {
+
+
+
+
+  return `/api/trending-topics`
+}
+
+/**
+ * @summary List active trending topics
+ */
+export const listTrendingTopics = async ( options?: RequestInit): Promise<TrendingTopic[]> => {
+
+  return customFetch<TrendingTopic[]>(getListTrendingTopicsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListTrendingTopicsQueryKey = () => {
+    return [
+    `/api/trending-topics`
+    ] as const;
+    }
+
+
+export const getListTrendingTopicsQueryOptions = <TData = Awaited<ReturnType<typeof listTrendingTopics>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listTrendingTopics>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListTrendingTopicsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listTrendingTopics>>> = ({ signal }) => listTrendingTopics({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listTrendingTopics>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListTrendingTopicsQueryResult = NonNullable<Awaited<ReturnType<typeof listTrendingTopics>>>
+export type ListTrendingTopicsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List active trending topics
+ */
+
+export function useListTrendingTopics<TData = Awaited<ReturnType<typeof listTrendingTopics>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listTrendingTopics>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListTrendingTopicsQueryOptions(options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

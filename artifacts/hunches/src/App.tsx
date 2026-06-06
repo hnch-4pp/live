@@ -36,6 +36,7 @@ import AffiliateDashboard from "@/pages/affiliate-dashboard";
 import AffiliateSlugPage from "@/pages/affiliate-slug";
 import AdminAffiliates from "@/pages/backstage/affiliates";
 import AdminAffiliateTiers from "@/pages/backstage/affiliate-tiers";
+import AdminTrending from "@/pages/backstage/trending";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -85,6 +86,7 @@ function Router() {
       <Route path="/backstage/notifications" component={AdminNotifications} />
       <Route path="/backstage/admin-alerts" component={AdminAlerts} />
       <Route path="/backstage/metrics" component={AdminMetrics} />
+      <Route path="/backstage/trending" component={AdminTrending} />
       <Route path="/backstage/affiliates" component={AdminAffiliates} />
       <Route path="/backstage/affiliate-tiers" component={AdminAffiliateTiers} />
       <Route path="/affiliate" component={AffiliateLanding} />

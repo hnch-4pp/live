@@ -55,4 +55,9 @@ export interface Hunch {
   ticketCost?: number;
   answerType?: string;
   isMulti?: boolean;
+  /**
+     * Comma-separated tag slugs (e.g. world-cup,tennis)
+     * @nullable
+     */
+  tags?: string | null;
 }

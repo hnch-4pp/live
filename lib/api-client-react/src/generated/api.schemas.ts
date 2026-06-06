@@ -105,6 +105,21 @@ export interface Hunch {
   ticketCost?: number;
   answerType?: string;
   isMulti?: boolean;
+  /**
+     * Comma-separated tag slugs (e.g. world-cup,tennis)
+     * @nullable
+     */
+  tags?: string | null;
+}
+
+export interface TrendingTopic {
+  id: number;
+  name: string;
+  tag: string;
+  /** @nullable */
+  imageUrl?: string | null;
+  sortOrder: number;
+  active: boolean;
 }
 
 export interface HunchList {
@@ -204,6 +219,10 @@ offset?: number;
  * Full-text search query on hunch titles
  */
 q?: string;
+/**
+ * Filter by tag slug (e.g. world-cup)
+ */
+tag?: string;
 /**
  * Language code for content translation (e.g. es, fr, de)
  */

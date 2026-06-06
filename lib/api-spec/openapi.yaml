@@ -113,6 +113,11 @@ paths:
           schema:
             type: string
           description: Full-text search query on hunch titles
+        - name: tag
+          in: query
+          schema:
+            type: string
+          description: Filter by tag slug (e.g. world-cup)
         - name: lang
           in: query
           schema:
@@ -125,6 +130,21 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HunchList"
+
+  /trending-topics:
+    get:
+      operationId: listTrendingTopics
+      tags: [hunches]
+      summary: List active trending topics
+      responses:
+        "200":
+          description: Trending topics
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TrendingTopic"
 
   /hunches/featured:
     get:
@@ -385,6 +405,26 @@ components:
         answerType:
           type: string
         isMulti:
+          type: boolean
+        tags:
+          type: ["string", "null"]
+          description: Comma-separated tag slugs (e.g. world-cup,tennis)
+
+    TrendingTopic:
+      type: object
+      required: [id, name, tag, sortOrder, active]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        tag:
+          type: string
+        imageUrl:
+          type: ["string", "null"]
+        sortOrder:
+          type: integer
+        active:
           type: boolean
 
     HunchOption:

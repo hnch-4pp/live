@@ -11,6 +11,7 @@ import {
   hunchPrizeTiersTable,
   usersTable,
   hunchQuestionsTable,
+  trendingTopicsTable,
 } from "@workspace/db";
 import {
   ListHunchesQueryParams,
@@ -287,6 +288,7 @@ async function buildHunch(hunch: typeof hunchesTable.$inferSelect) {
     rules: hunch.rules ?? null,
     answerType: hunch.answerType,
     ticketCost: hunch.ticketCost,
+    tags: hunch.tags ?? null,
   };
 }
 
@@ -345,6 +347,15 @@ async function withTranslations(hunches: HunchDetail[], lang: string): Promise<H
   });
 }
 
+router.get("/trending-topics", async (_req, res): Promise<void> => {
+  const rows = await db
+    .select()
+    .from(trendingTopicsTable)
+    .where(eq(trendingTopicsTable.active, true))
+    .orderBy(trendingTopicsTable.sortOrder, trendingTopicsTable.id);
+  res.json(rows);
+});
+
 router.get("/hunches", async (req, res): Promise<void> => {
   const parsed = ListHunchesQueryParams.safeParse(req.query);
   if (!parsed.success) {
@@ -352,12 +363,16 @@ router.get("/hunches", async (req, res): Promise<void> => {
     return;
   }
 
-  const { category, status, featured, limit = 20, offset = 0, lang, q } = parsed.data;
+  const { category, status, featured, limit = 20, offset = 0, lang, q, tag } = parsed.data;
 
   const conditions = [];
 
   if (q) {
     conditions.push(ilike(hunchesTable.title, `%${q}%`));
+  }
+
+  if (tag) {
+    conditions.push(sql<boolean>`(',' || ${hunchesTable.tags} || ',') ILIKE ${'%,' + tag + ',%'}`);
   }
 
   if (status) {

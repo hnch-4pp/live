@@ -27,6 +27,10 @@ offset?: number;
  */
 q?: string;
 /**
+ * Filter by tag slug (e.g. world-cup)
+ */
+tag?: string;
+/**
  * Language code for content translation (e.g. es, fr, de)
  */
 lang?: string;
