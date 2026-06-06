@@ -139,6 +139,22 @@ async function runAppMigrations(): Promise<void> {
     CREATE INDEX IF NOT EXISTS "IDX_session_expire" ON "session" ("expire")
   `);
 
+  // Trending topics
+  await db.execute(sql`
+    ALTER TABLE hunches ADD COLUMN IF NOT EXISTS tags TEXT
+  `);
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS trending_topics (
+      id          SERIAL PRIMARY KEY,
+      name        TEXT NOT NULL,
+      tag         TEXT NOT NULL UNIQUE,
+      image_url   TEXT,
+      sort_order  INTEGER NOT NULL DEFAULT 0,
+      active      BOOLEAN NOT NULL DEFAULT TRUE,
+      created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+
   logger.info("App schema migrations applied");
 }
 
