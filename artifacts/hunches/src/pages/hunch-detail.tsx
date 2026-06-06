@@ -457,7 +457,7 @@ export default function HunchDetail() {
                   <div className="flex items-center justify-between gap-2 mb-5">
                     <div className="flex items-center gap-2">
                       {getPrizeIcon(hunch.prize.type)}
-                      <h3 className="text-base font-display font-bold text-foreground">{t("prize_pool")}</h3>
+                      <h3 className="text-base font-display font-bold text-foreground">{tiers.length > 1 ? t("prize_pool_multiple") : t("prize_pool")}</h3>
                     </div>
                     {hunch.prizePoolTotal && tiers.length > 1 && (
                       <span className="text-2xl font-display font-bold text-foreground">{hunch.prizePoolTotal}</span>
@@ -666,7 +666,7 @@ export default function HunchDetail() {
               {/* Prize Pool */}
               <div className="flex items-center gap-2 text-xs font-semibold text-primary mb-3 uppercase tracking-wide">
                 {getPrizeIcon(hunch.prize.type)}
-                {t("prize_pool")}
+                {hunch.prizeTiers && hunch.prizeTiers.length > 1 ? t("prize_pool_multiple") : t("prize_pool")}
               </div>
               {hunch.prizeTiers && hunch.prizeTiers.length > 1 ? (
                 <>
