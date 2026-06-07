@@ -807,7 +807,7 @@ router.get(
       status: user.status,
       createdAt: user.createdAt,
       stripeCustomerId: user.stripeCustomerId,
-      referralCode: (user as unknown as Record<string, unknown>)["referral_code"] ?? null,
+      referralCode: user.referralCode ?? null,
       referralCount,
       country: extractCountry(user.address),
       lastAccessAt: (user as unknown as Record<string, unknown>)["last_access_at"] ?? null,
