@@ -15,6 +15,8 @@ export const usersTable = pgTable("users", {
   stripeCustomerId: text("stripe_customer_id"),
   status: userStatusEnum("status").notNull().default("active"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  referralCode: text("referral_code").unique(),
+  referredByUserId: integer("referred_by_user_id"),
   referredByAffiliateId: integer("referred_by_affiliate_id"),
   referralDiscountUsed: boolean("referral_discount_used").notNull().default(false),
   referralDiscountAppliedAt: timestamp("referral_discount_applied_at", { withTimezone: true }),

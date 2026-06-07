@@ -6,7 +6,7 @@ import {
   ArrowLeft, User, Mail, Phone, MapPin, Calendar, Globe2,
   Ticket, TrendingUp, DollarSign, CreditCard, Trophy,
   ShieldAlert, Ban, Trash2, CheckCircle2, Clock,
-  Target, Zap, RefreshCw, AlertCircle,
+  Target, Zap, RefreshCw, AlertCircle, Users, Gift,
 } from "lucide-react";
 
 type UserStatus = "active" | "suspended" | "banned";
@@ -60,6 +60,8 @@ interface UserDetail {
   prizesWon: HunchEntry[];
   subscription: ActiveSubscription | null;
   paymentMethods: PaymentMethod[];
+  referralCode: string | null;
+  referralCount: number;
 }
 
 const STATUS_BADGE: Record<UserStatus, { label: string; cls: string }> = {
@@ -119,6 +121,67 @@ function StatCard({ icon: Icon, label, value, sub, color = "violet" }: {
 function SectionTitle({ children }: { children: React.ReactNode }) {
   return (
     <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">{children}</h3>
+  );
+}
+
+function ReferralListInline({ userId }: { userId: number }) {
+  const [open, setOpen] = useState(false);
+  const [rows, setRows] = useState<{ id: number; email: string; username: string | null; created_at: string }[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const r = await adminFetch(`/admin/users/${userId}/referrals`);
+      if (r.ok) setRows(await r.json() as typeof rows);
+    } finally { setLoading(false); }
+  };
+
+  const toggle = () => {
+    if (!open && rows.length === 0) void load();
+    setOpen((o) => !o);
+  };
+
+  return (
+    <div className="w-full">
+      <button
+        onClick={toggle}
+        className="text-xs font-semibold text-violet-600 hover:text-violet-800 underline underline-offset-2 transition-colors"
+      >
+        {open ? "Hide referral list" : "Show referral list"}
+      </button>
+      {open && (
+        <div className="mt-3 bg-gray-50 rounded-xl border border-gray-200 overflow-hidden">
+          {loading ? (
+            <p className="text-xs text-gray-400 px-4 py-3">Loading...</p>
+          ) : rows.length === 0 ? (
+            <p className="text-xs text-gray-400 px-4 py-3 italic">No referrals found</p>
+          ) : (
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-gray-200">
+                  <th className="text-left px-4 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wide">User</th>
+                  <th className="text-left px-4 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wide">Joined</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((r) => (
+                  <tr key={r.id} className="border-b border-gray-100 last:border-0">
+                    <td className="px-4 py-2.5">
+                      <p className="font-medium text-gray-900">{r.username ? `@${r.username}` : r.email}</p>
+                      {r.username && <p className="text-xs text-gray-400">{r.email}</p>}
+                    </td>
+                    <td className="px-4 py-2.5 text-xs text-gray-500 whitespace-nowrap">
+                      {new Date(r.created_at).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -326,6 +389,31 @@ export default function AdminUserDetail() {
           <StatCard icon={TrendingUp}  label="Total tickets earned"  value={`${detail.ticketStats.totalReceived} tickets`} sub={`${detail.ticketStats.totalSpent} spent`} color="emerald" />
           <StatCard icon={DollarSign}  label="Lifetime spend"        value={fmt$(detail.lifetimeSpendCents)} color="sky" />
           <StatCard icon={RefreshCw}   label="Subscription spend"    value={fmt$(detail.subscriptionSpendCents)} color="amber" />
+        </div>
+        {/* ── Referral info bar ── */}
+        <div className="bg-white border border-gray-200 rounded-xl px-5 py-3.5 mb-5 flex items-center gap-4 flex-wrap">
+          <div className="flex items-center gap-2">
+            <Gift className="w-4 h-4 text-violet-500" />
+            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Referral code</span>
+            {detail.referralCode
+              ? <span className="font-mono text-sm font-bold text-gray-900 bg-gray-100 px-2 py-0.5 rounded">{detail.referralCode}</span>
+              : <span className="text-sm text-gray-400 italic">None assigned</span>
+            }
+          </div>
+          <div className="h-4 w-px bg-gray-200 hidden sm:block" />
+          <button
+            onClick={() => window.open(`/backstage/users?referredBy=${detail.id}`, "_blank")}
+            className="flex items-center gap-2 hover:text-violet-600 transition-colors group"
+          >
+            <Users className="w-4 h-4 text-violet-500" />
+            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide group-hover:text-violet-600">Referrals</span>
+            <span className="inline-flex items-center justify-center min-w-[22px] h-[22px] rounded-full bg-violet-100 text-violet-700 text-xs font-bold px-1.5">
+              {detail.referralCount}
+            </span>
+          </button>
+          {detail.referralCount > 0 && (
+            <ReferralListInline userId={detail.id} />
+          )}
         </div>
 
         {/* ── Two-column body ── */}

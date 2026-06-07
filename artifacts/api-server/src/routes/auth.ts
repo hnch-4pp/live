@@ -17,6 +17,34 @@ function generateOtp(): string {
   return String(Math.floor(100000 + Math.random() * 900000));
 }
 
+// ── Referral code generation ─────────────────────────────────────────────────
+
+function generateReferralCode(): string {
+  const alpha = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  const special = "@#$!";
+  const all = alpha + special;
+  const chars: string[] = [special[Math.floor(Math.random() * special.length)]!];
+  while (chars.length < 8) chars.push(all[Math.floor(Math.random() * all.length)]!);
+  for (let i = chars.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [chars[i], chars[j]] = [chars[j]!, chars[i]!];
+  }
+  return chars.join("");
+}
+
+async function generateUniqueReferralCode(): Promise<string> {
+  for (let i = 0; i < 30; i++) {
+    const code = generateReferralCode();
+    const [existing] = await db
+      .select({ id: usersTable.id })
+      .from(usersTable)
+      .where(eq(usersTable.referralCode, code))
+      .limit(1);
+    if (!existing) return code;
+  }
+  throw new Error("Could not generate unique referral code");
+}
+
 async function createOtp(identifier: string, type: "email" | "phone"): Promise<string> {
   const code = generateOtp();
   const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
@@ -222,6 +250,50 @@ async function sendWelcomeEmail(email: string): Promise<void> {
   }
 }
 
+// ── Referral notification email ──────────────────────────────────────────────
+
+async function sendReferralNotificationEmail(referrerEmail: string, newUsername: string, ticketsEarned: number): Promise<void> {
+  const RESEND_API_KEY = process.env.RESEND_API_KEY;
+  if (!RESEND_API_KEY) return;
+
+  const html = `
+    <div style="font-family:Georgia,serif;max-width:560px;margin:0 auto;padding:40px 24px;color:#1a1a1a;line-height:1.7;font-size:16px">
+      <p style="margin:0 0 20px">Hola,</p>
+      <p style="margin:0 0 20px">Alguien que conoces acaba de unirse a Hunch usando tu código de referido.</p>
+      <div style="background:#f5f5f5;border-radius:12px;padding:20px 24px;margin:0 0 24px">
+        <p style="margin:0 0 4px;font-size:13px;color:#888;font-family:sans-serif;font-weight:600;text-transform:uppercase;letter-spacing:.05em">Nuevo usuario</p>
+        <p style="margin:0;font-size:18px;font-weight:700;font-family:sans-serif">@${newUsername}</p>
+      </div>
+      <p style="margin:0 0 12px">Como gracias por compartir Hunch, hemos añadido <strong>${ticketsEarned} tickets</strong> a tu cuenta.</p>
+      <p style="margin:0 0 28px">Sigue compartiendo tu código y sigue ganando tickets con cada nuevo referido.</p>
+      <p style="margin:0 0 28px">
+        <a href="https://hunch.fan/referral"
+           style="display:inline-block;background:#1a1a1a;color:#fff;text-decoration:none;padding:14px 28px;border-radius:8px;font-family:sans-serif;font-size:15px;font-weight:600">
+          Ver mis referidos &rarr;
+        </a>
+      </p>
+      <hr style="border:none;border-top:1px solid #eee;margin:0 0 20px"/>
+      <p style="margin:0;color:#aaa;font-family:sans-serif;font-size:12px">
+        Hunch &mdash; plataforma de predicciones basada en habilidades. No se apuesta dinero.
+      </p>
+    </div>
+  `;
+
+  await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${RESEND_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      from: "Hunch <noreply@hunch.fan>",
+      to: [referrerEmail],
+      subject: `Alguien usó tu código — +${ticketsEarned} tickets`,
+      html,
+    }),
+  });
+}
+
 // ── Signup flow ────────────────────────────────────────────────────────────
 
 router.post("/auth/signup/send-email-otp", async (req, res): Promise<void> => {
@@ -393,6 +465,12 @@ router.post("/auth/signup/complete", async (req, res): Promise<void> => {
     amount: 5,
     label: "Welcome bonus — 5 tickets",
   });
+
+  // Generate unique referral code for the new user
+  try {
+    const newReferralCode = await generateUniqueReferralCode();
+    await db.update(usersTable).set({ referralCode: newReferralCode }).where(eq(usersTable.id, user.id));
+  } catch { /* non-fatal — backfill migration will cover it on next restart */ }
 
   // Affiliate attribution — prefer body param, fall back to session
   const affiliateRef = bodyAffiliateRef?.trim() || req.session.pendingSignup?.affiliateRef;
@@ -941,6 +1019,100 @@ router.get("/auth/tickets/activity", async (req, res): Promise<void> => {
     .where(eq(ticketTransactionsTable.userId, req.session.userId))
     .orderBy(ticketTransactionsTable.createdAt);
   res.json(rows);
+});
+
+// ── Member-Get-Member: referral code redemption ──────────────────────────────
+
+const MGM_NEW_USER_TICKETS = 5;
+const MGM_REFERRER_TICKETS = 10;
+
+router.post("/auth/referral-codes/redeem", async (req, res): Promise<void> => {
+  if (!req.session.userId) { res.status(401).json({ error: "Not authenticated" }); return; }
+  const { code } = req.body as { code?: string };
+  if (!code?.trim()) { res.status(400).json({ error: "Code required" }); return; }
+
+  const normalized = code.trim().toUpperCase();
+  const currentUserId = req.session.userId;
+
+  // Find referrer by code
+  const [referrer] = await db
+    .select()
+    .from(usersTable)
+    .where(eq(usersTable.referralCode, normalized))
+    .limit(1);
+
+  if (!referrer) { res.status(400).json({ error: "Code not found." }); return; }
+  if (referrer.id === currentUserId) { res.status(400).json({ error: "You cannot use your own referral code." }); return; }
+
+  // Check current user hasn't already been referred
+  const [currentUser] = await db
+    .select()
+    .from(usersTable)
+    .where(eq(usersTable.id, currentUserId))
+    .limit(1);
+  if (!currentUser) { res.status(404).json({ error: "User not found." }); return; }
+  if (currentUser.referredByUserId) { res.status(400).json({ error: "You have already used a referral code." }); return; }
+
+  // Award +5 tickets to new user
+  await db.update(usersTable)
+    .set({ tickets: sql`tickets + ${MGM_NEW_USER_TICKETS}`, referredByUserId: referrer.id })
+    .where(eq(usersTable.id, currentUserId));
+
+  await db.insert(ticketTransactionsTable).values({
+    userId: currentUserId,
+    type: "referral",
+    amount: MGM_NEW_USER_TICKETS,
+    label: `Referral bonus — ${MGM_NEW_USER_TICKETS} tickets`,
+    reference: referrer.username ?? referrer.email,
+  });
+
+  // Award +10 tickets to referrer
+  await db.update(usersTable)
+    .set({ tickets: sql`tickets + ${MGM_REFERRER_TICKETS}` })
+    .where(eq(usersTable.id, referrer.id));
+
+  await db.insert(ticketTransactionsTable).values({
+    userId: referrer.id,
+    type: "referral",
+    amount: MGM_REFERRER_TICKETS,
+    label: `Referido registrado — +${MGM_REFERRER_TICKETS} tickets`,
+    reference: currentUser.username ?? currentUser.email,
+  });
+
+  res.json({ ok: true, ticketsGranted: MGM_NEW_USER_TICKETS });
+
+  // Send notification email to referrer (non-blocking)
+  sendReferralNotificationEmail(referrer.email, currentUser.username ?? currentUser.email, MGM_REFERRER_TICKETS).catch(() => {});
+});
+
+// ── My referral info ─────────────────────────────────────────────────────────
+
+router.get("/auth/me/referral", async (req, res): Promise<void> => {
+  if (!req.session.userId) { res.status(401).json({ error: "Not authenticated" }); return; }
+
+  const [user] = await db
+    .select({ referralCode: usersTable.referralCode })
+    .from(usersTable)
+    .where(eq(usersTable.id, req.session.userId))
+    .limit(1);
+
+  if (!user) { res.status(404).json({ error: "User not found" }); return; }
+
+  const referrals = await db
+    .select({
+      id: usersTable.id,
+      username: usersTable.username,
+      createdAt: usersTable.createdAt,
+    })
+    .from(usersTable)
+    .where(eq(usersTable.referredByUserId, req.session.userId))
+    .orderBy(desc(usersTable.createdAt));
+
+  res.json({
+    referralCode: user.referralCode,
+    referredCount: referrals.length,
+    referrals,
+  });
 });
 
 export default router;

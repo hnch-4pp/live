@@ -155,6 +155,51 @@ async function runAppMigrations(): Promise<void> {
     )
   `);
 
+  // Member-Get-Member referral columns
+  await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS referral_code TEXT`);
+  await db.execute(sql`
+    CREATE UNIQUE INDEX IF NOT EXISTS users_referral_code_idx
+      ON users(referral_code) WHERE referral_code IS NOT NULL
+  `);
+  await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS referred_by_user_id INTEGER REFERENCES users(id)`);
+
+  // Add referral enum value to ticket_tx_type
+  await db.execute(sql`
+    DO $$ BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM pg_enum
+        WHERE enumlabel = 'referral' AND enumtypid = 'ticket_tx_type'::regtype
+      ) THEN
+        ALTER TYPE ticket_tx_type ADD VALUE 'referral';
+      END IF;
+    END $$;
+  `);
+
+  // Backfill referral codes for existing users
+  const _noCodeUsers = await db.execute(sql`SELECT id FROM users WHERE referral_code IS NULL`);
+  const noCodeRows = _noCodeUsers.rows as { id: number }[];
+  const _alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  const _special = "@#$!";
+  const _all = _alphabet + _special;
+  function _mkCode(): string {
+    const chars: string[] = [_special[Math.floor(Math.random() * _special.length)]!];
+    while (chars.length < 8) chars.push(_all[Math.floor(Math.random() * _all.length)]!);
+    for (let i = chars.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [chars[i], chars[j]] = [chars[j]!, chars[i]!];
+    }
+    return chars.join("");
+  }
+  for (const row of noCodeRows) {
+    for (let attempt = 0; attempt < 20; attempt++) {
+      const code = _mkCode();
+      try {
+        await db.execute(sql`UPDATE users SET referral_code = ${code} WHERE id = ${row.id} AND referral_code IS NULL`);
+        break;
+      } catch { /* collision — retry */ }
+    }
+  }
+
   logger.info("App schema migrations applied");
 }
 

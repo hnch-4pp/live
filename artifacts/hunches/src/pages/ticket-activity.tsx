@@ -8,7 +8,7 @@ import { apiUrl } from "@/lib/apiFetch";
 import { txIcon, txColors, txSubtitle } from "@/lib/ticket-utils";
 import { useTranslation } from "react-i18next";
 
-type TxType = "welcome" | "promo" | "purchase" | "subscription" | "spent";
+type TxType = "welcome" | "promo" | "purchase" | "subscription" | "spent" | "referral";
 
 interface TicketTransaction {
   id: number;

@@ -790,6 +790,12 @@ router.get(
       }
     }
 
+    // ── Referral count ────────────────────────────────────────────────────
+    const referralCountResult = await db.execute(
+      sql`SELECT COUNT(*)::int AS cnt FROM users WHERE referred_by_user_id = ${id}`
+    );
+    const referralCount = (referralCountResult.rows[0] as { cnt: number } | undefined)?.cnt ?? 0;
+
     res.json({
       id: user.id,
       email: user.email,
@@ -801,6 +807,8 @@ router.get(
       status: user.status,
       createdAt: user.createdAt,
       stripeCustomerId: user.stripeCustomerId,
+      referralCode: (user as unknown as Record<string, unknown>)["referral_code"] ?? null,
+      referralCount,
       country: extractCountry(user.address),
       lastAccessAt: (user as unknown as Record<string, unknown>)["last_access_at"] ?? null,
       ticketStats: {
@@ -816,6 +824,21 @@ router.get(
       subscription: subscription ?? null,
       paymentMethods,
     });
+  },
+);
+
+router.get(
+  "/admin/users/:id/referrals",
+  requireAdmin,
+  requireAdminHeader,
+  async (req, res): Promise<void> => {
+    const id = parseInt(String(req.params["id"] ?? "0"), 10);
+    if (!id) { res.status(400).json({ error: "Invalid ID" }); return; }
+
+    const referrals = await db.execute(
+      sql`SELECT id, email, username, created_at FROM users WHERE referred_by_user_id = ${id} ORDER BY created_at DESC`
+    );
+    res.json(referrals.rows);
   },
 );
 

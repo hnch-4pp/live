@@ -1,7 +1,7 @@
 import { pgTable, serial, text, integer, timestamp, pgEnum } from "drizzle-orm/pg-core";
 import { usersTable } from "./users";
 
-export const ticketTxTypeEnum = pgEnum("ticket_tx_type", ["welcome", "promo", "purchase", "subscription", "spent"]);
+export const ticketTxTypeEnum = pgEnum("ticket_tx_type", ["welcome", "promo", "purchase", "subscription", "spent", "referral"]);
 
 export const ticketTransactionsTable = pgTable("ticket_transactions", {
   id: serial("id").primaryKey(),

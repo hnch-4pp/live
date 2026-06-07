@@ -1,7 +1,7 @@
 import { Link, useLocation, useSearch } from "wouter";
 import { Button } from "@/components/ui/button";
 import { useEffect, useRef, useState } from "react";
-import { Globe, ChevronDown, Search, X, Trophy, Music, Film, Clapperboard, TrendingUp, Star, Zap as ZapIcon, Globe2, Heart as HeartIcon, LogOut, Settings, Ticket, Target, Users } from "lucide-react";
+import { Globe, ChevronDown, Search, X, Trophy, Music, Film, Clapperboard, TrendingUp, Star, Zap as ZapIcon, Globe2, Heart as HeartIcon, LogOut, Settings, Ticket, Target, Users, Gift } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import i18n from "@/i18n";
 import { useListCategories } from "@workspace/api-client-react";
@@ -99,6 +99,22 @@ function LanguageSelector() {
         </div>
       )}
     </div>
+  );
+}
+
+function ReferralButton() {
+  const { user } = useAuth();
+  const [, setLocation] = useLocation();
+  if (!user) return null;
+  return (
+    <button
+      onClick={() => setLocation("/referral")}
+      className="flex items-center justify-center w-8 h-8 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+      title="Referral program"
+      aria-label="Referral program"
+    >
+      <Gift className="w-4 h-4" />
+    </button>
   );
 }
 
@@ -299,6 +315,7 @@ export function Navbar() {
 
         <div className="flex items-center gap-2">
           <LanguageSelector />
+          <ReferralButton />
           <TicketCounter />
           <AuthButtons />
         </div>

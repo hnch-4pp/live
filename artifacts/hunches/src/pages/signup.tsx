@@ -533,17 +533,36 @@ export default function Signup() {
     setPromoError("");
     setPromoLoading(true);
     try {
-      const res = await fetch(apiUrl("/api/auth/ticket-codes/redeem"), {
+      // First try as a promo/ticket code
+      const promoRes = await fetch(apiUrl("/api/auth/ticket-codes/redeem"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
         body: JSON.stringify({ code: promoCode.trim(), context: "registration" }),
       });
-      const data = await res.json();
-      if (!res.ok) { setPromoError(data.error ?? "Invalid code"); return; }
-      setPromoApplied(true);
-      setPromoInfo({ bonusTickets: data.ticketsGranted, instructions: null });
-      await refetch();
+      const promoData = await promoRes.json();
+      if (promoRes.ok) {
+        setPromoApplied(true);
+        setPromoInfo({ bonusTickets: promoData.ticketsGranted, instructions: null });
+        await refetch();
+        return;
+      }
+      // If code not found in promo codes, try as a referral code
+      if (promoData.error === "Code not found.") {
+        const refRes = await fetch(apiUrl("/api/auth/referral-codes/redeem"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ code: promoCode.trim() }),
+        });
+        const refData = await refRes.json();
+        if (!refRes.ok) { setPromoError(refData.error ?? "Invalid code"); return; }
+        setPromoApplied(true);
+        setPromoInfo({ bonusTickets: refData.ticketsGranted, instructions: null });
+        await refetch();
+        return;
+      }
+      setPromoError(promoData.error ?? "Invalid code");
     } catch {
       setPromoError("Failed to apply code. Please try again.");
     } finally {
