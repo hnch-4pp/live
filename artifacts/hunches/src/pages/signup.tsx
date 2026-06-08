@@ -1080,7 +1080,7 @@ export default function Signup() {
                     </div>
                     <div>
                       <p className="font-bold text-foreground text-lg">{t("signup_bonus_tickets", { count: promoInfo.bonusTickets })}</p>
-                      <p className="text-sm text-muted-foreground mt-0.5">{t("signup_bonus_note", { count: 3 + promoInfo.bonusTickets })}</p>
+                      <p className="text-sm text-muted-foreground mt-0.5">{t("signup_bonus_note", { count: 5 + promoInfo.bonusTickets })}</p>
                     </div>
                     {promoInfo.instructions && (
                       <p className="text-xs text-muted-foreground bg-muted/50 rounded-xl px-4 py-3 text-left">{promoInfo.instructions}</p>
