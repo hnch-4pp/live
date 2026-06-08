@@ -4,7 +4,7 @@ import { AdminLayout } from "@/components/admin-layout";
 import { useAdminAuth, adminFetch } from "./dashboard";
 import {
   ChevronLeft, Users, Trophy, X, Loader2, ArrowUpDown,
-  CheckCircle2, SlidersHorizontal,
+  CheckCircle2, SlidersHorizontal, AlertTriangle,
 } from "lucide-react";
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -43,6 +43,56 @@ function numVal(s: string): number {
   return isNaN(n) ? 0 : n;
 }
 
+function formatTs(ts: string | Date): string {
+  return new Date(ts).toLocaleString("es-MX", {
+    day: "2-digit", month: "2-digit", year: "numeric",
+    hour: "2-digit", minute: "2-digit", second: "2-digit",
+    hour12: false,
+  });
+}
+
+// ── Confirmation modal ────────────────────────────────────────────────────────
+
+function ConfirmModal({ onConfirm, onCancel, saving }: { onConfirm: () => void; onCancel: () => void; saving: boolean }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onCancel} />
+      <div className="relative bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 space-y-4">
+        <div className="flex items-start gap-3">
+          <div className="w-9 h-9 rounded-full bg-amber-100 flex items-center justify-center shrink-0">
+            <AlertTriangle className="w-4.5 h-4.5 text-amber-600" />
+          </div>
+          <div>
+            <h3 className="text-sm font-bold text-gray-900">Confirmar publicacion de ganadores</h3>
+            <p className="text-sm text-gray-500 mt-1">
+              Al confirmar se publicaran los ganadores en el sitio y se enviara un correo a cada uno notificandoles su premio.
+            </p>
+          </div>
+        </div>
+        <div className="flex gap-2 justify-end pt-1">
+          <button
+            type="button"
+            onClick={onCancel}
+            disabled={saving}
+            className="text-sm font-semibold text-gray-600 border border-gray-200 px-4 py-2 rounded-xl hover:bg-gray-50 transition-colors disabled:opacity-50"
+          >
+            Cancelar
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            disabled={saving}
+            className="flex items-center gap-1.5 text-sm font-semibold text-white bg-violet-600 px-4 py-2 rounded-xl hover:bg-violet-700 transition-colors disabled:opacity-60"
+          >
+            {saving && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+            Si, publicar ganadores
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function HunchParticipants() {
@@ -55,6 +105,7 @@ export default function HunchParticipants() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const [sortBy, setSortBy] = useState<SortKey>("recent");
   const [sortOpen, setSortOpen] = useState(false);
 
@@ -99,7 +150,7 @@ export default function HunchParticipants() {
   const sortedFlat = useMemo<PredParticipant[]>(() => {
     if (!predData?.byOption) return [];
     const flat: PredParticipant[] = predData.byOption.flatMap((group) =>
-      group.participants.map((p) => ({ ...p, optionLabel: group.label })),
+      group.participants.map((p) => ({ ...p, createdAt: String(p.createdAt), optionLabel: group.label })),
     );
     switch (sortBy) {
       case "recent":  return flat.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
@@ -115,7 +166,7 @@ export default function HunchParticipants() {
     if (!hunch) return;
     setSaving(true);
     try {
-      const body: Record<string, unknown> = { status: "resolved" };
+      const body: Record<string, unknown> = { status: "resolved", notifyWinners: true };
       if (hunch.isMulti) {
         const isMultiPrize = hunch.prizeTiers.length > 1;
         if (isMultiPrize) {
@@ -130,13 +181,14 @@ export default function HunchParticipants() {
       }
       await adminFetch(`/admin/hunches/${hunch.id}`, { method: "PATCH", body: JSON.stringify(body) });
       setSaved(true);
-      setTimeout(() => setSaved(false), 2500);
+      setConfirmOpen(false);
+      setTimeout(() => setSaved(false), 3000);
     } finally {
       setSaving(false);
     }
   }
 
-  // ── Rank helpers (multi + multi-prize) ───────────────────────────────────
+  // ── Rank helpers ─────────────────────────────────────────────────────────
 
   function setRank(rank: number, userId: number) {
     setWinnerRanks((prev) => {
@@ -177,6 +229,14 @@ export default function HunchParticipants() {
 
   return (
     <AdminLayout>
+      {confirmOpen && (
+        <ConfirmModal
+          onConfirm={save}
+          onCancel={() => setConfirmOpen(false)}
+          saving={saving}
+        />
+      )}
+
       <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8 space-y-6">
 
         {/* Header */}
@@ -235,7 +295,7 @@ export default function HunchParticipants() {
             {/* Save button */}
             <button
               type="button"
-              onClick={save}
+              onClick={() => setConfirmOpen(true)}
               disabled={saving}
               className="flex items-center gap-1.5 text-xs font-semibold text-white bg-violet-600 px-3 py-2 rounded-xl hover:bg-violet-700 transition-colors disabled:opacity-60"
             >
@@ -284,12 +344,10 @@ export default function HunchParticipants() {
                       : "bg-gray-50/60"
                   }`}>
 
-                    {/* Avatar */}
                     <div className="w-8 h-8 rounded-full bg-violet-100 flex items-center justify-center shrink-0">
                       <Users className="w-3.5 h-3.5 text-violet-500" />
                     </div>
 
-                    {/* Name + answers */}
                     <div className="flex-1 min-w-0">
                       <span className="text-sm font-semibold text-gray-900">{displayName}</span>
                       <div className="flex flex-wrap gap-x-4 gap-y-0.5 mt-0.5">
@@ -302,12 +360,10 @@ export default function HunchParticipants() {
                       </div>
                     </div>
 
-                    {/* Timestamp */}
-                    <span className="text-xs text-gray-400 shrink-0 hidden sm:block">
-                      {new Date(u.firstAt).toLocaleDateString()}
+                    <span className="text-xs text-gray-400 shrink-0 hidden sm:block tabular-nums">
+                      {formatTs(u.firstAt)}
                     </span>
 
-                    {/* Winner actions */}
                     <div className="shrink-0 flex items-center gap-1.5">
                       {isMultiPrize ? (
                         assignedRank !== null ? (
@@ -404,8 +460,8 @@ export default function HunchParticipants() {
                         <span className="text-xs font-semibold text-gray-800">{p.optionLabel}</span>
                       </div>
                     </div>
-                    <span className="text-xs text-gray-400 shrink-0 hidden sm:block">
-                      {new Date(p.createdAt).toLocaleDateString()}
+                    <span className="text-xs text-gray-400 shrink-0 tabular-nums hidden sm:block">
+                      {formatTs(p.createdAt)}
                     </span>
                     {isWinningOption && (
                       <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg shrink-0">

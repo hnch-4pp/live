@@ -26,6 +26,112 @@ import { handleCheckoutSessionCompleted } from "../webhookHandlers";
 import { getAdminAlertPrefs, saveAdminAlertPrefs, DEFAULT_ALERT_PREFS } from "../adminAlerts";
 import { SUBSCRIPTION_TIERS } from "../subscriptionTiers";
 
+// ── Winner notification emails ──────────────────────────────────────────────
+
+async function sendWinnerEmails(hunchId: number): Promise<void> {
+  const RESEND_API_KEY = process.env.RESEND_API_KEY;
+  if (!RESEND_API_KEY) {
+    console.warn("[HUNCHES] RESEND_API_KEY not configured — winner emails not sent");
+    return;
+  }
+
+  const [hunch] = await db
+    .select({
+      id: hunchesTable.id,
+      title: hunchesTable.title,
+      slug: hunchesTable.slug,
+      isMulti: hunchesTable.isMulti,
+      winnerRanks: hunchesTable.winnerRanks,
+      winnerUserId: hunchesTable.winnerUserId,
+      winnerOption: hunchesTable.winnerOption,
+    })
+    .from(hunchesTable)
+    .where(eq(hunchesTable.id, hunchId));
+
+  if (!hunch) return;
+
+  const tiers = await db
+    .select({ rank: hunchPrizeTiersTable.rank, prizeLabel: prizesTable.label })
+    .from(hunchPrizeTiersTable)
+    .leftJoin(prizesTable, eq(hunchPrizeTiersTable.prizeId, prizesTable.id))
+    .where(eq(hunchPrizeTiersTable.hunchId, hunchId))
+    .orderBy(hunchPrizeTiersTable.rank);
+
+  const hunchUrl = `https://hunch.fan/hunches/${hunch.slug ?? hunch.id}`;
+
+  type WinnerEntry = { email: string; username: string; prizeLabel: string; rank: number | null };
+  const winners: WinnerEntry[] = [];
+
+  if (hunch.winnerRanks) {
+    let ranked: Array<{ rank: number; userId: number }> = [];
+    try { ranked = JSON.parse(hunch.winnerRanks) as Array<{ rank: number; userId: number }>; } catch { /* ignore */ }
+    for (const entry of ranked) {
+      const [user] = await db
+        .select({ email: usersTable.email, username: usersTable.username })
+        .from(usersTable)
+        .where(eq(usersTable.id, entry.userId));
+      if (!user?.email) continue;
+      const tier = tiers.find((t) => t.rank === entry.rank);
+      winners.push({ email: user.email, username: user.username ?? "participante", prizeLabel: tier?.prizeLabel ?? "Premio", rank: entry.rank });
+    }
+  } else if (hunch.winnerUserId) {
+    const [user] = await db
+      .select({ email: usersTable.email, username: usersTable.username })
+      .from(usersTable)
+      .where(eq(usersTable.id, hunch.winnerUserId));
+    if (user?.email) {
+      winners.push({ email: user.email, username: user.username ?? "participante", prizeLabel: tiers[0]?.prizeLabel ?? "Premio", rank: null });
+    }
+  } else if (hunch.winnerOption) {
+    const winnerPreds = await db
+      .select({ email: usersTable.email, username: usersTable.username })
+      .from(predictionsTable)
+      .leftJoin(optionsTable, eq(predictionsTable.optionId, optionsTable.id))
+      .leftJoin(usersTable, eq(predictionsTable.userId, usersTable.id))
+      .where(and(eq(predictionsTable.hunchId, hunchId), eq(optionsTable.label, hunch.winnerOption)));
+    for (const p of winnerPreds) {
+      if (!p.email) continue;
+      winners.push({ email: p.email, username: p.username ?? "participante", prizeLabel: tiers[0]?.prizeLabel ?? "Premio", rank: null });
+    }
+  }
+
+  for (const w of winners) {
+    const rankLabel = w.rank ? `${ordinalEs(w.rank)} lugar` : "ganador/a";
+    const html = `
+<!DOCTYPE html>
+<html lang="es">
+<body style="font-family:sans-serif;color:#111;max-width:520px;margin:0 auto;padding:24px">
+  <p style="font-size:18px;font-weight:700;margin-bottom:4px">Ganaste en Hunches</p>
+  <p style="color:#6d6d6d;margin-top:0">Resultados del Hunch</p>
+  <hr style="border:none;border-top:1px solid #eee;margin:16px 0"/>
+  <p>Hola <strong>${w.username}</strong>,</p>
+  <p>Resultaste <strong>${rankLabel}</strong> en el Hunch <strong>"${hunch.title}"</strong>.</p>
+  <table style="background:#f5f3ff;border-radius:12px;padding:16px 20px;margin:20px 0;width:100%">
+    <tr><td style="font-size:12px;color:#7c3aed;font-weight:600;text-transform:uppercase;letter-spacing:.05em">Tu premio</td></tr>
+    <tr><td style="font-size:20px;font-weight:700;color:#111;padding-top:4px">${w.prizeLabel}</td></tr>
+  </table>
+  <p>Puedes ver la tabla de ganadores aqui:</p>
+  <a href="${hunchUrl}" style="display:inline-block;background:#7c3aed;color:#fff;text-decoration:none;padding:10px 20px;border-radius:8px;font-weight:600;font-size:14px">Ver ganadores</a>
+  <p style="margin-top:24px;color:#555">Seras contactado/a por el equipo de Hunch para coordinar la entrega de tu premio.</p>
+  <hr style="border:none;border-top:1px solid #eee;margin:24px 0"/>
+  <p style="font-size:12px;color:#aaa">El equipo de Hunch &mdash; <a href="https://hunch.fan" style="color:#7c3aed">hunch.fan</a></p>
+</body>
+</html>`;
+    await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ from: "Hunch <no-reply@hunch.fan>", to: [w.email], subject: `Ganaste en Hunches - ${hunch.title}`, html }),
+    });
+  }
+}
+
+function ordinalEs(n: number): string {
+  const map: Record<number, string> = { 1: "1er", 2: "2do", 3: "3er", 4: "4to", 5: "5to" };
+  return map[n] ?? `${n}°`;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 function parsePrizeAmount(value: string): number {
   const m = value.match(/\$?(\d+(?:\.\d+)?)/);
   return m ? parseFloat(m[1]) : 0;
@@ -455,6 +561,10 @@ router.patch(
     if (!hunch) {
       res.status(404).json({ error: "Hunch not found" });
       return;
+    }
+
+    if (req.body.notifyWinners === true) {
+      void sendWinnerEmails(hunch.id);
     }
 
     res.json(hunch);
