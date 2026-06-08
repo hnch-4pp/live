@@ -898,6 +898,31 @@ export default function HunchDetail() {
                 : <><Share2 className="w-4 h-4 mr-2" /> {t("share")}</>
               }
             </Button>
+
+            {/* Referral banner — logged-in users only */}
+            {user && (
+              <Link href="/referral">
+                <div className="group cursor-pointer rounded-2xl bg-gradient-to-br from-primary/10 via-primary/5 to-transparent border border-primary/20 p-4 hover:border-primary/40 hover:from-primary/15 transition-all duration-200">
+                  <div className="flex items-start gap-3">
+                    <div className="w-9 h-9 rounded-xl bg-primary/15 flex items-center justify-center shrink-0">
+                      <Gift className="w-4 h-4 text-primary" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-bold text-foreground leading-tight">
+                        Invita amigos, gana tickets
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-0.5 leading-snug">
+                        Por cada amigo que se una al programa obtienes tickets gratis para participar.
+                      </p>
+                      <span className="inline-flex items-center gap-1 mt-2 text-xs font-semibold text-primary group-hover:underline">
+                        Ver mi enlace de referido
+                        <ChevronDown className="w-3 h-3 rotate-[-90deg]" />
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </Link>
+            )}
           </div>
         </div>
       </div>
