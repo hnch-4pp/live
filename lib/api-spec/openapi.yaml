@@ -531,6 +531,8 @@ components:
           type: string
         rank:
           type: ["integer", "null"]
+        prediction:
+          type: ["string", "null"]
 
     HunchWinnerList:
       type: object

@@ -564,7 +564,7 @@ export default function HunchDetail() {
                     <div className="p-6 bg-amber-50/50 space-y-4">
                       <div className="flex items-center gap-2">
                         <CheckCircle2 className="w-4 h-4 text-amber-600" />
-                        <h3 className="text-base font-display font-bold text-amber-900">Result</h3>
+                        <h3 className="text-base font-display font-bold text-amber-900">Resultado</h3>
                       </div>
 
                       {hunch.resultText && (
@@ -616,7 +616,7 @@ export default function HunchDetail() {
                   <div className={`p-6 ${hasResult ? "border-t border-amber-100" : ""}`}>
                     <div className="flex items-center gap-2 mb-4">
                       <Trophy className="w-4 h-4 text-amber-500" />
-                      <h3 className="text-base font-display font-bold text-foreground">Winners</h3>
+                      <h3 className="text-base font-display font-bold text-foreground">Ganadores</h3>
                     </div>
 
                     {!winnersData ? (
@@ -643,9 +643,14 @@ export default function HunchDetail() {
                                 <Trophy className="w-3 h-3 text-amber-500" />
                               </span>
                             )}
-                            <span className="font-semibold text-foreground text-sm truncate flex-1">
-                              @{w.username}
-                            </span>
+                            <div className="flex flex-col min-w-0 flex-1">
+                              <span className="font-semibold text-foreground text-sm truncate">
+                                @{w.username}
+                              </span>
+                              {w.prediction && (
+                                <span className="text-xs text-muted-foreground truncate">{w.prediction}</span>
+                              )}
+                            </div>
                             <span className="text-xs text-muted-foreground shrink-0 truncate max-w-[140px]">
                               {w.prizeLabel}
                             </span>

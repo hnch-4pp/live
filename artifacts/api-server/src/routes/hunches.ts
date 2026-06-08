@@ -543,7 +543,14 @@ router.get("/hunches/:id/winners", async (req, res): Promise<void> => {
           prizeLabel = tierPrize?.label ?? prizeLabel;
           prizeValue = tierPrize?.value ?? prizeValue;
         }
-        return { username: user?.username ?? "Anonymous", prizeLabel, prizeValue, rank };
+        const [pred] = await db
+          .select({ label: optionsTable.label })
+          .from(predictionsTable)
+          .leftJoin(optionsTable, eq(predictionsTable.optionId, optionsTable.id))
+          .where(and(eq(predictionsTable.hunchId, hunch.id), eq(predictionsTable.userId, userId)))
+          .orderBy(asc(predictionsTable.createdAt))
+          .limit(1);
+        return { username: user?.username ?? "Anonymous", prizeLabel, prizeValue, rank, prediction: pred?.label ?? null };
       }),
     );
     res.json({ winners });
@@ -576,7 +583,14 @@ router.get("/hunches/:id/winners", async (req, res): Promise<void> => {
       prizeLabel = firstTierPrize?.label ?? prizeLabel;
       prizeValue = firstTierPrize?.value ?? prizeValue;
     }
-    res.json({ winners: [{ username: winnerUser?.username ?? "Anonymous", prizeLabel, prizeValue, rank: null }] });
+    const [winnerPred] = await db
+      .select({ label: optionsTable.label })
+      .from(predictionsTable)
+      .leftJoin(optionsTable, eq(predictionsTable.optionId, optionsTable.id))
+      .where(and(eq(predictionsTable.hunchId, hunch.id), eq(predictionsTable.userId, hunch.winnerUserId!)))
+      .orderBy(asc(predictionsTable.createdAt))
+      .limit(1);
+    res.json({ winners: [{ username: winnerUser?.username ?? "Anonymous", prizeLabel, prizeValue, rank: null, prediction: winnerPred?.label ?? null }] });
     return;
   } else if (hunch.winnerAnswers) {
     let answers: Array<{ questionId: number; answer: string }>;
@@ -645,6 +659,22 @@ router.get("/hunches/:id/winners", async (req, res): Promise<void> => {
 
   const mainPrize = await db.select().from(prizesTable).where(eq(prizesTable.id, hunch.prizeId)).then((r) => r[0]);
 
+  // Batch-fetch option labels for all winner predictions
+  const winnerUserIds = winnerEntries.map((e) => e.userId);
+  const allWinnerOptionIds = winnerUserIds.flatMap((uid) => {
+    const answers = userAnswers.get(uid);
+    if (!answers) return [];
+    return [...answers.values()];
+  });
+  const uniqueOptionIds = [...new Set(allWinnerOptionIds)];
+  const optionLabelsMap = new Map<number, string>();
+  if (uniqueOptionIds.length > 0) {
+    const optRows = await db.select({ id: optionsTable.id, label: optionsTable.label })
+      .from(optionsTable)
+      .where(inArray(optionsTable.id, uniqueOptionIds));
+    for (const o of optRows) optionLabelsMap.set(o.id, o.label);
+  }
+
   const winners = await Promise.all(
     winnerEntries.map(async ({ userId }, idx) => {
       const [user] = await db.select({ username: usersTable.username }).from(usersTable).where(eq(usersTable.id, userId));
@@ -653,9 +683,18 @@ router.get("/hunches/:id/winners", async (req, res): Promise<void> => {
       let prizeValue = mainPrize?.value ?? "";
 
       if (tiers.length > 1 && idx < tiers.length) {
-        const tierPrize = await db.select().from(prizesTable).where(eq(prizesTable.id, tiers[idx].prizeId)).then((r) => r[0]);
+        const tierPrize = await db.select().from(prizesTable).where(eq(prizesTable.id, tiers[idx]!.prizeId)).then((r) => r[0]);
         prizeLabel = tierPrize?.label ?? prizeLabel;
         prizeValue = tierPrize?.value ?? prizeValue;
+      }
+
+      const answers = userAnswers.get(userId);
+      let prediction: string | null = null;
+      if (answers) {
+        const labels = [...answers.values()]
+          .map((oid) => optionLabelsMap.get(oid))
+          .filter((l): l is string => l !== undefined);
+        if (labels.length > 0) prediction = labels.join(" | ");
       }
 
       return {
@@ -663,6 +702,7 @@ router.get("/hunches/:id/winners", async (req, res): Promise<void> => {
         prizeLabel,
         prizeValue,
         rank: tiers.length > 1 ? idx + 1 : null,
+        prediction,
       };
     }),
   );

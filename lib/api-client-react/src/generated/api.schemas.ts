@@ -186,6 +186,8 @@ export interface HunchWinner {
   prizeValue: string;
   /** @nullable */
   rank?: number | null;
+  /** @nullable */
+  prediction?: string | null;
 }
 
 export interface HunchWinnerList {
