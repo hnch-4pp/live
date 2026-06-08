@@ -167,17 +167,19 @@ export default function HunchParticipants() {
     setSaving(true);
     try {
       const body: Record<string, unknown> = { status: "resolved", notifyWinners: true };
-      if (hunch.isMulti) {
-        const isMultiPrize = hunch.prizeTiers.length > 1;
-        if (isMultiPrize) {
-          body["winnerRanks"] = winnerRanks.length > 0 ? winnerRanks : null;
-          body["winnerUserId"] = null;
-        } else {
-          body["winnerUserId"] = winnerUserId ?? null;
-          body["winnerRanks"] = null;
-        }
+      const isMPrize = hunch.prizeTiers.length > 1;
+      if (isMPrize) {
+        // Both multi-prediction + multi-prize AND single-prediction + multi-prize
+        // use ranked winner selection
+        body["winnerRanks"] = winnerRanks.length > 0 ? winnerRanks : null;
+        body["winnerUserId"] = null;
+        body["winnerOption"] = null;
+      } else if (hunch.isMulti) {
+        body["winnerUserId"] = winnerUserId ?? null;
+        body["winnerRanks"] = null;
       } else {
         body["winnerOption"] = winnerOption || null;
+        body["winnerRanks"] = null;
       }
       await adminFetch(`/admin/hunches/${hunch.id}`, { method: "PATCH", body: JSON.stringify(body) });
       setSaved(true);
@@ -223,7 +225,7 @@ export default function HunchParticipants() {
     );
   }
 
-  const isMultiPrize = hunch.isMulti && hunch.prizeTiers.length > 1;
+  const isMultiPrize = hunch.prizeTiers.length > 1;
   const totalCount = predData.total;
   const currentSortLabel = SORT_OPTIONS.find((s) => s.key === sortBy)?.label ?? "Más recientes";
 
@@ -415,8 +417,76 @@ export default function HunchParticipants() {
           </div>
         )}
 
-        {/* ── Single-prediction: individual rows ──────────────────────────────── */}
-        {!hunch.isMulti && sortedFlat.length > 0 && (
+        {/* ── Single-prediction + multi-prize: rank buttons per participant ───── */}
+        {!hunch.isMulti && isMultiPrize && sortedFlat.length > 0 && (
+          <div className="space-y-2">
+            {sortedFlat.map((p) => {
+              const displayName = p.username ? `@${p.username}` : (p.phone ?? (p.userId != null ? `User ${p.userId}` : "Anonymous"));
+              const uid = p.userId;
+              const assignedRank = uid != null ? (winnerRanks.find((r) => r.userId === uid)?.rank ?? null) : null;
+              const rankCfg = assignedRank !== null ? RANK_CONFIG[assignedRank] : null;
+              const takenRanks = uid != null ? winnerRanks.filter((r) => r.userId !== uid).map((r) => r.rank) : winnerRanks.map((r) => r.rank);
+              const availableRanks = hunch.prizeTiers.map((t) => t.rank).filter((r) => !takenRanks.includes(r) && RANK_CONFIG[r]);
+              const isHighlighted = assignedRank !== null;
+
+              return (
+                <div
+                  key={p.id}
+                  className={`border rounded-xl transition-colors ${isHighlighted ? (rankCfg?.border ?? "border-gray-100") : "border-gray-100"}`}
+                >
+                  <div className={`flex items-center gap-3 px-4 py-3 rounded-xl ${isHighlighted ? (rankCfg?.bg ?? "") : "bg-gray-50/60"}`}>
+                    <div className="w-8 h-8 rounded-full bg-violet-100 flex items-center justify-center shrink-0">
+                      <Users className="w-3.5 h-3.5 text-violet-500" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <span className="text-sm font-semibold text-gray-900">{displayName}</span>
+                      <div className="flex items-center gap-1.5 mt-0.5">
+                        <span className="text-xs text-gray-400">Predicted:</span>
+                        <span className="text-xs font-semibold text-gray-800">{p.optionLabel}</span>
+                      </div>
+                    </div>
+                    <span className="text-xs text-gray-400 shrink-0 tabular-nums hidden sm:block">
+                      {formatTs(p.createdAt)}
+                    </span>
+                    <div className="shrink-0 flex items-center gap-1.5">
+                      {assignedRank !== null ? (
+                        <>
+                          <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-lg border ${rankCfg!.badge}`}>
+                            <Trophy className="w-3 h-3" /> {RANK_CONFIG[assignedRank].label} Place
+                          </span>
+                          {uid != null && (
+                            <button
+                              type="button"
+                              onClick={() => clearRank(uid)}
+                              title="Remove rank"
+                              className="text-gray-300 hover:text-red-400 transition-colors"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </>
+                      ) : (
+                        uid != null && availableRanks.map((rank) => (
+                          <button
+                            key={rank}
+                            type="button"
+                            onClick={() => setRank(rank, uid)}
+                            className={`text-xs font-semibold border px-2.5 py-1 rounded-lg transition-colors ${RANK_CONFIG[rank].btn}`}
+                          >
+                            {RANK_CONFIG[rank].label}
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* ── Single-prediction + single-prize: option selector ────────────────── */}
+        {!hunch.isMulti && !isMultiPrize && sortedFlat.length > 0 && (
           <div className="space-y-2">
             {/* Option winner selector */}
             <div className="bg-white border border-gray-200 rounded-xl p-4 mb-2">
