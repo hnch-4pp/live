@@ -395,8 +395,13 @@ export default function AdminAffiliates() {
                 ) : data.map(aff => (
                   <tr key={aff.id} className="hover:bg-muted/20 transition-colors">
                     <td className="px-4 py-3">
-                      <p className="font-semibold">{aff.name}</p>
-                      <p className="text-xs text-muted-foreground font-mono">/{aff.slug}</p>
+                      <button
+                        onClick={() => setLocation(`/backstage/affiliates/${aff.id}`)}
+                        className="text-left hover:text-violet-600 transition-colors group"
+                      >
+                        <p className="font-semibold group-hover:underline underline-offset-2">{aff.name}</p>
+                        <p className="text-xs text-muted-foreground font-mono">/{aff.slug}</p>
+                      </button>
                     </td>
                     <td className="px-4 py-3 text-muted-foreground">{aff.email}</td>
                     <td className="px-4 py-3"><Badge status={aff.status} /></td>
