@@ -632,28 +632,26 @@ export default function HunchDetail() {
                         {winnersData.winners.map((w, idx) => (
                           <div
                             key={idx}
-                            className="flex items-center gap-3 px-4 py-3 rounded-xl bg-muted/50 border border-border"
+                            className="flex items-start gap-3 px-4 py-3 rounded-xl bg-muted/50 border border-border"
                           >
                             {w.rank != null ? (
-                              <span className="text-xs font-bold text-primary bg-primary/10 rounded-lg px-2.5 py-1 whitespace-nowrap shrink-0 min-w-[72px] text-center">
+                              <span className="text-xs font-bold text-primary bg-primary/10 rounded-lg px-2.5 py-1 whitespace-nowrap shrink-0 min-w-[68px] text-center mt-0.5">
                                 {ordinal(w.rank)} place
                               </span>
                             ) : (
-                              <span className="w-6 h-6 rounded-full bg-amber-100 border border-amber-200 flex items-center justify-center shrink-0">
+                              <span className="w-6 h-6 rounded-full bg-amber-100 border border-amber-200 flex items-center justify-center shrink-0 mt-1">
                                 <Trophy className="w-3 h-3 text-amber-500" />
                               </span>
                             )}
-                            <div className="flex flex-col min-w-0 flex-1">
-                              <span className="font-semibold text-foreground text-sm truncate">
+                            <div className="flex flex-col min-w-0 flex-1 gap-0.5">
+                              <span className="font-semibold text-foreground text-sm break-all">
                                 @{w.username}
                               </span>
                               {w.prediction && (
-                                <span className="text-xs text-muted-foreground truncate">{w.prediction}</span>
+                                <span className="text-xs text-muted-foreground">{w.prediction}</span>
                               )}
+                              <span className="text-xs text-muted-foreground">{w.prizeLabel}</span>
                             </div>
-                            <span className="text-xs text-muted-foreground shrink-0 truncate max-w-[140px]">
-                              {w.prizeLabel}
-                            </span>
                           </div>
                         ))}
                       </div>
