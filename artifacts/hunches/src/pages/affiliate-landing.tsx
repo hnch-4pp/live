@@ -62,6 +62,7 @@ export default function AffiliateLanding() {
   const [email, setEmail] = useState("");
   const [slug, setSlug] = useState("");
   const [bio, setBio] = useState("");
+  const [referredBy, setReferredBy] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
@@ -96,7 +97,7 @@ export default function AffiliateLanding() {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email, slug, bio, socialLinks }),
+        body: JSON.stringify({ name, email, slug, bio, socialLinks, referredBy: referredBy.trim() || undefined }),
       });
       const data = await res.json() as { ok?: boolean; error?: string };
       if (!res.ok) { setError(data.error ?? "Something went wrong"); return; }
@@ -268,6 +269,21 @@ export default function AffiliateLanding() {
                     placeholder="Cuéntanos sobre tu comunidad..."
                     rows={3}
                     className="w-full px-3 py-2.5 rounded-xl border border-input bg-background text-sm resize-none focus:outline-none focus:ring-2 focus:ring-ring"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="aff-referred-by">
+                    ¿Te ha recomendado algún usuario?{" "}
+                    <span className="text-muted-foreground font-normal">(opcional)</span>
+                  </Label>
+                  <Input
+                    id="aff-referred-by"
+                    type="text"
+                    value={referredBy}
+                    onChange={e => setReferredBy(e.target.value)}
+                    placeholder="Username de quien te recomendó"
+                    className="rounded-xl"
                   />
                 </div>
 
