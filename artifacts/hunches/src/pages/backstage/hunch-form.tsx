@@ -3,7 +3,7 @@ import { useLocation, useParams } from "wouter";
 import { AdminLayout } from "@/components/admin-layout";
 import { useAdminAuth, adminFetch } from "./dashboard";
 import { apiUrl } from "@/lib/apiFetch";
-import { Check, ChevronLeft, Hash, Percent, Calendar, Clock, Plus, Trash2, Gift, Layers, List, Users, Trophy, ChevronDown, ChevronUp, Link as LinkIcon, Image, Video, X, Upload } from "lucide-react";
+import { Check, ChevronLeft, Hash, Percent, Calendar, Clock, Plus, Trash2, Gift, Layers, List, Users, Trophy, ChevronDown, Link as LinkIcon, Image, Video, X, Upload } from "lucide-react";
 
 function ordinal(n: number): string {
   const s = ["th", "st", "nd", "rd"];
@@ -260,7 +260,6 @@ export default function HunchForm() {
   const [error, setError]         = useState("");
   const [predData, setPredData]   = useState<PredData | null>(null);
   const [predLoading, setPredLoading] = useState(false);
-  const [expandedOption, setExpandedOption] = useState<string | null>(null);
 
   useEffect(() => {
     adminFetch("/admin/categories").then((r) => r.json() as Promise<Category[]>).then(setCategories).catch(() => {});
@@ -812,155 +811,63 @@ export default function HunchForm() {
                 <p className="text-sm text-gray-400">No predictions yet.</p>
               )}
 
-              {/* Multi-prediction: show last 5 users */}
-              {predData && form.isMulti && (() => {
-                const isMultiPrize = prizeTiers.length > 1;
-                const visible = predData.byUser.slice(-5).reverse();
-                return visible.map((u) => {
-                  const displayName = u.username ?? u.phone ?? `User ${u.userId}`;
-                  const assignedRank = isMultiPrize ? (winnerRanks.find((r) => r.userId === u.userId)?.rank ?? null) : null;
-                  const isSingleWinner = !isMultiPrize && winnerUserId === u.userId;
-                  const rankCfg = assignedRank !== null ? RANK_CONFIG[assignedRank] : null;
-                  const takenRanks = winnerRanks.filter((r) => r.userId !== u.userId).map((r) => r.rank);
-                  const availableRanks = prizeTiers.map((t) => t.rank).filter((r) => !takenRanks.includes(r) && RANK_CONFIG[r]);
-                  const setRank = (rank: number) => {
-                    setWinnerRanks((prev) => {
-                      const filtered = prev.filter((r) => r.userId !== u.userId && r.rank !== rank);
-                      return [...filtered, { rank, userId: u.userId }].sort((a, b) => a.rank - b.rank);
-                    });
-                    setForm((f) => ({ ...f, status: "resolved" }));
-                  };
-                  const clearRank = () => setWinnerRanks((prev) => prev.filter((r) => r.userId !== u.userId));
-                  const isHighlighted = isMultiPrize ? assignedRank !== null : isSingleWinner;
+              {/* Multi-prediction: last 5 users, no winner buttons */}
+              {predData && form.isMulti && predData.byUser.slice(-5).reverse().map((u) => {
+                const displayName = u.username ? `@${u.username}` : (u.phone ?? `User ${u.userId}`);
+                return (
+                  <div key={u.userId} className="border border-gray-100 rounded-xl">
+                    <div className="flex items-center gap-3 px-4 py-3 bg-gray-50/60 rounded-xl">
+                      <div className="w-8 h-8 rounded-full bg-violet-100 flex items-center justify-center shrink-0">
+                        <Users className="w-3.5 h-3.5 text-violet-500" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <span className="text-sm font-semibold text-gray-900">{displayName}</span>
+                        <div className="flex flex-wrap gap-x-4 gap-y-0.5 mt-0.5">
+                          {u.answers.map((a) => (
+                            <span key={a.questionId} className="text-xs text-gray-500">
+                              <span className="text-gray-400">{a.questionPrompt}:</span>{" "}
+                              <span className="font-semibold text-gray-800">{a.answerLabel}</span>
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                      <span className="text-xs text-gray-400 shrink-0 tabular-nums hidden sm:block">
+                        {new Date(u.firstAt).toLocaleString("es-MX", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false })}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+
+              {/* Single-prediction: flat individual rows (last 5 by date), no winner buttons */}
+              {predData && !form.isMulti && (() => {
+                const flat = predData.byOption
+                  .flatMap((g) => g.participants.map((p) => ({ ...p, optionLabel: g.label })))
+                  .sort((a, b) => new Date(String(b.createdAt)).getTime() - new Date(String(a.createdAt)).getTime())
+                  .slice(0, 5);
+                return flat.map((p) => {
+                  const displayName = p.username ? `@${p.username}` : (p.phone ?? (p.userId != null ? `User ${p.userId}` : "Anonymous"));
                   return (
-                    <div key={u.userId} className={`border rounded-xl overflow-hidden ${
-                      isHighlighted
-                        ? (isMultiPrize ? (rankCfg?.border ?? "border-gray-100") : "border-emerald-300")
-                        : "border-gray-100"
-                    }`}>
-                      <div className={`flex items-center gap-3 px-4 py-3 ${
-                        isHighlighted
-                          ? (isMultiPrize ? (rankCfg?.bg ?? "bg-gray-50/60") : "bg-emerald-50/60")
-                          : "bg-gray-50/60"
-                      }`}>
-                        <div className="w-7 h-7 rounded-full bg-violet-100 flex items-center justify-center shrink-0">
+                    <div key={p.id} className="border border-gray-100 rounded-xl">
+                      <div className="flex items-center gap-3 px-4 py-3 bg-gray-50/60 rounded-xl">
+                        <div className="w-8 h-8 rounded-full bg-violet-100 flex items-center justify-center shrink-0">
                           <Users className="w-3.5 h-3.5 text-violet-500" />
                         </div>
                         <div className="flex-1 min-w-0">
                           <span className="text-sm font-semibold text-gray-900">{displayName}</span>
-                          <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-0.5">
-                            {u.answers.map((a) => (
-                              <span key={a.questionId} className="text-xs text-gray-500">
-                                <span className="text-gray-400">{a.questionPrompt}:</span>{" "}
-                                <span className="font-medium text-gray-700">{a.answerLabel}</span>
-                              </span>
-                            ))}
+                          <div className="flex items-center gap-1.5 mt-0.5">
+                            <span className="text-xs text-gray-400">Predicted:</span>
+                            <span className="text-xs font-semibold text-gray-800">{p.optionLabel}</span>
                           </div>
                         </div>
-                        <div className="shrink-0 flex items-center gap-1.5">
-                          {isMultiPrize ? (
-                            assignedRank !== null ? (
-                              <>
-                                <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-lg border ${rankCfg!.badge}`}>
-                                  <Trophy className="w-3 h-3" /> {RANK_CONFIG[assignedRank].label} Place
-                                </span>
-                                <button type="button" onClick={clearRank} title="Remove rank"
-                                  className="text-gray-300 hover:text-red-400 transition-colors">
-                                  <X className="w-3.5 h-3.5" />
-                                </button>
-                              </>
-                            ) : (
-                              availableRanks.map((rank) => (
-                                <button key={rank} type="button" onClick={() => setRank(rank)}
-                                  className={`text-xs font-semibold border px-2.5 py-1 rounded-lg transition-colors ${RANK_CONFIG[rank].btn}`}>
-                                  {RANK_CONFIG[rank].label}
-                                </button>
-                              ))
-                            )
-                          ) : (
-                            isSingleWinner ? (
-                              <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg">
-                                <Trophy className="w-3 h-3" /> Winner
-                              </span>
-                            ) : (
-                              <button type="button"
-                                onClick={() => { setWinnerUserId(u.userId); setForm((f) => ({ ...f, status: "resolved" })); }}
-                                className="text-xs font-semibold text-violet-600 border border-violet-200 bg-white px-2.5 py-1 rounded-lg hover:bg-violet-50 transition-colors">
-                                Set as winner
-                              </button>
-                            )
-                          )}
-                        </div>
+                        <span className="text-xs text-gray-400 shrink-0 tabular-nums hidden sm:block">
+                          {new Date(String(p.createdAt)).toLocaleString("es-MX", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false })}
+                        </span>
                       </div>
                     </div>
                   );
                 });
               })()}
-
-              {/* Single-prediction: show options grouped by answer */}
-              {predData && !form.isMulti && predData.byOption.map((group) => (
-                <div key={group.label} className="border border-gray-100 rounded-xl overflow-hidden">
-                  <div className="flex items-center gap-3 px-4 py-3 bg-gray-50/60">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1.5">
-                        <span className="text-sm font-semibold text-gray-900">{group.label}</span>
-                        <span className="text-xs text-gray-400">
-                          {group.count} {group.count === 1 ? "vote" : "votes"} · {group.pct}%
-                        </span>
-                      </div>
-                      <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-violet-400 rounded-full transition-all"
-                          style={{ width: `${group.pct}%` }}
-                        />
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      {form.winnerOption === group.label ? (
-                        <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg">
-                          <Trophy className="w-3 h-3" /> Winner
-                        </span>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => setForm((f) => ({ ...f, winnerOption: group.label, status: "resolved" }))}
-                          className="text-xs font-semibold text-violet-600 border border-violet-200 bg-white px-2.5 py-1 rounded-lg hover:bg-violet-50 transition-colors"
-                        >
-                          Set as winner
-                        </button>
-                      )}
-                      <button
-                        type="button"
-                        onClick={() => setExpandedOption((v) => (v === group.label ? null : group.label))}
-                        className="text-gray-400 hover:text-gray-600 transition-colors p-0.5"
-                        aria-label={expandedOption === group.label ? "Collapse" : "Expand"}
-                      >
-                        {expandedOption === group.label
-                          ? <ChevronUp className="w-4 h-4" />
-                          : <ChevronDown className="w-4 h-4" />}
-                      </button>
-                    </div>
-                  </div>
-
-                  {expandedOption === group.label && (
-                    <div className="divide-y divide-gray-50">
-                      {group.participants.map((p) => (
-                        <div key={p.id} className="flex items-center gap-3 px-4 py-2.5">
-                          <div className="w-6 h-6 rounded-full bg-violet-100 flex items-center justify-center shrink-0">
-                            <Users className="w-3 h-3 text-violet-500" />
-                          </div>
-                          <span className="text-sm text-gray-800 font-medium flex-1 truncate">
-                            {p.username ?? p.phone ?? (p.userId != null ? `User ${p.userId}` : "Anonymous")}
-                          </span>
-                          <span className="text-xs text-gray-400 shrink-0">
-                            {new Date(p.createdAt).toLocaleString()}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              ))}
             </section>
           )}
 
