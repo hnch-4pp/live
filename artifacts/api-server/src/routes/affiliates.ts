@@ -936,6 +936,25 @@ router.post("/affiliates/admin/affiliate-tiers", requireAdmin, requireAdminHeade
 router.put("/affiliates/admin/affiliate-tiers/:id", requireAdmin, requireAdminHeader, updateTierHandler);
 router.delete("/affiliates/admin/affiliate-tiers/:id", requireAdmin, requireAdminHeader, deleteTierHandler);
 
+// ─── Admin: delete affiliate ──────────────────────────────────────────────────
+
+router.delete("/admin/affiliates/:id", requireAdmin, requireAdminHeader, async (req, res): Promise<void> => {
+  const id = Number(req.params["id"]);
+  if (!id) { res.status(400).json({ error: "Invalid id" }); return; }
+
+  const [aff] = await db.select({ id: affiliatesTable.id, status: affiliatesTable.status })
+    .from(affiliatesTable).where(eq(affiliatesTable.id, id)).limit(1);
+  if (!aff) { res.status(404).json({ error: "Not found" }); return; }
+
+  if (aff.status === "active") {
+    res.status(409).json({ error: "Cannot delete an active affiliate. Suspend them first." });
+    return;
+  }
+
+  await db.delete(affiliatesTable).where(eq(affiliatesTable.id, id));
+  res.json({ ok: true });
+});
+
 // ─── Admin: global metrics ────────────────────────────────────────────────────
 
 router.get("/admin/affiliates-metrics", requireAdmin, requireAdminHeader, async (req, res): Promise<void> => {

@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import {
   Users, Search, Plus, Mail, Check, X, Pencil, Eye,
-  Loader2, ExternalLink,
+  Loader2, ExternalLink, Trash2,
 } from "lucide-react";
 import { useLocation } from "wouter";
 
@@ -429,6 +429,23 @@ export default function AdminAffiliates() {
                             className="p-1.5 rounded-lg hover:bg-red-100 transition-colors" title="Suspend"
                           >
                             <X className="w-4 h-4 text-red-500" />
+                          </button>
+                        )}
+                        {(aff.status === "pending" || aff.status === "rejected") && (
+                          <button
+                            onClick={async () => {
+                              if (!window.confirm(`Delete "${aff.name}"? This cannot be undone.`)) return;
+                              const res = await adminFetch(`/admin/affiliates/${aff.id}`, { method: "DELETE" });
+                              if (!res.ok) {
+                                const d = await res.json() as { error?: string };
+                                alert(d.error ?? "Error deleting affiliate");
+                                return;
+                              }
+                              refresh();
+                            }}
+                            className="p-1.5 rounded-lg hover:bg-red-100 transition-colors" title="Delete"
+                          >
+                            <Trash2 className="w-4 h-4 text-red-400" />
                           </button>
                         )}
                       </div>
