@@ -648,9 +648,11 @@ export default function HunchDetail() {
                                 @{w.username}
                               </span>
                               {w.prediction && (
-                                <span className="text-xs text-muted-foreground">{w.prediction}</span>
+                                <span className="text-xs text-muted-foreground">Predicción: {w.prediction}</span>
                               )}
-                              <span className="text-xs text-muted-foreground">{w.prizeLabel}</span>
+                              <span className="text-xs text-muted-foreground">
+                                {w.prizeLabel}{w.prizeValue ? ` · ${w.prizeValue}` : ""}
+                              </span>
                             </div>
                           </div>
                         ))}
