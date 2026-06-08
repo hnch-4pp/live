@@ -112,7 +112,7 @@ export default function HunchParticipants() {
   // Winner state
   const [winnerOption, setWinnerOption] = useState<string>("");
   const [winnerUserId, setWinnerUserId] = useState<number | null>(null);
-  const [winnerRanks, setWinnerRanks] = useState<Array<{ rank: number; userId: number }>>([]);
+  const [winnerRanks, setWinnerRanks] = useState<Array<{ rank: number; userId: number; predId?: number }>>([]);
 
   useEffect(() => {
     if (!params.id) return;
@@ -170,8 +170,8 @@ export default function HunchParticipants() {
       const isMPrize = hunch.prizeTiers.length > 1;
       if (isMPrize) {
         // Both multi-prediction + multi-prize AND single-prediction + multi-prize
-        // use ranked winner selection
-        body["winnerRanks"] = winnerRanks.length > 0 ? winnerRanks : null;
+        // use ranked winner selection — strip predId before sending to backend
+        body["winnerRanks"] = winnerRanks.length > 0 ? winnerRanks.map(({ rank, userId }) => ({ rank, userId })) : null;
         body["winnerUserId"] = null;
         body["winnerOption"] = null;
       } else if (hunch.isMulti) {
@@ -192,15 +192,23 @@ export default function HunchParticipants() {
 
   // ── Rank helpers ─────────────────────────────────────────────────────────
 
-  function setRank(rank: number, userId: number) {
+  function setRank(rank: number, userId: number, predId?: number) {
     setWinnerRanks((prev) => {
+      // Remove any existing rank for this userId (one rank per user)
+      // and any existing user for this rank (one user per rank)
       const filtered = prev.filter((r) => r.userId !== userId && r.rank !== rank);
-      return [...filtered, { rank, userId }].sort((a, b) => a.rank - b.rank);
+      return [...filtered, { rank, userId, predId }].sort((a, b) => a.rank - b.rank);
     });
   }
 
-  function clearRank(userId: number) {
-    setWinnerRanks((prev) => prev.filter((r) => r.userId !== userId));
+  function clearRank(userId: number, predId?: number) {
+    if (predId != null) {
+      // Single-prediction: clear the specific prediction row
+      setWinnerRanks((prev) => prev.filter((r) => r.predId !== predId));
+    } else {
+      // Multi-prediction: clear by userId
+      setWinnerRanks((prev) => prev.filter((r) => r.userId !== userId));
+    }
   }
 
   // ── Render ────────────────────────────────────────────────────────────────
@@ -423,9 +431,13 @@ export default function HunchParticipants() {
             {sortedFlat.map((p) => {
               const displayName = p.username ? `@${p.username}` : (p.phone ?? (p.userId != null ? `User ${p.userId}` : "Anonymous"));
               const uid = p.userId;
-              const assignedRank = uid != null ? (winnerRanks.find((r) => r.userId === uid)?.rank ?? null) : null;
+              // Badge keyed by predId so the same user's other predictions don't also light up
+              const assignedRank = winnerRanks.find((r) => r.predId === p.id)?.rank ?? null;
               const rankCfg = assignedRank !== null ? RANK_CONFIG[assignedRank] : null;
-              const takenRanks = uid != null ? winnerRanks.filter((r) => r.userId !== uid).map((r) => r.rank) : winnerRanks.map((r) => r.rank);
+              // takenRanks: ranks already claimed by OTHER users (userId-level exclusion)
+              const takenRanks = winnerRanks.filter((r) => r.userId !== uid).map((r) => r.rank);
+              // Also exclude any rank already assigned to THIS userId via a different predId
+              const userAlreadyRanked = uid != null && winnerRanks.some((r) => r.userId === uid && r.predId !== p.id);
               const availableRanks = hunch.prizeTiers.map((t) => t.rank).filter((r) => !takenRanks.includes(r) && RANK_CONFIG[r]);
               const isHighlighted = assignedRank !== null;
 
@@ -457,7 +469,7 @@ export default function HunchParticipants() {
                           {uid != null && (
                             <button
                               type="button"
-                              onClick={() => clearRank(uid)}
+                              onClick={() => clearRank(uid, p.id)}
                               title="Remove rank"
                               className="text-gray-300 hover:text-red-400 transition-colors"
                             >
@@ -466,11 +478,11 @@ export default function HunchParticipants() {
                           )}
                         </>
                       ) : (
-                        uid != null && availableRanks.map((rank) => (
+                        uid != null && !userAlreadyRanked && availableRanks.map((rank) => (
                           <button
                             key={rank}
                             type="button"
-                            onClick={() => setRank(rank, uid)}
+                            onClick={() => setRank(rank, uid, p.id)}
                             className={`text-xs font-semibold border px-2.5 py-1 rounded-lg transition-colors ${RANK_CONFIG[rank].btn}`}
                           >
                             {RANK_CONFIG[rank].label}
