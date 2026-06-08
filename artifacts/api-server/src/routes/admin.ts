@@ -384,15 +384,38 @@ router.post(
       ? (req.body.prizeTiers as { rank: number; prizeLabel: string; prizeValue?: string; prizeImageUrl?: string }[]).filter((t) => t.prizeLabel?.trim())
       : [];
 
-    if (!title || !description || !categoryId || rawTiers.length === 0 || !endsAt) {
+    const isDraft = status === "draft";
+
+    if (!title) {
+      res.status(400).json({ error: "Title is required" });
+      return;
+    }
+    if (!isDraft && (!description || !categoryId || rawTiers.length === 0 || !endsAt)) {
       res.status(400).json({ error: "Missing required fields" });
       return;
     }
 
-    const resolvedTiers = await Promise.all(
-      rawTiers.map(async (t) => ({ rank: t.rank, prizeId: await createPrize(t.prizeLabel, t.prizeValue, t.prizeImageUrl) }))
-    );
+    // For drafts, fill in sensible defaults for NOT NULL columns
+    let resolvedCategoryId = categoryId ? Number(categoryId) : 0;
+    if (!resolvedCategoryId) {
+      const [firstCat] = await db.select({ id: categoriesTable.id }).from(categoriesTable).limit(1);
+      if (!firstCat) { res.status(400).json({ error: "No categories available" }); return; }
+      resolvedCategoryId = firstCat.id;
+    }
+
+    let resolvedTiers: { rank: number; prizeId: number }[];
+    if (rawTiers.length > 0) {
+      resolvedTiers = await Promise.all(
+        rawTiers.map(async (t) => ({ rank: t.rank, prizeId: await createPrize(t.prizeLabel, t.prizeValue, t.prizeImageUrl) }))
+      );
+    } else {
+      const placeholderPrizeId = await createPrize("TBD");
+      resolvedTiers = [{ rank: 1, prizeId: placeholderPrizeId }];
+    }
     const firstPrizeId = resolvedTiers[0].prizeId;
+
+    const resolvedEndsAt = endsAt ? new Date(String(endsAt)) : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    const resolvedDescription = description ? String(description) : "";
 
     const providedSlug = req.body.slug ? String(req.body.slug).trim() : null;
     const generatedSlug = toSlug(String(title));
@@ -402,14 +425,14 @@ router.post(
       .values({
         slug: providedSlug || generatedSlug,
         title: String(title),
-        description: String(description),
+        description: resolvedDescription,
         imageUrl: imageUrl ? String(imageUrl) : null,
         imageFocalPoint: req.body.imageFocalPoint ? String(req.body.imageFocalPoint) : null,
-        categoryId: Number(categoryId),
+        categoryId: resolvedCategoryId,
         prizeId: firstPrizeId,
         featured: featured === true || featured === "true",
-        endsAt: new Date(String(endsAt)),
-        status: (status as "open" | "closed" | "resolved") ?? "open",
+        endsAt: resolvedEndsAt,
+        status: (status as "open" | "closed" | "resolved" | "draft") ?? "open",
         answerType: (answerType as string) ?? "integer",
         ticketCost: req.body.ticketCost !== undefined ? Number(req.body.ticketCost) : 1,
         rules: req.body.rules ? String(req.body.rules) : null,

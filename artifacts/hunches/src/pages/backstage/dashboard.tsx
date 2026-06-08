@@ -128,6 +128,7 @@ export function StatusBadge({ status }: { status: string }) {
     open: "bg-green-50 text-green-700 border-green-200",
     closed: "bg-yellow-50 text-yellow-700 border-yellow-200",
     resolved: "bg-gray-100 text-gray-600 border-gray-200",
+    draft: "bg-zinc-100 text-zinc-500 border-zinc-200",
   };
   return (
     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border ${cls[status] ?? cls["closed"]}`}>

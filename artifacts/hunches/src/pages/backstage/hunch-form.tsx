@@ -337,6 +337,56 @@ export default function HunchForm() {
       .finally(() => setLoading(false));
   }, [isEditing, params.id]);
 
+  function buildBody(overrideStatus?: string): Record<string, unknown> {
+    const parsedEndsAt = form.endsAt ? new Date(form.endsAt) : null;
+    const validTiers = prizeTiers
+      .filter((t) => t.prizeLabel?.trim())
+      .map((t) => ({ rank: t.rank, prizeLabel: t.prizeLabel, prizeValue: t.prizeValue || t.prizeLabel, prizeImageUrl: t.prizeImageUrl || null }));
+    const body: Record<string, unknown> = {
+      ...form,
+      status: overrideStatus ?? form.status,
+      endsAt: parsedEndsAt?.toISOString() ?? form.endsAt,
+      imageUrl: form.imageUrl || null,
+      prizeConditions: prizeConditions.trim() || null,
+      imageFocalPoint: form.imageFocalPoint || null,
+      winnerOption: form.winnerOption || null,
+      resultText: form.resultText || null,
+      resultSources: resultSources.length > 0 ? JSON.stringify(resultSources) : null,
+      prizeTiers: validTiers,
+      isMulti: form.isMulti,
+    };
+    if (form.isMulti) {
+      body["questions"] = questions.map((q, i) => ({ ...q, sortOrder: i }));
+      body["winnerOption"] = null;
+      if (prizeTiers.length > 1) {
+        body["winnerRanks"] = winnerRanks.length > 0 ? winnerRanks : null;
+        body["winnerUserId"] = null;
+      } else {
+        body["winnerUserId"] = winnerUserId ?? null;
+        body["winnerRanks"] = null;
+      }
+    }
+    return body;
+  }
+
+  async function sendSave(body: Record<string, unknown>): Promise<void> {
+    const res = isEditing
+      ? await adminFetch(`/admin/hunches/${params.id}`, { method: "PATCH", body: JSON.stringify(body) })
+      : await adminFetch("/admin/hunches", { method: "POST", body: JSON.stringify(body) });
+    if (res.ok) {
+      setLocation("/backstage/hunches");
+    } else {
+      let errMsg = "Failed to save";
+      try {
+        const data = await res.json() as { error?: string };
+        errMsg = data.error ?? errMsg;
+      } catch {
+        errMsg = `Server error (HTTP ${res.status})`;
+      }
+      setError(errMsg);
+    }
+  }
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
@@ -348,54 +398,23 @@ export default function HunchForm() {
         setSaving(false);
         return;
       }
-
-      const validTiers = prizeTiers
-        .filter((t) => t.prizeLabel?.trim())
-        .map((t) => ({ rank: t.rank, prizeLabel: t.prizeLabel, prizeValue: t.prizeValue || t.prizeLabel, prizeImageUrl: t.prizeImageUrl || null }));
-      const body: Record<string, unknown> = {
-        ...form,
-        endsAt: parsedEndsAt.toISOString(),
-        imageUrl: form.imageUrl || null,
-        prizeConditions: prizeConditions.trim() || null,
-        imageFocalPoint: form.imageFocalPoint || null,
-        winnerOption: form.winnerOption || null,
-        resultText: form.resultText || null,
-        resultSources: resultSources.length > 0 ? JSON.stringify(resultSources) : null,
-        prizeTiers: validTiers,
-        isMulti: form.isMulti,
-      };
-
-      if (form.isMulti) {
-        body["questions"] = questions.map((q, i) => ({ ...q, sortOrder: i }));
-        body["winnerOption"] = null;
-        if (prizeTiers.length > 1) {
-          body["winnerRanks"] = winnerRanks.length > 0 ? winnerRanks : null;
-          body["winnerUserId"] = null;
-        } else {
-          body["winnerUserId"] = winnerUserId ?? null;
-          body["winnerRanks"] = null;
-        }
-      }
-
-      const res = isEditing
-        ? await adminFetch(`/admin/hunches/${params.id}`, { method: "PATCH", body: JSON.stringify(body) })
-        : await adminFetch("/admin/hunches", { method: "POST", body: JSON.stringify(body) });
-
-      if (res.ok) {
-        setLocation("/backstage/hunches");
-      } else {
-        let errMsg = "Failed to save";
-        try {
-          const data = await res.json() as { error?: string };
-          errMsg = data.error ?? errMsg;
-        } catch {
-          errMsg = `Server error (HTTP ${res.status})`;
-        }
-        setError(errMsg);
-      }
+      await sendSave(buildBody());
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      console.error("handleSave failed:", err);
+      setError(msg || "Unexpected error — check console for details");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSaveDraft = async () => {
+    if (!form.title.trim()) { setError("A title is required to save a draft."); return; }
+    setSaving(true);
+    setError("");
+    try {
+      await sendSave(buildBody("draft"));
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
       setError(msg || "Unexpected error — check console for details");
     } finally {
       setSaving(false);
@@ -437,9 +456,14 @@ export default function HunchForm() {
             <ChevronLeft className="w-4 h-4" />
             Back to Hunches
           </button>
-          <h1 className="text-2xl font-bold text-gray-900">
-            {isEditing ? "Edit hunch" : "New hunch"}
-          </h1>
+          <div className="flex items-center gap-3">
+            <h1 className="text-2xl font-bold text-gray-900">
+              {isEditing ? "Edit hunch" : "New hunch"}
+            </h1>
+            {form.status === "draft" && (
+              <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-zinc-100 text-zinc-500 border border-zinc-200">Draft</span>
+            )}
+          </div>
           <p className="text-sm text-gray-500 mt-0.5">
             {isEditing ? "Update the details below and save." : "Fill in the details to create a new prediction."}
           </p>
@@ -1026,7 +1050,7 @@ export default function HunchForm() {
           </section>
 
           {/* Actions */}
-          <div className="flex items-center justify-end gap-3 pb-4">
+          <div className="flex items-center justify-between gap-3 pb-4">
             <button
               type="button"
               onClick={() => setLocation("/backstage/hunches")}
@@ -1034,13 +1058,26 @@ export default function HunchForm() {
             >
               Cancel
             </button>
-            <button
-              type="submit"
-              disabled={saving}
-              className="inline-flex items-center gap-2 bg-violet-600 hover:bg-violet-700 text-white text-sm font-semibold px-6 py-2.5 rounded-xl transition-colors disabled:opacity-60"
-            >
-              {saving ? "Saving..." : <><Check className="w-4 h-4" />{isEditing ? "Save changes" : "Create hunch"}</>}
-            </button>
+            <div className="flex items-center gap-3">
+              {/* Save as draft — only shown for new hunches or existing drafts */}
+              {(!isEditing || form.status === "draft") && (
+                <button
+                  type="button"
+                  disabled={saving}
+                  onClick={handleSaveDraft}
+                  className="border border-gray-300 text-gray-600 text-sm font-semibold px-5 py-2.5 rounded-xl hover:bg-gray-50 transition-colors disabled:opacity-60"
+                >
+                  {saving ? "Saving..." : "Save as draft"}
+                </button>
+              )}
+              <button
+                type="submit"
+                disabled={saving}
+                className="inline-flex items-center gap-2 bg-violet-600 hover:bg-violet-700 text-white text-sm font-semibold px-6 py-2.5 rounded-xl transition-colors disabled:opacity-60"
+              >
+                {saving ? "Saving..." : <><Check className="w-4 h-4" />{isEditing ? (form.status === "draft" ? "Publish hunch" : "Save changes") : "Create hunch"}</>}
+              </button>
+            </div>
           </div>
         </form>
       </div>

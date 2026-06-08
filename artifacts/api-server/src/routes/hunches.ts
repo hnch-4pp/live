@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, and, count, sql, inArray, ilike, isNotNull, asc } from "drizzle-orm";
+import { eq, and, count, sql, inArray, ilike, isNotNull, asc, ne } from "drizzle-orm";
 import { db } from "@workspace/db";
 import {
   hunchesTable,
@@ -365,7 +365,7 @@ router.get("/hunches", async (req, res): Promise<void> => {
 
   const { category, status, featured, limit = 20, offset = 0, lang, q, tag } = parsed.data;
 
-  const conditions = [];
+  const conditions = [ne(hunchesTable.status, "draft")];
 
   if (q) {
     conditions.push(ilike(hunchesTable.title, `%${q}%`));
@@ -435,7 +435,7 @@ router.get("/hunches/featured", async (req, res): Promise<void> => {
 });
 
 router.get("/hunches/stats", async (_req, res): Promise<void> => {
-  const [totalRow] = await db.select({ total: count() }).from(hunchesTable);
+  const [totalRow] = await db.select({ total: count() }).from(hunchesTable).where(ne(hunchesTable.status, "draft"));
   const [activeRow] = await db
     .select({ total: count() })
     .from(hunchesTable)
@@ -468,7 +468,7 @@ router.get("/hunches/:id", async (req, res): Promise<void> => {
     .from(hunchesTable)
     .where(isNumeric ? eq(hunchesTable.id, parseInt(rawId, 10)) : eq(hunchesTable.slug, rawId));
 
-  if (!hunch) {
+  if (!hunch || hunch.status === "draft") {
     res.status(404).json({ error: "Hunch not found" });
     return;
   }
