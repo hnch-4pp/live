@@ -554,7 +554,6 @@ router.get("/admin/affiliates/:id", requireAdmin, requireAdminHeader, async (req
     bio: affiliatesTable.bio,
     niche: affiliatesTable.niche,
     customMessage: affiliatesTable.customMessage,
-    socialLinks: affiliatesTable.socialLinks,
     referredByUsername: affiliatesTable.referredByUsername,
     createdAt: affiliatesTable.createdAt,
     updatedAt: affiliatesTable.updatedAt,
