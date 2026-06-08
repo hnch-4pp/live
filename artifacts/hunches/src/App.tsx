@@ -36,6 +36,7 @@ import AffiliateLanding from "@/pages/affiliate-landing";
 import AffiliateDashboard from "@/pages/affiliate-dashboard";
 import AffiliateSlugPage from "@/pages/affiliate-slug";
 import AdminAffiliates from "@/pages/backstage/affiliates";
+import AdminAffiliateDetail from "@/pages/backstage/affiliate-detail";
 import AdminAffiliateTiers from "@/pages/backstage/affiliate-tiers";
 import AdminTrending from "@/pages/backstage/trending";
 import Referral from "@/pages/referral";
@@ -91,6 +92,7 @@ function Router() {
       <Route path="/backstage/metrics" component={AdminMetrics} />
       <Route path="/backstage/trending" component={AdminTrending} />
       <Route path="/backstage/affiliates" component={AdminAffiliates} />
+      <Route path="/backstage/affiliates/:id" component={AdminAffiliateDetail} />
       <Route path="/backstage/affiliate-tiers" component={AdminAffiliateTiers} />
       <Route path="/referral" component={Referral} />
       <Route path="/affiliate" component={AffiliateLanding} />

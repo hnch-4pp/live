@@ -8,8 +8,9 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import {
   Users, Search, Plus, Mail, Check, X, Pencil, Eye,
-  Loader2, ChevronDown, ExternalLink,
+  Loader2, ExternalLink,
 } from "lucide-react";
+import { useLocation } from "wouter";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -282,13 +283,13 @@ function DetailDrawer({ id, onClose, onEdit }: { id: number; onClose: () => void
 export default function AdminAffiliates() {
   useAdminAuth();
   const qc = useQueryClient();
+  const [, setLocation] = useLocation();
 
   const [q, setQ] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [showCreate, setShowCreate] = useState(false);
   const [showInvite, setShowInvite] = useState(false);
   const [editing, setEditing] = useState<Affiliate | null>(null);
-  const [viewing, setViewing] = useState<number | null>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ["admin-affiliates", q, statusFilter],
@@ -402,7 +403,7 @@ export default function AdminAffiliates() {
                     <td className="px-4 py-3 text-muted-foreground text-xs">{new Date(aff.createdAt).toLocaleDateString()}</td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-1.5">
-                        <button onClick={() => setViewing(aff.id)} className="p-1.5 rounded-lg hover:bg-muted transition-colors" title="View">
+                        <button onClick={() => setLocation(`/backstage/affiliates/${aff.id}`)} className="p-1.5 rounded-lg hover:bg-muted transition-colors" title="Ver perfil">
                           <Eye className="w-4 h-4 text-muted-foreground" />
                         </button>
                         <button onClick={() => setEditing(aff)} className="p-1.5 rounded-lg hover:bg-muted transition-colors" title="Edit">
@@ -448,13 +449,6 @@ export default function AdminAffiliates() {
         />
       )}
       {showInvite && <InviteModal onClose={() => setShowInvite(false)} />}
-      {viewing !== null && (
-        <DetailDrawer
-          id={viewing}
-          onClose={() => setViewing(null)}
-          onEdit={aff => { setViewing(null); setEditing(aff); }}
-        />
-      )}
     </AdminLayout>
   );
 }

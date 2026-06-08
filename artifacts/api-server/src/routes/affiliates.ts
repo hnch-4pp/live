@@ -486,24 +486,70 @@ router.get("/admin/affiliates/:id", requireAdmin, requireAdminHeader, async (req
   const [aff] = await db.select().from(affiliatesTable).where(eq(affiliatesTable.id, id)).limit(1);
   if (!aff) { res.status(404).json({ error: "Not found" }); return; }
 
-  const [clicks, referralRows, commRow, tierData] = await Promise.all([
+  const [
+    clicks,
+    referralRows,
+    commBreakdown,
+    referralsList,
+    commissionsList,
+    payoutsList,
+    tierData,
+  ] = await Promise.all([
     db.select({ cnt: count() }).from(affiliateClicksTable).where(eq(affiliateClicksTable.affiliateId, id)),
     db.select({ cnt: count(), status: referralsTable.status })
       .from(referralsTable).where(eq(referralsTable.affiliateId, id)).groupBy(referralsTable.status),
-    db.select({ total: sum(affiliateCommissionsTable.commissionAmount) })
-      .from(affiliateCommissionsTable).where(eq(affiliateCommissionsTable.affiliateId, id)),
+    db.select({ status: affiliateCommissionsTable.status, total: sum(affiliateCommissionsTable.commissionAmount) })
+      .from(affiliateCommissionsTable).where(eq(affiliateCommissionsTable.affiliateId, id))
+      .groupBy(affiliateCommissionsTable.status),
+    db.select({
+      id: referralsTable.id,
+      status: referralsTable.status,
+      signupAt: referralsTable.signupAt,
+      convertedAt: referralsTable.convertedAt,
+      username: usersTable.username,
+    }).from(referralsTable)
+      .leftJoin(usersTable, eq(usersTable.id, referralsTable.referredUserId))
+      .where(eq(referralsTable.affiliateId, id))
+      .orderBy(desc(referralsTable.signupAt)),
+    db.select().from(affiliateCommissionsTable)
+      .where(eq(affiliateCommissionsTable.affiliateId, id))
+      .orderBy(desc(affiliateCommissionsTable.earnedAt)),
+    db.select().from(affiliatePayoutsTable)
+      .where(eq(affiliatePayoutsTable.affiliateId, id))
+      .orderBy(desc(affiliatePayoutsTable.createdAt)),
     getAffiliateTier(id),
   ]);
+
+  const commByStatus = Object.fromEntries(
+    commBreakdown.map(r => [r.status, Number(r.total ?? 0)]),
+  );
+  const totalSignups = referralRows.reduce((s, r) => s + Number(r.cnt), 0);
+  const converted = referralsList.filter(r => r.convertedAt !== null).length;
+  const conversionRate = totalSignups > 0 ? Math.round((converted / totalSignups) * 100 * 10) / 10 : 0;
 
   res.json({
     affiliate: aff,
     stats: {
       totalClicks: Number(clicks[0]?.cnt ?? 0),
-      totalSignups: referralRows.reduce((s, r) => s + Number(r.cnt), 0),
-      totalCommission: Number(commRow[0]?.total ?? 0),
+      totalSignups,
       activePremiumUsers: tierData.activePremiumCount,
+      conversionRate,
+      commissionPending:  commByStatus["pending"]  ?? 0,
+      commissionApproved: commByStatus["approved"] ?? 0,
+      commissionPaid:     commByStatus["paid"]     ?? 0,
+      commissionTotal: commBreakdown.reduce((s, r) => s + Number(r.total ?? 0), 0),
     },
-    tier: tierData.current,
+    tier: {
+      current: tierData.current,
+      next: tierData.next,
+      activePremiumCount: tierData.activePremiumCount,
+      usersToNextTier: tierData.next
+        ? Math.max(0, tierData.next.minActivePremiumUsers - tierData.activePremiumCount)
+        : 0,
+    },
+    referrals: referralsList,
+    commissions: commissionsList,
+    payouts: payoutsList,
   });
 });
 
