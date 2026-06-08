@@ -291,6 +291,43 @@ router.post("/affiliates/apply", async (req, res): Promise<void> => {
   }).returning();
 
   res.json({ ok: true, affiliate: { id: aff.id, slug: aff.slug, status: aff.status } });
+
+  // Notify admin — fire and forget
+  const RESEND_API_KEY = process.env.RESEND_API_KEY;
+  if (RESEND_API_KEY) {
+    const socialSummary = Object.keys(cleanedLinks).length > 0
+      ? Object.entries(cleanedLinks).map(([k, v]) => `<li>${k}: <a href="${v}">${v}</a></li>`).join("")
+      : "<li>—</li>";
+    fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        from: "Hunch <no-reply@hunch.fan>",
+        to: ["g@hunch.fan"],
+        subject: `Nueva solicitud de afiliado: ${aff.name} (/${aff.slug})`,
+        html: `
+          <div style="font-family:sans-serif;max-width:520px;margin:0 auto;padding:32px 24px">
+            <h2 style="margin:0 0 16px;font-size:20px;color:#1a1a2e">Nueva solicitud de afiliado</h2>
+            <table style="width:100%;border-collapse:collapse;font-size:14px">
+              <tr><td style="padding:6px 0;color:#6b7280;width:140px">Nombre</td><td style="padding:6px 0;font-weight:600">${aff.name}</td></tr>
+              <tr><td style="padding:6px 0;color:#6b7280">Email</td><td style="padding:6px 0">${aff.email}</td></tr>
+              <tr><td style="padding:6px 0;color:#6b7280">Slug</td><td style="padding:6px 0;font-family:monospace">/${aff.slug}</td></tr>
+              <tr><td style="padding:6px 0;color:#6b7280">Niche</td><td style="padding:6px 0">${aff.niche ?? "—"}</td></tr>
+              <tr><td style="padding:6px 0;color:#6b7280">Recomendado por</td><td style="padding:6px 0">${aff.referredByUsername ? `@${aff.referredByUsername}` : "—"}</td></tr>
+              <tr><td style="padding:6px 0;color:#6b7280;vertical-align:top">Bio</td><td style="padding:6px 0">${aff.bio ?? "—"}</td></tr>
+              <tr><td style="padding:6px 0;color:#6b7280;vertical-align:top">Redes</td><td style="padding:6px 0"><ul style="margin:0;padding-left:16px">${socialSummary}</ul></td></tr>
+            </table>
+            <div style="margin-top:24px">
+              <a href="https://hunch.fan/backstage/affiliates/${aff.id}" style="display:inline-block;padding:10px 24px;background:#7c3aed;color:#fff;text-decoration:none;border-radius:8px;font-weight:600;font-size:14px">
+                Ver ficha en admin
+              </a>
+            </div>
+            <p style="color:#aaa;font-size:12px;margin:24px 0 0">Hunch — hunch.fan</p>
+          </div>
+        `,
+      }),
+    }).catch(() => {});
+  }
 });
 
 // ─── Affiliate: get my affiliate record ──────────────────────────────────────
