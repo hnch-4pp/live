@@ -51,15 +51,15 @@ async function sendWinnerEmails(hunchId: number): Promise<void> {
   if (!hunch) return;
 
   const tiers = await db
-    .select({ rank: hunchPrizeTiersTable.rank, prizeLabel: prizesTable.label })
+    .select({ rank: hunchPrizeTiersTable.rank, prizeLabel: prizesTable.label, prizeValue: prizesTable.value })
     .from(hunchPrizeTiersTable)
     .leftJoin(prizesTable, eq(hunchPrizeTiersTable.prizeId, prizesTable.id))
     .where(eq(hunchPrizeTiersTable.hunchId, hunchId))
     .orderBy(hunchPrizeTiersTable.rank);
 
-  const hunchUrl = `https://hunch.fan/hunches/${hunch.slug ?? hunch.id}`;
+  const hunchUrl = `https://hunch.fan/hunch/${hunch.slug ?? hunch.id}`;
 
-  type WinnerEntry = { email: string; username: string; prizeLabel: string; rank: number | null };
+  type WinnerEntry = { email: string; username: string; prizeLabel: string; prizeValue: string; rank: number | null };
   const winners: WinnerEntry[] = [];
 
   if (hunch.winnerRanks) {
@@ -72,7 +72,7 @@ async function sendWinnerEmails(hunchId: number): Promise<void> {
         .where(eq(usersTable.id, entry.userId));
       if (!user?.email) continue;
       const tier = tiers.find((t) => t.rank === entry.rank);
-      winners.push({ email: user.email, username: user.username ?? "participante", prizeLabel: tier?.prizeLabel ?? "Premio", rank: entry.rank });
+      winners.push({ email: user.email, username: user.username ?? "participante", prizeLabel: tier?.prizeLabel ?? "Premio", prizeValue: tier?.prizeValue ?? "", rank: entry.rank });
     }
   } else if (hunch.winnerUserId) {
     const [user] = await db
@@ -80,7 +80,7 @@ async function sendWinnerEmails(hunchId: number): Promise<void> {
       .from(usersTable)
       .where(eq(usersTable.id, hunch.winnerUserId));
     if (user?.email) {
-      winners.push({ email: user.email, username: user.username ?? "participante", prizeLabel: tiers[0]?.prizeLabel ?? "Premio", rank: null });
+      winners.push({ email: user.email, username: user.username ?? "participante", prizeLabel: tiers[0]?.prizeLabel ?? "Premio", prizeValue: tiers[0]?.prizeValue ?? "", rank: null });
     }
   } else if (hunch.winnerOption) {
     const winnerPreds = await db
@@ -91,12 +91,15 @@ async function sendWinnerEmails(hunchId: number): Promise<void> {
       .where(and(eq(predictionsTable.hunchId, hunchId), eq(optionsTable.label, hunch.winnerOption)));
     for (const p of winnerPreds) {
       if (!p.email) continue;
-      winners.push({ email: p.email, username: p.username ?? "participante", prizeLabel: tiers[0]?.prizeLabel ?? "Premio", rank: null });
+      winners.push({ email: p.email, username: p.username ?? "participante", prizeLabel: tiers[0]?.prizeLabel ?? "Premio", prizeValue: tiers[0]?.prizeValue ?? "", rank: null });
     }
   }
 
   for (const w of winners) {
     const rankLabel = w.rank ? `${ordinalEs(w.rank)} lugar` : "ganador/a";
+    const prizeValueLine = w.prizeValue && w.prizeValue !== w.prizeLabel
+      ? `<tr><td style="font-size:14px;color:#555;padding-top:2px">${w.prizeValue}</td></tr>`
+      : "";
     const html = `
 <!DOCTYPE html>
 <html lang="es">
@@ -109,6 +112,7 @@ async function sendWinnerEmails(hunchId: number): Promise<void> {
   <table style="background:#f5f3ff;border-radius:12px;padding:16px 20px;margin:20px 0;width:100%">
     <tr><td style="font-size:12px;color:#7c3aed;font-weight:600;text-transform:uppercase;letter-spacing:.05em">Tu premio</td></tr>
     <tr><td style="font-size:20px;font-weight:700;color:#111;padding-top:4px">${w.prizeLabel}</td></tr>
+    ${prizeValueLine}
   </table>
   <p>Puedes ver la tabla de ganadores aqui:</p>
   <a href="${hunchUrl}" style="display:inline-block;background:#7c3aed;color:#fff;text-decoration:none;padding:10px 20px;border-radius:8px;font-weight:600;font-size:14px">Ver ganadores</a>

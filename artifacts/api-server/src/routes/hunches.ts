@@ -519,13 +519,8 @@ router.get("/hunches/:id/winners", async (req, res): Promise<void> => {
   // Build a map: questionId (null for single) → valid optionIds[]
   const winnerMap = new Map<number | null, number[]>();
 
-  if (!isMulti) {
-    if (!hunch.winnerOption) { res.json({ winners: [] }); return; }
-    const ids = await winningOptionIds(null, hunch.winnerOption);
-    if (ids.length === 0) { res.json({ winners: [] }); return; }
-    winnerMap.set(null, ids);
-  } else if (hunch.winnerRanks) {
-    // Multi-prediction with ranked winners (multiple prize tiers)
+  if (hunch.winnerRanks) {
+    // Ranked winners — applies to both isMulti and !isMulti when multiple prize tiers exist
     let rankedEntries: Array<{ rank: number; userId: number }>;
     try { rankedEntries = (JSON.parse(hunch.winnerRanks) as Array<{ rank: number; userId: number }>).sort((a, b) => a.rank - b.rank); }
     catch { res.json({ winners: [] }); return; }
@@ -553,6 +548,11 @@ router.get("/hunches/:id/winners", async (req, res): Promise<void> => {
     );
     res.json({ winners });
     return;
+  } else if (!isMulti) {
+    if (!hunch.winnerOption) { res.json({ winners: [] }); return; }
+    const ids = await winningOptionIds(null, hunch.winnerOption);
+    if (ids.length === 0) { res.json({ winners: [] }); return; }
+    winnerMap.set(null, ids);
   } else if (hunch.winnerUserId) {
     // Multi-prediction: admin selected a specific user as winner (single prize / legacy)
     const [winnerUser] = await db
