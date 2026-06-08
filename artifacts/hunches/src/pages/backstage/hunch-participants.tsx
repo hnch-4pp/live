@@ -126,7 +126,17 @@ export default function HunchParticipants() {
       if (h.winnerOption) setWinnerOption(h.winnerOption as string);
       if (h.winnerUserId) setWinnerUserId(h.winnerUserId as number);
       if (h.winnerRanks) {
-        try { setWinnerRanks(JSON.parse(h.winnerRanks) as Array<{ rank: number; userId: number }>); }
+        try {
+          const raw = JSON.parse(h.winnerRanks) as Array<{ rank: number; userId: number }>;
+          // Re-attach predId by finding the first matching prediction for each userId
+          const allPreds: Array<{ id: number; userId: number | null }> =
+            (preds as PredData).byOption?.flatMap((g) => g.participants) ?? [];
+          const withPredId = raw.map((entry) => {
+            const match = allPreds.find((p) => p.userId === entry.userId);
+            return { rank: entry.rank, userId: entry.userId, predId: match?.id };
+          });
+          setWinnerRanks(withPredId);
+        }
         catch { /* ignore */ }
       }
     }).finally(() => setLoading(false));
@@ -497,41 +507,18 @@ export default function HunchParticipants() {
           </div>
         )}
 
-        {/* ── Single-prediction + single-prize: option selector ────────────────── */}
+        {/* ── Single-prediction + single-prize: per-row winner button ────────── */}
         {!hunch.isMulti && !isMultiPrize && sortedFlat.length > 0 && (
           <div className="space-y-2">
-            {/* Option winner selector */}
-            <div className="bg-white border border-gray-200 rounded-xl p-4 mb-2">
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2.5">Winning option</p>
-              <div className="flex flex-wrap gap-2">
-                {predData.byOption.map((group) => (
-                  <button
-                    key={group.label}
-                    type="button"
-                    onClick={() => setWinnerOption(group.label === winnerOption ? "" : group.label)}
-                    className={`inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg border transition-colors ${
-                      winnerOption === group.label
-                        ? "bg-emerald-50 border-emerald-300 text-emerald-700"
-                        : "bg-gray-50 border-gray-200 text-gray-600 hover:border-violet-200 hover:text-violet-700 hover:bg-violet-50"
-                    }`}
-                  >
-                    {winnerOption === group.label && <Trophy className="w-3 h-3" />}
-                    {group.label}
-                    <span className="text-gray-400 font-normal">({group.count})</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-
             {sortedFlat.map((p) => {
               const displayName = p.username ? `@${p.username}` : (p.phone ?? (p.userId != null ? `User ${p.userId}` : "Anonymous"));
-              const isWinningOption = winnerOption === p.optionLabel;
+              const isWinner = winnerOption === p.optionLabel;
               return (
                 <div
                   key={p.id}
-                  className={`border rounded-xl ${isWinningOption ? "border-emerald-300" : "border-gray-100"}`}
+                  className={`border rounded-xl transition-colors ${isWinner ? "border-emerald-300" : "border-gray-100"}`}
                 >
-                  <div className={`flex items-center gap-3 px-4 py-3 rounded-xl ${isWinningOption ? "bg-emerald-50" : "bg-gray-50/60"}`}>
+                  <div className={`flex items-center gap-3 px-4 py-3 rounded-xl ${isWinner ? "bg-emerald-50" : "bg-gray-50/60"}`}>
                     <div className="w-8 h-8 rounded-full bg-violet-100 flex items-center justify-center shrink-0">
                       <Users className="w-3.5 h-3.5 text-violet-500" />
                     </div>
@@ -545,11 +532,31 @@ export default function HunchParticipants() {
                     <span className="text-xs text-gray-400 shrink-0 tabular-nums hidden sm:block">
                       {formatTs(p.createdAt)}
                     </span>
-                    {isWinningOption && (
-                      <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg shrink-0">
-                        <Trophy className="w-3 h-3" /> Winner
-                      </span>
-                    )}
+                    <div className="shrink-0 flex items-center gap-1.5">
+                      {isWinner ? (
+                        <>
+                          <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg">
+                            <Trophy className="w-3 h-3" /> Ganador
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setWinnerOption("")}
+                            title="Quitar ganador"
+                            className="text-gray-300 hover:text-red-400 transition-colors"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => setWinnerOption(p.optionLabel)}
+                          className="text-xs font-semibold text-violet-600 border border-violet-200 bg-white px-2.5 py-1 rounded-lg hover:bg-violet-50 transition-colors"
+                        >
+                          Marcar ganador
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               );
