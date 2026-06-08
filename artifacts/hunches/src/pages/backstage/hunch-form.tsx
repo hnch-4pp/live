@@ -794,17 +794,29 @@ export default function HunchForm() {
                     </span>
                   )}
                 </h2>
-                {predLoading && <span className="text-xs text-gray-400">Loading...</span>}
+                <div className="flex items-center gap-2">
+                  {predLoading && <span className="text-xs text-gray-400">Loading...</span>}
+                  {predData && predData.total > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setLocation(`/backstage/hunches/${params.id}/participants`)}
+                      className="text-xs font-semibold text-violet-600 border border-violet-200 bg-white px-3 py-1.5 rounded-lg hover:bg-violet-50 transition-colors"
+                    >
+                      Ver todos
+                    </button>
+                  )}
+                </div>
               </div>
 
               {!predLoading && predData?.total === 0 && (
                 <p className="text-sm text-gray-400">No predictions yet.</p>
               )}
 
-              {/* Multi-prediction: show users with all their combined answers */}
+              {/* Multi-prediction: show last 5 users */}
               {predData && form.isMulti && (() => {
                 const isMultiPrize = prizeTiers.length > 1;
-                return predData.byUser.map((u) => {
+                const visible = predData.byUser.slice(-5).reverse();
+                return visible.map((u) => {
                   const displayName = u.username ?? u.phone ?? `User ${u.userId}`;
                   const assignedRank = isMultiPrize ? (winnerRanks.find((r) => r.userId === u.userId)?.rank ?? null) : null;
                   const isSingleWinner = !isMultiPrize && winnerUserId === u.userId;

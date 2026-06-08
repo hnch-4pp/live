@@ -17,6 +17,7 @@ import AdminLogin from "@/pages/backstage/login";
 import AdminDashboard from "@/pages/backstage/dashboard";
 import AdminHunches from "@/pages/backstage/hunches";
 import HunchForm from "@/pages/backstage/hunch-form";
+import HunchParticipants from "@/pages/backstage/hunch-participants";
 import AdminCategories from "@/pages/backstage/categories";
 import AdminUsers from "@/pages/backstage/users";
 import AdminUserDetail from "@/pages/backstage/user-detail";
@@ -79,6 +80,7 @@ function Router() {
       <Route path="/backstage/hunches" component={AdminHunches} />
       <Route path="/backstage/hunches/new" component={HunchForm} />
       <Route path="/backstage/hunches/:id/edit" component={HunchForm} />
+      <Route path="/backstage/hunches/:id/participants" component={HunchParticipants} />
       <Route path="/backstage/categories" component={AdminCategories} />
       <Route path="/backstage/users" component={AdminUsers} />
       <Route path="/backstage/users/:id" component={AdminUserDetail} />
