@@ -174,9 +174,12 @@ export default function AdminAffiliateDetail() {
   function load() {
     setLoading(true);
     adminFetch(`/admin/affiliates/${id}`)
-      .then(r => r.json() as Promise<DetailData>)
+      .then(async r => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.json() as Promise<DetailData>;
+      })
       .then(d => { setData(d); setEditing(false); })
-      .catch(() => {})
+      .catch(() => { setData(null); })
       .finally(() => setLoading(false));
   }
 

@@ -543,7 +543,24 @@ router.get("/admin/affiliates/:id", requireAdmin, requireAdminHeader, async (req
   const id = Number(req.params["id"]);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
   try {
-  const [aff] = await db.select().from(affiliatesTable).where(eq(affiliatesTable.id, id)).limit(1);
+  const [aff] = await db.select({
+    id: affiliatesTable.id,
+    userId: affiliatesTable.userId,
+    name: affiliatesTable.name,
+    slug: affiliatesTable.slug,
+    email: affiliatesTable.email,
+    status: affiliatesTable.status,
+    avatarUrl: affiliatesTable.avatarUrl,
+    bio: affiliatesTable.bio,
+    niche: affiliatesTable.niche,
+    customMessage: affiliatesTable.customMessage,
+    socialLinks: affiliatesTable.socialLinks,
+    referredByUsername: affiliatesTable.referredByUsername,
+    createdAt: affiliatesTable.createdAt,
+    updatedAt: affiliatesTable.updatedAt,
+    approvedAt: affiliatesTable.approvedAt,
+    approvedBy: affiliatesTable.approvedBy,
+  }).from(affiliatesTable).where(eq(affiliatesTable.id, id)).limit(1);
   if (!aff) { res.status(404).json({ error: "Not found" }); return; }
 
   const [
