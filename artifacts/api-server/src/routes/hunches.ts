@@ -524,8 +524,37 @@ router.get("/hunches/:id/winners", async (req, res): Promise<void> => {
     const ids = await winningOptionIds(null, hunch.winnerOption);
     if (ids.length === 0) { res.json({ winners: [] }); return; }
     winnerMap.set(null, ids);
+  } else if (hunch.winnerRanks) {
+    // Multi-prediction with ranked winners (multiple prize tiers)
+    let rankedEntries: Array<{ rank: number; userId: number }>;
+    try { rankedEntries = (JSON.parse(hunch.winnerRanks) as Array<{ rank: number; userId: number }>).sort((a, b) => a.rank - b.rank); }
+    catch { res.json({ winners: [] }); return; }
+
+    const mainPrize = await db.select().from(prizesTable).where(eq(prizesTable.id, hunch.prizeId)).then((r) => r[0]);
+    const tiers = await db
+      .select()
+      .from(hunchPrizeTiersTable)
+      .where(eq(hunchPrizeTiersTable.hunchId, hunch.id))
+      .orderBy(hunchPrizeTiersTable.rank);
+
+    const winners = await Promise.all(
+      rankedEntries.map(async ({ rank, userId }) => {
+        const [user] = await db.select({ username: usersTable.username }).from(usersTable).where(eq(usersTable.id, userId));
+        const tier = tiers.find((t) => t.rank === rank);
+        let prizeLabel = mainPrize?.label ?? "";
+        let prizeValue = mainPrize?.value ?? "";
+        if (tier) {
+          const tierPrize = await db.select().from(prizesTable).where(eq(prizesTable.id, tier.prizeId)).then((r) => r[0]);
+          prizeLabel = tierPrize?.label ?? prizeLabel;
+          prizeValue = tierPrize?.value ?? prizeValue;
+        }
+        return { username: user?.username ?? "Anonymous", prizeLabel, prizeValue, rank };
+      }),
+    );
+    res.json({ winners });
+    return;
   } else if (hunch.winnerUserId) {
-    // Multi-prediction: admin selected a specific user as winner
+    // Multi-prediction: admin selected a specific user as winner (single prize / legacy)
     const [winnerUser] = await db
       .select({ username: usersTable.username })
       .from(usersTable)

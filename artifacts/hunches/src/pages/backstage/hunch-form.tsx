@@ -11,6 +11,14 @@ function ordinal(n: number): string {
   return n + (s[(v - 20) % 10] ?? s[v] ?? s[0]);
 }
 
+const RANK_CONFIG: Record<number, { label: string; bg: string; border: string; badge: string; btn: string }> = {
+  1: { label: "1st", bg: "bg-amber-50/60",  border: "border-amber-300",  badge: "bg-amber-100 text-amber-800 border-amber-200",  btn: "border-amber-300 text-amber-700 hover:bg-amber-50"  },
+  2: { label: "2nd", bg: "bg-slate-50/60",  border: "border-slate-300",  badge: "bg-slate-100 text-slate-700 border-slate-200",  btn: "border-slate-300 text-slate-600 hover:bg-slate-50"  },
+  3: { label: "3rd", bg: "bg-orange-50/60", border: "border-orange-300", badge: "bg-orange-100 text-orange-800 border-orange-200", btn: "border-orange-200 text-orange-700 hover:bg-orange-50" },
+  4: { label: "4th", bg: "bg-purple-50/60", border: "border-purple-300", badge: "bg-purple-100 text-purple-800 border-purple-200", btn: "border-purple-200 text-purple-700 hover:bg-purple-50" },
+  5: { label: "5th", bg: "bg-blue-50/60",   border: "border-blue-300",   badge: "bg-blue-100 text-blue-800 border-blue-200",     btn: "border-blue-200 text-blue-700 hover:bg-blue-50"    },
+};
+
 interface Category { id: number; name: string; slug: string; }
 
 const ANSWER_TYPES = [
@@ -244,6 +252,7 @@ export default function HunchForm() {
     { prompt: "", answerType: "integer", placeholder: "", sortOrder: 1 },
   ]);
   const [winnerUserId, setWinnerUserId] = useState<number | null>(null);
+  const [winnerRanks, setWinnerRanks] = useState<Array<{ rank: number; userId: number }>>([]);
   const [resultSources, setResultSources] = useState<ResultSource[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [saving, setSaving]       = useState(false);
@@ -306,6 +315,10 @@ export default function HunchForm() {
           setPrizeConditionsOpen(true);
         }
         if (h.winnerUserId) setWinnerUserId(h.winnerUserId as number);
+        if (h.winnerRanks) {
+          try { setWinnerRanks(JSON.parse(h.winnerRanks) as Array<{ rank: number; userId: number }>); }
+          catch { /* ignore */ }
+        }
         if (Array.isArray(h.questions) && h.questions.length > 0) {
           setQuestions(h.questions.map((q: { id: number; prompt: string; answerType: string; placeholder?: string; sortOrder: number }) => ({
             id: q.id,
@@ -356,7 +369,13 @@ export default function HunchForm() {
       if (form.isMulti) {
         body["questions"] = questions.map((q, i) => ({ ...q, sortOrder: i }));
         body["winnerOption"] = null;
-        body["winnerUserId"] = winnerUserId ?? null;
+        if (prizeTiers.length > 1) {
+          body["winnerRanks"] = winnerRanks.length > 0 ? winnerRanks : null;
+          body["winnerUserId"] = null;
+        } else {
+          body["winnerUserId"] = winnerUserId ?? null;
+          body["winnerRanks"] = null;
+        }
       }
 
       const res = isEditing
@@ -783,45 +802,88 @@ export default function HunchForm() {
               )}
 
               {/* Multi-prediction: show users with all their combined answers */}
-              {predData && form.isMulti && predData.byUser.map((u) => {
-                const displayName = u.username ?? u.phone ?? `User ${u.userId}`;
-                const isWinner = winnerUserId === u.userId;
-                return (
-                  <div key={u.userId} className={`border rounded-xl overflow-hidden ${isWinner ? "border-emerald-300" : "border-gray-100"}`}>
-                    <div className={`flex items-center gap-3 px-4 py-3 ${isWinner ? "bg-emerald-50/60" : "bg-gray-50/60"}`}>
-                      <div className="w-7 h-7 rounded-full bg-violet-100 flex items-center justify-center shrink-0">
-                        <Users className="w-3.5 h-3.5 text-violet-500" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <span className="text-sm font-semibold text-gray-900">{displayName}</span>
-                        <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-0.5">
-                          {u.answers.map((a) => (
-                            <span key={a.questionId} className="text-xs text-gray-500">
-                              <span className="text-gray-400">{a.questionPrompt}:</span>{" "}
-                              <span className="font-medium text-gray-700">{a.answerLabel}</span>
-                            </span>
-                          ))}
+              {predData && form.isMulti && (() => {
+                const isMultiPrize = prizeTiers.length > 1;
+                return predData.byUser.map((u) => {
+                  const displayName = u.username ?? u.phone ?? `User ${u.userId}`;
+                  const assignedRank = isMultiPrize ? (winnerRanks.find((r) => r.userId === u.userId)?.rank ?? null) : null;
+                  const isSingleWinner = !isMultiPrize && winnerUserId === u.userId;
+                  const rankCfg = assignedRank !== null ? RANK_CONFIG[assignedRank] : null;
+                  const takenRanks = winnerRanks.filter((r) => r.userId !== u.userId).map((r) => r.rank);
+                  const availableRanks = prizeTiers.map((t) => t.rank).filter((r) => !takenRanks.includes(r) && RANK_CONFIG[r]);
+                  const setRank = (rank: number) => {
+                    setWinnerRanks((prev) => {
+                      const filtered = prev.filter((r) => r.userId !== u.userId && r.rank !== rank);
+                      return [...filtered, { rank, userId: u.userId }].sort((a, b) => a.rank - b.rank);
+                    });
+                    setForm((f) => ({ ...f, status: "resolved" }));
+                  };
+                  const clearRank = () => setWinnerRanks((prev) => prev.filter((r) => r.userId !== u.userId));
+                  const isHighlighted = isMultiPrize ? assignedRank !== null : isSingleWinner;
+                  return (
+                    <div key={u.userId} className={`border rounded-xl overflow-hidden ${
+                      isHighlighted
+                        ? (isMultiPrize ? (rankCfg?.border ?? "border-gray-100") : "border-emerald-300")
+                        : "border-gray-100"
+                    }`}>
+                      <div className={`flex items-center gap-3 px-4 py-3 ${
+                        isHighlighted
+                          ? (isMultiPrize ? (rankCfg?.bg ?? "bg-gray-50/60") : "bg-emerald-50/60")
+                          : "bg-gray-50/60"
+                      }`}>
+                        <div className="w-7 h-7 rounded-full bg-violet-100 flex items-center justify-center shrink-0">
+                          <Users className="w-3.5 h-3.5 text-violet-500" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <span className="text-sm font-semibold text-gray-900">{displayName}</span>
+                          <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-0.5">
+                            {u.answers.map((a) => (
+                              <span key={a.questionId} className="text-xs text-gray-500">
+                                <span className="text-gray-400">{a.questionPrompt}:</span>{" "}
+                                <span className="font-medium text-gray-700">{a.answerLabel}</span>
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                        <div className="shrink-0 flex items-center gap-1.5">
+                          {isMultiPrize ? (
+                            assignedRank !== null ? (
+                              <>
+                                <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-lg border ${rankCfg!.badge}`}>
+                                  <Trophy className="w-3 h-3" /> {RANK_CONFIG[assignedRank].label} Place
+                                </span>
+                                <button type="button" onClick={clearRank} title="Remove rank"
+                                  className="text-gray-300 hover:text-red-400 transition-colors">
+                                  <X className="w-3.5 h-3.5" />
+                                </button>
+                              </>
+                            ) : (
+                              availableRanks.map((rank) => (
+                                <button key={rank} type="button" onClick={() => setRank(rank)}
+                                  className={`text-xs font-semibold border px-2.5 py-1 rounded-lg transition-colors ${RANK_CONFIG[rank].btn}`}>
+                                  {RANK_CONFIG[rank].label}
+                                </button>
+                              ))
+                            )
+                          ) : (
+                            isSingleWinner ? (
+                              <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg">
+                                <Trophy className="w-3 h-3" /> Winner
+                              </span>
+                            ) : (
+                              <button type="button"
+                                onClick={() => { setWinnerUserId(u.userId); setForm((f) => ({ ...f, status: "resolved" })); }}
+                                className="text-xs font-semibold text-violet-600 border border-violet-200 bg-white px-2.5 py-1 rounded-lg hover:bg-violet-50 transition-colors">
+                                Set as winner
+                              </button>
+                            )
+                          )}
                         </div>
                       </div>
-                      <div className="shrink-0">
-                        {isWinner ? (
-                          <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg">
-                            <Trophy className="w-3 h-3" /> Winner
-                          </span>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => { setWinnerUserId(u.userId); setForm((f) => ({ ...f, status: "resolved" })); }}
-                            className="text-xs font-semibold text-violet-600 border border-violet-200 bg-white px-2.5 py-1 rounded-lg hover:bg-violet-50 transition-colors"
-                          >
-                            Set as winner
-                          </button>
-                        )}
-                      </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                });
+              })()}
 
               {/* Single-prediction: show options grouped by answer */}
               {predData && !form.isMulti && predData.byOption.map((group) => (

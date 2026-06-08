@@ -19,7 +19,8 @@ export const hunchesTable = pgTable("hunches", {
   imageFocalPoint: text("image_focal_point"),
   winnerOption: text("winner_option"),
   winnerAnswers: text("winner_answers"), // JSON: Array<{ questionId: number; answer: string }>
-  winnerUserId: integer("winner_user_id"), // For multi-prediction: the winning user's ID
+  winnerUserId: integer("winner_user_id"), // For multi-prediction: single winning user's ID (legacy)
+  winnerRanks: text("winner_ranks"), // JSON: Array<{ rank: number; userId: number }> for multi-prize ranked winners
   resultText: text("result_text"), // Admin-written result summary shown after resolution
   resultSources: text("result_sources"), // JSON: Array<{ type, url, label }>
   rules: text("rules"),

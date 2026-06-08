@@ -155,6 +155,9 @@ async function runAppMigrations(): Promise<void> {
     )
   `);
 
+  // Ranked multi-winner support
+  await db.execute(sql`ALTER TABLE hunches ADD COLUMN IF NOT EXISTS winner_ranks TEXT`);
+
   // Member-Get-Member referral columns
   await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS referral_code TEXT`);
   await db.execute(sql`

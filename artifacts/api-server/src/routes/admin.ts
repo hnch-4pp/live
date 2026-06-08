@@ -389,6 +389,11 @@ router.patch(
     if ("winnerUserId" in req.body) {
       updates["winnerUserId"] = req.body.winnerUserId ? Number(req.body.winnerUserId) : null;
     }
+    if ("winnerRanks" in req.body) {
+      updates["winnerRanks"] = req.body.winnerRanks
+        ? (typeof req.body.winnerRanks === "string" ? req.body.winnerRanks : JSON.stringify(req.body.winnerRanks))
+        : null;
+    }
     if ("resultText" in req.body) {
       updates["resultText"] = req.body.resultText ? String(req.body.resultText) : null;
     }
