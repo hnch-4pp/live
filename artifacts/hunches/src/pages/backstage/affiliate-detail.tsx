@@ -18,6 +18,7 @@ interface AffiliateRecord {
   status: "pending" | "active" | "suspended" | "rejected";
   bio: string | null; niche: string | null; avatarUrl: string | null;
   socialLinks: Record<string, string> | null;
+  referredByUsername: string | null;
   createdAt: string; approvedAt: string | null;
 }
 
@@ -278,6 +279,10 @@ export default function AdminAffiliateDetail() {
             <div>
               <p className="text-xs text-muted-foreground mb-0.5">Niche</p>
               <p className="font-semibold">{affiliate.niche ?? <span className="text-muted-foreground">—</span>}</p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground mb-0.5">Recomendado por</p>
+              <p className="font-semibold">{affiliate.referredByUsername ?? <span className="text-muted-foreground">—</span>}</p>
             </div>
             <div>
               <p className="text-xs text-muted-foreground mb-0.5">Registrado</p>
