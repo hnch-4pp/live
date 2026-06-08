@@ -158,6 +158,12 @@ async function runAppMigrations(): Promise<void> {
   // Ranked multi-winner support
   await db.execute(sql`ALTER TABLE hunches ADD COLUMN IF NOT EXISTS winner_ranks TEXT`);
 
+  // Affiliate program columns
+  await db.execute(sql`ALTER TABLE affiliates ADD COLUMN IF NOT EXISTS referred_by_username TEXT`);
+  await db.execute(sql`ALTER TABLE affiliates ADD COLUMN IF NOT EXISTS referred_by_affiliate_id INTEGER REFERENCES affiliates(id) ON DELETE SET NULL`);
+  await db.execute(sql`ALTER TABLE affiliate_commissions ADD COLUMN IF NOT EXISTS is_sub_affiliate BOOLEAN NOT NULL DEFAULT false`);
+  await db.execute(sql`ALTER TABLE affiliate_commissions ADD COLUMN IF NOT EXISTS source_commission_id INTEGER`);
+
   // Member-Get-Member referral columns
   await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS referral_code TEXT`);
   await db.execute(sql`
