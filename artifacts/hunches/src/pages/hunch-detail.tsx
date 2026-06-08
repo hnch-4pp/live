@@ -644,9 +644,13 @@ export default function HunchDetail() {
                               </span>
                             )}
                             <div className="flex flex-col min-w-0 flex-1 gap-0.5">
-                              <span className="font-semibold text-foreground text-sm break-all">
+                              <Link
+                                href={`/u/${w.username}`}
+                                className="font-semibold text-primary hover:underline text-sm break-all"
+                                onClick={(e) => e.stopPropagation()}
+                              >
                                 @{w.username}
-                              </span>
+                              </Link>
                               {w.prediction && (
                                 <span className="text-xs text-muted-foreground">Predicción: {w.prediction}</span>
                               )}
