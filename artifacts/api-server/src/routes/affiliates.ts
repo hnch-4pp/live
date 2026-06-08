@@ -562,6 +562,12 @@ router.get("/admin/affiliates/:id", requireAdmin, requireAdminHeader, async (req
   }).from(affiliatesTable).where(eq(affiliatesTable.id, id)).limit(1);
   if (!aff) { res.status(404).json({ error: "Not found" }); return; }
 
+  // Each sub-query runs independently — if a table doesn't exist in production
+  // the query returns its fallback value instead of failing the whole request.
+  async function sq<T>(fn: () => Promise<T>, fallback: T): Promise<T> {
+    try { return await fn(); } catch { return fallback; }
+  }
+
   const [
     clicks,
     referralRows,
@@ -571,13 +577,13 @@ router.get("/admin/affiliates/:id", requireAdmin, requireAdminHeader, async (req
     payoutsList,
     tierData,
   ] = await Promise.all([
-    db.select({ cnt: count() }).from(affiliateClicksTable).where(eq(affiliateClicksTable.affiliateId, id)),
-    db.select({ cnt: count(), status: referralsTable.status })
-      .from(referralsTable).where(eq(referralsTable.affiliateId, id)).groupBy(referralsTable.status),
-    db.select({ status: affiliateCommissionsTable.status, total: sum(affiliateCommissionsTable.commissionAmount) })
+    sq(() => db.select({ cnt: count() }).from(affiliateClicksTable).where(eq(affiliateClicksTable.affiliateId, id)), [{ cnt: 0 }]),
+    sq(() => db.select({ cnt: count(), status: referralsTable.status })
+      .from(referralsTable).where(eq(referralsTable.affiliateId, id)).groupBy(referralsTable.status), []),
+    sq(() => db.select({ status: affiliateCommissionsTable.status, total: sum(affiliateCommissionsTable.commissionAmount) })
       .from(affiliateCommissionsTable).where(eq(affiliateCommissionsTable.affiliateId, id))
-      .groupBy(affiliateCommissionsTable.status),
-    db.select({
+      .groupBy(affiliateCommissionsTable.status), []),
+    sq(() => db.select({
       id: referralsTable.id,
       status: referralsTable.status,
       signupAt: referralsTable.signupAt,
@@ -586,41 +592,41 @@ router.get("/admin/affiliates/:id", requireAdmin, requireAdminHeader, async (req
     }).from(referralsTable)
       .leftJoin(usersTable, eq(usersTable.id, referralsTable.referredUserId))
       .where(eq(referralsTable.affiliateId, id))
-      .orderBy(desc(referralsTable.signupAt)),
-    db.select().from(affiliateCommissionsTable)
+      .orderBy(desc(referralsTable.signupAt)), []),
+    sq(() => db.select().from(affiliateCommissionsTable)
       .where(eq(affiliateCommissionsTable.affiliateId, id))
-      .orderBy(desc(affiliateCommissionsTable.earnedAt)),
-    db.select().from(affiliatePayoutsTable)
+      .orderBy(desc(affiliateCommissionsTable.earnedAt)), []),
+    sq(() => db.select().from(affiliatePayoutsTable)
       .where(eq(affiliatePayoutsTable.affiliateId, id))
-      .orderBy(desc(affiliatePayoutsTable.createdAt)),
-    getAffiliateTier(id),
+      .orderBy(desc(affiliatePayoutsTable.createdAt)), []),
+    sq(() => getAffiliateTier(id), { current: null, next: null, activePremiumCount: 0 }),
   ]);
 
   const commByStatus = Object.fromEntries(
-    commBreakdown.map(r => [r.status, Number(r.total ?? 0)]),
+    (commBreakdown as { status: string; total: string | null }[]).map(r => [r.status, Number(r.total ?? 0)]),
   );
-  const totalSignups = referralRows.reduce((s, r) => s + Number(r.cnt), 0);
-  const converted = referralsList.filter(r => r.convertedAt !== null).length;
+  const totalSignups = (referralRows as { cnt: number | string }[]).reduce((s, r) => s + Number(r.cnt), 0);
+  const converted = (referralsList as { convertedAt: string | null }[]).filter(r => r.convertedAt !== null).length;
   const conversionRate = totalSignups > 0 ? Math.round((converted / totalSignups) * 100 * 10) / 10 : 0;
 
   res.json({
     affiliate: aff,
     stats: {
-      totalClicks: Number(clicks[0]?.cnt ?? 0),
+      totalClicks: Number((clicks as { cnt: number | string }[])[0]?.cnt ?? 0),
       totalSignups,
-      activePremiumUsers: tierData.activePremiumCount,
+      activePremiumUsers: (tierData as { activePremiumCount: number }).activePremiumCount,
       conversionRate,
       commissionPending:  commByStatus["pending"]  ?? 0,
       commissionApproved: commByStatus["approved"] ?? 0,
       commissionPaid:     commByStatus["paid"]     ?? 0,
-      commissionTotal: commBreakdown.reduce((s, r) => s + Number(r.total ?? 0), 0),
+      commissionTotal: (commBreakdown as { total: string | null }[]).reduce((s, r) => s + Number(r.total ?? 0), 0),
     },
     tier: {
-      current: tierData.current,
-      next: tierData.next,
-      activePremiumCount: tierData.activePremiumCount,
-      usersToNextTier: tierData.next
-        ? Math.max(0, tierData.next.minActivePremiumUsers - tierData.activePremiumCount)
+      current: (tierData as { current: unknown }).current,
+      next: (tierData as { next: unknown }).next,
+      activePremiumCount: (tierData as { activePremiumCount: number }).activePremiumCount,
+      usersToNextTier: (tierData as { next: { minActivePremiumUsers: number } | null }).next
+        ? Math.max(0, (tierData as { next: { minActivePremiumUsers: number } }).next.minActivePremiumUsers - (tierData as { activePremiumCount: number }).activePremiumCount)
         : 0,
     },
     referrals: referralsList,
@@ -629,7 +635,7 @@ router.get("/admin/affiliates/:id", requireAdmin, requireAdminHeader, async (req
   });
   } catch (err) {
     req.log.error({ err }, "Failed to get affiliate detail");
-    res.status(500).json({ error: "Database error. The production DB may be missing columns. Run: ALTER TABLE affiliates ADD COLUMN IF NOT EXISTS referred_by_username TEXT;" });
+    res.status(500).json({ error: "Database error loading affiliate detail" });
   }
 });
 
