@@ -498,9 +498,23 @@ router.get("/affiliate/revenue", requireActiveAffiliate, async (req, res): Promi
 
 // ─── Admin: list affiliates ───────────────────────────────────────────────────
 
+const AFFILIATE_LIST_COLS = {
+  id: affiliatesTable.id,
+  name: affiliatesTable.name,
+  slug: affiliatesTable.slug,
+  email: affiliatesTable.email,
+  status: affiliatesTable.status,
+  bio: affiliatesTable.bio,
+  niche: affiliatesTable.niche,
+  avatarUrl: affiliatesTable.avatarUrl,
+  userId: affiliatesTable.userId,
+  createdAt: affiliatesTable.createdAt,
+  approvedAt: affiliatesTable.approvedAt,
+  approvedBy: affiliatesTable.approvedBy,
+};
+
 router.get("/admin/affiliates", requireAdmin, requireAdminHeader, async (req, res): Promise<void> => {
   const { q, status } = req.query as { q?: string; status?: string };
-  let query = db.select().from(affiliatesTable);
   const filters: any[] = [];
   if (status && ["pending", "active", "suspended", "rejected"].includes(status)) {
     filters.push(eq(affiliatesTable.status, status as any));
@@ -512,16 +526,23 @@ router.get("/admin/affiliates", requireAdmin, requireAdminHeader, async (req, re
       ilike(affiliatesTable.email, `%${q.trim()}%`),
     ));
   }
-  const affiliates = filters.length > 0
-    ? await db.select().from(affiliatesTable).where(and(...filters)).orderBy(desc(affiliatesTable.createdAt)).limit(200)
-    : await db.select().from(affiliatesTable).orderBy(desc(affiliatesTable.createdAt)).limit(200);
-  res.json({ affiliates });
+  try {
+    const affiliates = filters.length > 0
+      ? await db.select(AFFILIATE_LIST_COLS).from(affiliatesTable).where(and(...filters)).orderBy(desc(affiliatesTable.createdAt)).limit(200)
+      : await db.select(AFFILIATE_LIST_COLS).from(affiliatesTable).orderBy(desc(affiliatesTable.createdAt)).limit(200);
+    res.json({ affiliates });
+  } catch (err) {
+    req.log.error({ err }, "Failed to list affiliates");
+    res.status(500).json({ error: "Database error listing affiliates. Run migration: ALTER TABLE affiliates ADD COLUMN IF NOT EXISTS referred_by_username TEXT;" });
+  }
 });
 
 // ─── Admin: get affiliate detail ──────────────────────────────────────────────
 
 router.get("/admin/affiliates/:id", requireAdmin, requireAdminHeader, async (req, res): Promise<void> => {
   const id = Number(req.params["id"]);
+  if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
+  try {
   const [aff] = await db.select().from(affiliatesTable).where(eq(affiliatesTable.id, id)).limit(1);
   if (!aff) { res.status(404).json({ error: "Not found" }); return; }
 
@@ -590,6 +611,10 @@ router.get("/admin/affiliates/:id", requireAdmin, requireAdminHeader, async (req
     commissions: commissionsList,
     payouts: payoutsList,
   });
+  } catch (err) {
+    req.log.error({ err }, "Failed to get affiliate detail");
+    res.status(500).json({ error: "Database error. The production DB may be missing columns. Run: ALTER TABLE affiliates ADD COLUMN IF NOT EXISTS referred_by_username TEXT;" });
+  }
 });
 
 // ─── Admin: create affiliate ──────────────────────────────────────────────────
