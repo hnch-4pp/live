@@ -11,6 +11,7 @@ import {
   affiliatePayoutsTable,
   usersTable,
   subscriptionsTable,
+  appSettingsTable,
 } from "@workspace/db";
 
 const router = Router();
@@ -170,6 +171,14 @@ async function getAffiliateTier(affiliateId: number): Promise<{
   }
 
   return { current, next, activePremiumCount };
+}
+
+// ─── Helper: get sub-affiliate commission rate ────────────────────────────────
+
+async function getSubAffiliateRate(): Promise<number> {
+  const [row] = await db.select().from(appSettingsTable)
+    .where(eq(appSettingsTable.key, "sub_affiliate_commission_pct")).limit(1);
+  return row ? Number(row.value) : 3;
 }
 
 // ─── Public: list active commission tiers ────────────────────────────────────
@@ -347,7 +356,7 @@ router.get("/affiliate/me", requireUser, async (req, res): Promise<void> => {
 router.get("/affiliate/dashboard", requireActiveAffiliate, async (req, res): Promise<void> => {
   const aff = (req as any).affiliate as typeof affiliatesTable.$inferSelect;
 
-  const [clicks, referrals, commissions, payouts, tier] = await Promise.all([
+  const [clicks, referrals, commissions, payouts, tier, subAffCount, subComms] = await Promise.all([
     db.select({ cnt: count() }).from(affiliateClicksTable)
       .where(eq(affiliateClicksTable.affiliateId, aff.id)),
     db.select({ cnt: count(), status: referralsTable.status })
@@ -369,6 +378,14 @@ router.get("/affiliate/dashboard", requireActiveAffiliate, async (req, res): Pro
       .where(eq(affiliatePayoutsTable.affiliateId, aff.id))
       .groupBy(affiliatePayoutsTable.status),
     getAffiliateTier(aff.id),
+    // Sub-affiliates referred into the program by this affiliate
+    db.select({ cnt: count() }).from(affiliatesTable)
+      .where(eq(affiliatesTable.referredByAffiliateId, aff.id)),
+    // Sub-affiliate commissions earned
+    db.select({ status: affiliateCommissionsTable.status, total: sum(affiliateCommissionsTable.commissionAmount) })
+      .from(affiliateCommissionsTable)
+      .where(and(eq(affiliateCommissionsTable.affiliateId, aff.id), eq(affiliateCommissionsTable.isSubAffiliate, true)))
+      .groupBy(affiliateCommissionsTable.status),
   ]);
 
   const totalClicks = Number(clicks[0]?.cnt ?? 0);
@@ -386,6 +403,11 @@ router.get("/affiliate/dashboard", requireActiveAffiliate, async (req, res): Pro
   const payMap: Record<string, number> = {};
   for (const p of payouts) {
     payMap[p.status] = Number(p.total ?? 0);
+  }
+
+  const subCommMap: Record<string, number> = {};
+  for (const c of subComms) {
+    subCommMap[c.status] = Number(c.total ?? 0);
   }
 
   res.json({
@@ -412,6 +434,13 @@ router.get("/affiliate/dashboard", requireActiveAffiliate, async (req, res): Pro
       usersToNextTier: tier.next
         ? Math.max(0, tier.next.minActivePremiumUsers - tier.activePremiumCount)
         : 0,
+    },
+    subAffiliateStats: {
+      totalSubAffiliates: Number(subAffCount[0]?.cnt ?? 0),
+      commissionPending:  subCommMap["pending"]  ?? 0,
+      commissionApproved: subCommMap["approved"] ?? 0,
+      commissionPaid:     subCommMap["paid"]     ?? 0,
+      commissionTotal: Object.values(subCommMap).reduce((s, v) => s + v, 0),
     },
   });
 });
@@ -537,6 +566,9 @@ router.get("/admin/affiliates/:id", requireAdmin, requireAdminHeader, async (req
     commissionsList,
     payoutsList,
     tierData,
+    parentAff,
+    subAffiliates,
+    subCommBreakdown,
   ] = await Promise.all([
     db.select({ cnt: count() }).from(affiliateClicksTable).where(eq(affiliateClicksTable.affiliateId, id)),
     db.select({ cnt: count(), status: referralsTable.status })
@@ -561,6 +593,26 @@ router.get("/admin/affiliates/:id", requireAdmin, requireAdminHeader, async (req
       .where(eq(affiliatePayoutsTable.affiliateId, id))
       .orderBy(desc(affiliatePayoutsTable.createdAt)),
     getAffiliateTier(id),
+    // Parent affiliate info
+    aff.referredByAffiliateId
+      ? db.select({ id: affiliatesTable.id, name: affiliatesTable.name, slug: affiliatesTable.slug })
+          .from(affiliatesTable).where(eq(affiliatesTable.id, aff.referredByAffiliateId)).limit(1)
+      : Promise.resolve([] as { id: number; name: string; slug: string }[]),
+    // Sub-affiliates this affiliate has referred into the program
+    db.select({
+      id: affiliatesTable.id,
+      name: affiliatesTable.name,
+      slug: affiliatesTable.slug,
+      status: affiliatesTable.status,
+      createdAt: affiliatesTable.createdAt,
+    }).from(affiliatesTable)
+      .where(eq(affiliatesTable.referredByAffiliateId, id))
+      .orderBy(desc(affiliatesTable.createdAt)),
+    // Sub-affiliate commissions earned (isSubAffiliate = true)
+    db.select({ status: affiliateCommissionsTable.status, total: sum(affiliateCommissionsTable.commissionAmount) })
+      .from(affiliateCommissionsTable)
+      .where(and(eq(affiliateCommissionsTable.affiliateId, id), eq(affiliateCommissionsTable.isSubAffiliate, true)))
+      .groupBy(affiliateCommissionsTable.status),
   ]);
 
   const commByStatus = Object.fromEntries(
@@ -569,6 +621,10 @@ router.get("/admin/affiliates/:id", requireAdmin, requireAdminHeader, async (req
   const totalSignups = referralRows.reduce((s, r) => s + Number(r.cnt), 0);
   const converted = referralsList.filter(r => r.convertedAt !== null).length;
   const conversionRate = totalSignups > 0 ? Math.round((converted / totalSignups) * 100 * 10) / 10 : 0;
+
+  const subCommByStatus = Object.fromEntries(
+    subCommBreakdown.map(r => [r.status, Number(r.total ?? 0)]),
+  );
 
   res.json({
     affiliate: aff,
@@ -589,6 +645,14 @@ router.get("/admin/affiliates/:id", requireAdmin, requireAdminHeader, async (req
       usersToNextTier: tierData.next
         ? Math.max(0, tierData.next.minActivePremiumUsers - tierData.activePremiumCount)
         : 0,
+    },
+    parentAffiliate: parentAff[0] ?? null,
+    subAffiliates,
+    subCommissions: {
+      pending:  subCommByStatus["pending"]  ?? 0,
+      approved: subCommByStatus["approved"] ?? 0,
+      paid:     subCommByStatus["paid"]     ?? 0,
+      total: subCommBreakdown.reduce((s, r) => s + Number(r.total ?? 0), 0),
     },
     referrals: referralsList,
     commissions: commissionsList,
@@ -671,6 +735,24 @@ router.put("/admin/affiliates/:id", requireAdmin, requireAdminHeader, async (req
     updates.status = status as any;
     if (beingApproved) {
       updates.approvedAt = new Date();
+    }
+  }
+
+  // On approval, resolve referred_by_username → referred_by_affiliate_id
+  if (beingApproved && aff.referredByUsername && !aff.referredByAffiliateId) {
+    const candidateSlug = normalizeSlug(aff.referredByUsername);
+    const [parentBySlug] = await db.select({ id: affiliatesTable.id })
+      .from(affiliatesTable)
+      .where(and(eq(affiliatesTable.slug, candidateSlug), eq(affiliatesTable.status, "active")))
+      .limit(1);
+    if (parentBySlug) {
+      updates.referredByAffiliateId = parentBySlug.id;
+    } else {
+      const [parentByName] = await db.select({ id: affiliatesTable.id })
+        .from(affiliatesTable)
+        .where(and(ilike(affiliatesTable.name, aff.referredByUsername), eq(affiliatesTable.status, "active")))
+        .limit(1);
+      if (parentByName) updates.referredByAffiliateId = parentByName.id;
     }
   }
 
@@ -955,6 +1037,29 @@ router.delete("/admin/affiliates/:id", requireAdmin, requireAdminHeader, async (
   res.json({ ok: true });
 });
 
+// ─── Admin: sub-affiliate commission rate setting ─────────────────────────────
+
+router.get("/admin/settings/sub-affiliate-rate", requireAdmin, requireAdminHeader, async (_req, res): Promise<void> => {
+  const rate = await getSubAffiliateRate();
+  res.json({ pct: rate });
+});
+
+router.put("/admin/settings/sub-affiliate-rate", requireAdmin, requireAdminHeader, async (req, res): Promise<void> => {
+  const pct = Number((req.body as { pct?: unknown }).pct);
+  if (isNaN(pct) || pct < 0 || pct > 100) {
+    res.status(400).json({ error: "pct must be between 0 and 100" }); return;
+  }
+  await db.insert(appSettingsTable).values({
+    key: "sub_affiliate_commission_pct",
+    value: String(pct),
+    updatedAt: new Date(),
+  }).onConflictDoUpdate({
+    target: appSettingsTable.key,
+    set: { value: String(pct), updatedAt: new Date() },
+  });
+  res.json({ ok: true, pct });
+});
+
 // ─── Admin: global metrics ────────────────────────────────────────────────────
 
 router.get("/admin/affiliates-metrics", requireAdmin, requireAdminHeader, async (req, res): Promise<void> => {
@@ -1013,7 +1118,7 @@ export async function recordAffiliateCommission(opts: {
 
   const commissionAmount = Math.floor(opts.revenueAmountCents * commissionPercentage / 100);
 
-  await db.insert(affiliateCommissionsTable).values({
+  const [inserted] = await db.insert(affiliateCommissionsTable).values({
     affiliateId,
     referredUserId: opts.userId,
     subscriptionId: opts.subscriptionId ?? null,
@@ -1023,7 +1128,32 @@ export async function recordAffiliateCommission(opts: {
     commissionAmount,
     commissionType: opts.type,
     status: "pending",
-  });
+  }).returning({ id: affiliateCommissionsTable.id });
+
+  // Sub-affiliate commission: if this affiliate was referred by another, the parent earns a cut
+  const [affRecord] = await db.select({ referredByAffiliateId: affiliatesTable.referredByAffiliateId })
+    .from(affiliatesTable).where(eq(affiliatesTable.id, affiliateId)).limit(1);
+  if (affRecord?.referredByAffiliateId && inserted?.id) {
+    const subRate = await getSubAffiliateRate();
+    if (subRate > 0) {
+      const subAmount = Math.floor(opts.revenueAmountCents * subRate / 100);
+      if (subAmount > 0) {
+        await db.insert(affiliateCommissionsTable).values({
+          affiliateId: affRecord.referredByAffiliateId,
+          referredUserId: opts.userId,
+          subscriptionId: opts.subscriptionId ?? null,
+          transactionId: opts.transactionId ?? null,
+          revenueAmount: opts.revenueAmountCents,
+          commissionPercentage: subRate,
+          commissionAmount: subAmount,
+          commissionType: opts.type,
+          isSubAffiliate: true,
+          sourceCommissionId: inserted.id,
+          status: "pending",
+        });
+      }
+    }
+  }
 
   // Update referral status if needed
   await db.update(referralsTable)

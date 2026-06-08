@@ -5,11 +5,19 @@ import { apiUrl } from "@/lib/apiFetch";
 import { Layout } from "@/components/layout";
 import {
   Loader2, Copy, Check, TrendingUp, Users, DollarSign, Award,
-  ExternalLink, ArrowUpRight, Clock, CheckCircle2, XCircle,
+  ExternalLink, ArrowUpRight, Clock, CheckCircle2, XCircle, GitBranch,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
+
+interface SubAffiliateStats {
+  totalSubAffiliates: number;
+  commissionPending: number;
+  commissionApproved: number;
+  commissionPaid: number;
+  commissionTotal: number;
+}
 
 interface AffiliateDashboard {
   affiliate: {
@@ -29,6 +37,7 @@ interface AffiliateDashboard {
     activePremiumCount: number;
     usersToNextTier: number;
   };
+  subAffiliateStats: SubAffiliateStats;
 }
 
 interface Referral {
@@ -39,7 +48,7 @@ interface Referral {
 interface Commission {
   id: number; commissionAmount: number; revenueAmount: number;
   commissionPercentage: number; status: string; earnedAt: string;
-  commissionType: string;
+  commissionType: string; isSubAffiliate: boolean;
 }
 
 interface Payout {
@@ -152,7 +161,7 @@ export default function AffiliateDashboard() {
 
   if (!data) return null;
 
-  const { affiliate, stats, tier } = data;
+  const { affiliate, stats, tier, subAffiliateStats } = data;
   const link = `hunch.fan/${affiliate.slug}`;
   const tierPct = tier.current?.commissionPercentage ?? 20;
   const nextProgress = tier.next
@@ -212,7 +221,7 @@ export default function AffiliateDashboard() {
         </div>
 
         {/* Commission breakdown */}
-        <div className="grid grid-cols-3 gap-4 mb-8">
+        <div className="grid grid-cols-3 gap-4 mb-6">
           {[
             { label: "Pending", value: fmt(stats.commissionPending), icon: <Clock className="w-4 h-4" />, color: "text-amber-600 bg-amber-50 border-amber-200" },
             { label: "Approved", value: fmt(stats.commissionApproved), icon: <CheckCircle2 className="w-4 h-4" />, color: "text-green-600 bg-green-50 border-green-200" },
@@ -224,6 +233,39 @@ export default function AffiliateDashboard() {
             </div>
           ))}
         </div>
+
+        {/* Sub-affiliate network section */}
+        {(subAffiliateStats.totalSubAffiliates > 0 || subAffiliateStats.commissionTotal > 0) && (
+          <div className="mb-8 p-5 rounded-2xl border border-indigo-200 bg-indigo-50">
+            <div className="flex items-center gap-2 mb-4">
+              <GitBranch className="w-5 h-5 text-indigo-600" />
+              <div>
+                <p className="font-bold text-foreground">Your affiliate network</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Affiliates you referred to the program — you earn a percentage of their generated commissions.
+                </p>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="bg-white/70 rounded-xl p-3">
+                <p className="text-xs text-muted-foreground">Affiliates referred</p>
+                <p className="text-xl font-black mt-0.5">{subAffiliateStats.totalSubAffiliates}</p>
+              </div>
+              <div className="bg-white/70 rounded-xl p-3">
+                <p className="text-xs text-muted-foreground">Pending</p>
+                <p className="text-xl font-black mt-0.5">{fmt(subAffiliateStats.commissionPending)}</p>
+              </div>
+              <div className="bg-white/70 rounded-xl p-3">
+                <p className="text-xs text-muted-foreground">Approved</p>
+                <p className="text-xl font-black mt-0.5">{fmt(subAffiliateStats.commissionApproved)}</p>
+              </div>
+              <div className="bg-white/70 rounded-xl p-3">
+                <p className="text-xs text-muted-foreground">Total earned</p>
+                <p className="text-xl font-black mt-0.5">{fmt(subAffiliateStats.commissionTotal)}</p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Tables */}
         <div className="rounded-2xl border border-border overflow-hidden">
@@ -283,7 +325,12 @@ export default function AffiliateDashboard() {
                   ) : commissions.map(c => (
                     <tr key={c.id} className="hover:bg-muted/20 transition-colors">
                       <td className="px-4 py-3 text-muted-foreground">{new Date(c.earnedAt).toLocaleDateString()}</td>
-                      <td className="px-4 py-3 capitalize">{c.commissionType.replace("_", " ")}</td>
+                      <td className="px-4 py-3">
+                        <span className="capitalize">{c.commissionType.replace("_", " ")}</span>
+                        {c.isSubAffiliate && (
+                          <span className="ml-1.5 px-1.5 py-0.5 rounded text-xs bg-indigo-100 text-indigo-700 font-medium">network</span>
+                        )}
+                      </td>
                       <td className="px-4 py-3">{fmt(c.revenueAmount)}</td>
                       <td className="px-4 py-3">{c.commissionPercentage}%</td>
                       <td className="px-4 py-3 font-semibold">{fmt(c.commissionAmount)}</td>

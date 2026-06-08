@@ -8,8 +8,9 @@ import { Button } from "@/components/ui/button";
 import {
   ArrowLeft, ExternalLink, Pencil, Loader2, Check, X,
   TrendingUp, Users, Award, DollarSign,
-  Clock, CheckCircle2, ArrowUpRight, Globe,
+  Clock, CheckCircle2, ArrowUpRight, Globe, GitBranch,
 } from "lucide-react";
+import { Link } from "wouter";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -19,7 +20,13 @@ interface AffiliateRecord {
   bio: string | null; niche: string | null; avatarUrl: string | null;
   socialLinks: Record<string, string> | null;
   referredByUsername: string | null;
+  referredByAffiliateId: number | null;
   createdAt: string; approvedAt: string | null;
+}
+
+interface SubAffiliate {
+  id: number; name: string; slug: string;
+  status: string; createdAt: string;
 }
 
 interface DetailData {
@@ -36,8 +43,11 @@ interface DetailData {
     activePremiumCount: number;
     usersToNextTier: number;
   };
+  parentAffiliate: { id: number; name: string; slug: string } | null;
+  subAffiliates: SubAffiliate[];
+  subCommissions: { pending: number; approved: number; paid: number; total: number };
   referrals: { id: number; status: string; signupAt: string; convertedAt: string | null; username: string | null }[];
-  commissions: { id: number; commissionAmount: number; revenueAmount: number; commissionPercentage: number; status: string; earnedAt: string; commissionType: string }[];
+  commissions: { id: number; commissionAmount: number; revenueAmount: number; commissionPercentage: number; status: string; earnedAt: string; commissionType: string; isSubAffiliate: boolean }[];
   payouts: { id: number; amount: number; status: string; periodStart: string | null; periodEnd: string | null; paidAt: string | null; paymentReference: string | null }[];
 }
 
@@ -169,7 +179,7 @@ export default function AdminAffiliateDetail() {
   const [data, setData]     = useState<DetailData | null>(null);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
-  const [tab, setTab]       = useState<"referrals" | "commissions" | "payouts">("referrals");
+  const [tab, setTab]       = useState<"referrals" | "commissions" | "payouts" | "sub-affiliates">("referrals");
 
   function load() {
     setLoading(true);
@@ -205,7 +215,7 @@ export default function AdminAffiliateDetail() {
     );
   }
 
-  const { affiliate, stats, tier, referrals, commissions, payouts } = data;
+  const { affiliate, stats, tier, parentAffiliate, subAffiliates, subCommissions, referrals, commissions, payouts } = data;
   const link = `hunch.fan/${affiliate.slug}`;
   const tierPct = tier.current?.commissionPercentage ?? 0;
   const nextProgress = tier.next
@@ -282,7 +292,16 @@ export default function AdminAffiliateDetail() {
             </div>
             <div>
               <p className="text-xs text-muted-foreground mb-0.5">Recomendado por</p>
-              <p className="font-semibold">{affiliate.referredByUsername ?? <span className="text-muted-foreground">—</span>}</p>
+              {parentAffiliate ? (
+                <Link
+                  href={`/backstage/affiliates/${parentAffiliate.id}`}
+                  className="font-semibold text-violet-700 hover:underline"
+                >
+                  {parentAffiliate.name}
+                </Link>
+              ) : (
+                <p className="font-semibold">{affiliate.referredByUsername ?? <span className="text-muted-foreground">—</span>}</p>
+              )}
             </div>
             <div>
               <p className="text-xs text-muted-foreground mb-0.5">Registrado</p>
@@ -323,6 +342,34 @@ export default function AdminAffiliateDetail() {
             )}
           </div>
         </div>
+
+        {/* Sub-affiliate summary (only if they have a parent or referred others) */}
+        {(parentAffiliate || subAffiliates.length > 0) && (
+          <div className="p-5 rounded-2xl border border-indigo-200 bg-indigo-50 space-y-3">
+            <div className="flex items-center gap-2 mb-1">
+              <GitBranch className="w-4 h-4 text-indigo-600" />
+              <p className="font-bold text-sm text-foreground">Red de sub-afiliados</p>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
+              <div className="bg-white/70 rounded-xl p-3">
+                <p className="text-xs text-muted-foreground">Afiliados referidos</p>
+                <p className="font-black mt-0.5">{subAffiliates.length}</p>
+              </div>
+              <div className="bg-white/70 rounded-xl p-3">
+                <p className="text-xs text-muted-foreground">Sub-comisión pendiente</p>
+                <p className="font-black mt-0.5">{fmt(subCommissions.pending)}</p>
+              </div>
+              <div className="bg-white/70 rounded-xl p-3">
+                <p className="text-xs text-muted-foreground">Sub-comisión aprobada</p>
+                <p className="font-black mt-0.5">{fmt(subCommissions.approved)}</p>
+              </div>
+              <div className="bg-white/70 rounded-xl p-3">
+                <p className="text-xs text-muted-foreground">Sub-comisión total</p>
+                <p className="font-black mt-0.5">{fmt(subCommissions.total)}</p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Tier progress */}
         <div className="p-5 rounded-2xl bg-gradient-to-r from-violet-50 to-indigo-50 border border-violet-200">
@@ -378,18 +425,19 @@ export default function AdminAffiliateDetail() {
           ))}
         </div>
 
-        {/* Referrals / Commissions / Payouts */}
+        {/* Referrals / Commissions / Payouts / Sub-affiliates */}
         <div className="rounded-2xl border border-border overflow-hidden">
-          <div className="flex border-b border-border">
-            {(["referrals", "commissions", "payouts"] as const).map(t => (
+          <div className="flex border-b border-border overflow-x-auto">
+            {(["referrals", "commissions", "payouts", "sub-affiliates"] as const).map(t => (
               <button
                 key={t}
                 onClick={() => setTab(t)}
-                className={`px-5 py-3.5 text-sm font-semibold capitalize transition-colors ${tab === t ? "bg-background text-foreground border-b-2 border-violet-600" : "text-muted-foreground hover:text-foreground bg-muted/40"}`}
+                className={`px-5 py-3.5 text-sm font-semibold whitespace-nowrap transition-colors ${tab === t ? "bg-background text-foreground border-b-2 border-violet-600" : "text-muted-foreground hover:text-foreground bg-muted/40"}`}
               >
                 {t === "referrals" ? `Referidos (${referrals.length})`
                   : t === "commissions" ? `Comisiones (${commissions.length})`
-                  : `Pagos (${payouts.length})`}
+                  : t === "payouts" ? `Pagos (${payouts.length})`
+                  : `Sub-afiliados (${subAffiliates.length})`}
               </button>
             ))}
           </div>
@@ -438,7 +486,12 @@ export default function AdminAffiliateDetail() {
                   ) : commissions.map(c => (
                     <tr key={c.id} className="hover:bg-muted/20 transition-colors">
                       <td className="px-4 py-3 text-muted-foreground">{new Date(c.earnedAt).toLocaleDateString()}</td>
-                      <td className="px-4 py-3 capitalize">{c.commissionType.replace("_", " ")}</td>
+                      <td className="px-4 py-3">
+                        <span className="capitalize">{c.commissionType.replace("_", " ")}</span>
+                        {c.isSubAffiliate && (
+                          <span className="ml-1.5 px-1.5 py-0.5 rounded text-xs bg-indigo-100 text-indigo-700 font-medium">sub-af.</span>
+                        )}
+                      </td>
                       <td className="px-4 py-3">{fmt(c.revenueAmount)}</td>
                       <td className="px-4 py-3">{c.commissionPercentage}%</td>
                       <td className="px-4 py-3 font-semibold">{fmt(c.commissionAmount)}</td>
@@ -474,6 +527,40 @@ export default function AdminAffiliateDetail() {
                       <td className="px-4 py-3"><Badge status={p.status} /></td>
                       <td className="px-4 py-3 text-muted-foreground">{p.paidAt ? new Date(p.paidAt).toLocaleDateString() : "—"}</td>
                       <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{p.paymentReference ?? "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+
+            {tab === "sub-affiliates" && (
+              <table className="w-full text-sm">
+                <thead className="bg-muted/40 text-muted-foreground">
+                  <tr>
+                    <th className="text-left px-4 py-3 font-medium">Nombre</th>
+                    <th className="text-left px-4 py-3 font-medium">Slug</th>
+                    <th className="text-left px-4 py-3 font-medium">Estado</th>
+                    <th className="text-left px-4 py-3 font-medium">Registrado</th>
+                    <th className="text-left px-4 py-3 font-medium">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {subAffiliates.length === 0 ? (
+                    <tr><td colSpan={5} className="text-center py-10 text-muted-foreground">Este afiliado no ha referido a otros afiliados al programa.</td></tr>
+                  ) : subAffiliates.map(sa => (
+                    <tr key={sa.id} className="hover:bg-muted/20 transition-colors">
+                      <td className="px-4 py-3 font-medium">{sa.name}</td>
+                      <td className="px-4 py-3 font-mono text-muted-foreground">/{sa.slug}</td>
+                      <td className="px-4 py-3"><Badge status={sa.status} /></td>
+                      <td className="px-4 py-3 text-muted-foreground">{new Date(sa.createdAt).toLocaleDateString()}</td>
+                      <td className="px-4 py-3">
+                        <Link
+                          href={`/backstage/affiliates/${sa.id}`}
+                          className="text-xs text-violet-700 font-medium hover:underline"
+                        >
+                          Ver perfil
+                        </Link>
+                      </td>
                     </tr>
                   ))}
                 </tbody>

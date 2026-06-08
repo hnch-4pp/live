@@ -5,7 +5,7 @@ import { adminFetch, useAdminAuth } from "./dashboard";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Plus, Pencil, Trash2, X, Loader2, Award } from "lucide-react";
+import { Plus, Pencil, Trash2, X, Loader2, Award, GitBranch } from "lucide-react";
 
 interface Tier {
   id: number;
@@ -100,6 +100,92 @@ function TierForm({ initial, onClose, onSaved }: { initial?: Tier; onClose: () =
 
 const TIER_COLORS = ["bg-zinc-100 text-zinc-700", "bg-violet-100 text-violet-700", "bg-indigo-100 text-indigo-700", "bg-amber-100 text-amber-700"];
 
+function SubAffiliateRateCard() {
+  const qc = useQueryClient();
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  const { data } = useQuery({
+    queryKey: ["admin-sub-affiliate-rate"],
+    queryFn: async () => {
+      const res = await adminFetch("/admin/settings/sub-affiliate-rate");
+      if (!res.ok) throw new Error("Failed");
+      return res.json() as Promise<{ pct: number }>;
+    },
+  });
+
+  function startEdit() {
+    setDraft(String(data?.pct ?? 3));
+    setError("");
+    setEditing(true);
+  }
+
+  async function save() {
+    setSaving(true); setError("");
+    try {
+      const res = await adminFetch("/admin/settings/sub-affiliate-rate", {
+        method: "PUT",
+        body: JSON.stringify({ pct: Number(draft) }),
+      });
+      const d = await res.json() as { ok?: boolean; error?: string };
+      if (!res.ok) { setError(d.error ?? "Error"); return; }
+      qc.invalidateQueries({ queryKey: ["admin-sub-affiliate-rate"] });
+      setEditing(false);
+    } catch { setError("Network error"); }
+    finally { setSaving(false); }
+  }
+
+  const currentPct = data?.pct ?? 3;
+
+  return (
+    <div className="p-5 rounded-2xl border border-indigo-200 bg-indigo-50 space-y-3">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <GitBranch className="w-5 h-5 text-indigo-600" />
+          <div>
+            <p className="font-bold text-foreground">Sub-affiliate commission</p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              When affiliate A refers affiliate B, A earns this % of B's generated commissions.
+            </p>
+          </div>
+        </div>
+        {!editing && (
+          <div className="flex items-center gap-2">
+            <span className="px-3 py-1 rounded-full text-sm font-bold bg-indigo-100 text-indigo-700">{currentPct}%</span>
+            <button onClick={startEdit} className="p-1.5 rounded-lg hover:bg-indigo-100 transition-colors" title="Edit rate">
+              <Pencil className="w-4 h-4 text-indigo-600" />
+            </button>
+          </div>
+        )}
+      </div>
+
+      {editing && (
+        <div className="flex items-center gap-3">
+          <div className="relative flex-1 max-w-[120px]">
+            <Input
+              type="number"
+              min={0}
+              max={100}
+              value={draft}
+              onChange={e => setDraft(e.target.value)}
+              className="rounded-xl pr-8"
+              autoFocus
+            />
+            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">%</span>
+          </div>
+          <Button onClick={save} disabled={saving} className="rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white">
+            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : "Save"}
+          </Button>
+          <Button variant="outline" onClick={() => setEditing(false)} className="rounded-xl">Cancel</Button>
+          {error && <p className="text-sm text-destructive">{error}</p>}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function AdminAffiliateTiers() {
   useAdminAuth();
   const qc = useQueryClient();
@@ -141,6 +227,9 @@ export default function AdminAffiliateTiers() {
             <Plus className="w-4 h-4" /> New tier
           </Button>
         </div>
+
+        {/* Sub-affiliate rate */}
+        <SubAffiliateRateCard />
 
         {/* Tiers */}
         {isLoading ? (
