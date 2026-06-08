@@ -18,7 +18,6 @@ interface AffiliateRecord {
   status: "pending" | "active" | "suspended" | "rejected";
   bio: string | null; niche: string | null; avatarUrl: string | null;
   socialLinks: Record<string, string> | null;
-  referredByUsername: string | null;
   createdAt: string; approvedAt: string | null;
 }
 
@@ -174,12 +173,9 @@ export default function AdminAffiliateDetail() {
   function load() {
     setLoading(true);
     adminFetch(`/admin/affiliates/${id}`)
-      .then(async r => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        return r.json() as Promise<DetailData>;
-      })
+      .then(r => r.json() as Promise<DetailData>)
       .then(d => { setData(d); setEditing(false); })
-      .catch(() => { setData(null); })
+      .catch(() => {})
       .finally(() => setLoading(false));
   }
 
@@ -282,14 +278,6 @@ export default function AdminAffiliateDetail() {
             <div>
               <p className="text-xs text-muted-foreground mb-0.5">Niche</p>
               <p className="font-semibold">{affiliate.niche ?? <span className="text-muted-foreground">—</span>}</p>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground mb-0.5">Recomendado por</p>
-              <p className="font-semibold">
-                {affiliate.referredByUsername
-                  ? <span className="font-mono">@{affiliate.referredByUsername}</span>
-                  : <span className="text-muted-foreground">—</span>}
-              </p>
             </div>
             <div>
               <p className="text-xs text-muted-foreground mb-0.5">Registrado</p>

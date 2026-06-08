@@ -245,11 +245,10 @@ router.post("/affiliates/click", async (req, res): Promise<void> => {
 // ─── Public: apply to affiliate program ──────────────────────────────────────
 
 router.post("/affiliates/apply", async (req, res): Promise<void> => {
-  const { name, email, slug, bio, niche, customMessage, socialLinks, referredBy } = req.body as {
+  const { name, email, slug, bio, niche, customMessage, socialLinks } = req.body as {
     name?: string; email?: string; slug?: string;
     bio?: string; niche?: string; customMessage?: string;
     socialLinks?: Record<string, string>;
-    referredBy?: string;
   };
 
   if (!name?.trim()) { res.status(400).json({ error: "Name required" }); return; }
@@ -286,48 +285,10 @@ router.post("/affiliates/apply", async (req, res): Promise<void> => {
     niche: niche?.trim() ?? null,
     customMessage: customMessage?.trim() ?? null,
     socialLinks: Object.keys(cleanedLinks).length > 0 ? cleanedLinks : null,
-    referredByUsername: referredBy?.trim() || null,
     status: "pending",
   }).returning();
 
   res.json({ ok: true, affiliate: { id: aff.id, slug: aff.slug, status: aff.status } });
-
-  // Notify admin — fire and forget
-  const RESEND_API_KEY = process.env.RESEND_API_KEY;
-  if (RESEND_API_KEY) {
-    const socialSummary = Object.keys(cleanedLinks).length > 0
-      ? Object.entries(cleanedLinks).map(([k, v]) => `<li>${k}: <a href="${v}">${v}</a></li>`).join("")
-      : "<li>—</li>";
-    fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        from: "Hunch <no-reply@hunch.fan>",
-        to: ["g@hunch.fan"],
-        subject: `Nueva solicitud de afiliado: ${aff.name} (/${aff.slug})`,
-        html: `
-          <div style="font-family:sans-serif;max-width:520px;margin:0 auto;padding:32px 24px">
-            <h2 style="margin:0 0 16px;font-size:20px;color:#1a1a2e">Nueva solicitud de afiliado</h2>
-            <table style="width:100%;border-collapse:collapse;font-size:14px">
-              <tr><td style="padding:6px 0;color:#6b7280;width:140px">Nombre</td><td style="padding:6px 0;font-weight:600">${aff.name}</td></tr>
-              <tr><td style="padding:6px 0;color:#6b7280">Email</td><td style="padding:6px 0">${aff.email}</td></tr>
-              <tr><td style="padding:6px 0;color:#6b7280">Slug</td><td style="padding:6px 0;font-family:monospace">/${aff.slug}</td></tr>
-              <tr><td style="padding:6px 0;color:#6b7280">Niche</td><td style="padding:6px 0">${aff.niche ?? "—"}</td></tr>
-              <tr><td style="padding:6px 0;color:#6b7280">Recomendado por</td><td style="padding:6px 0">${aff.referredByUsername ? `@${aff.referredByUsername}` : "—"}</td></tr>
-              <tr><td style="padding:6px 0;color:#6b7280;vertical-align:top">Bio</td><td style="padding:6px 0">${aff.bio ?? "—"}</td></tr>
-              <tr><td style="padding:6px 0;color:#6b7280;vertical-align:top">Redes</td><td style="padding:6px 0"><ul style="margin:0;padding-left:16px">${socialSummary}</ul></td></tr>
-            </table>
-            <div style="margin-top:24px">
-              <a href="https://hunch.fan/backstage/affiliates/${aff.id}" style="display:inline-block;padding:10px 24px;background:#7c3aed;color:#fff;text-decoration:none;border-radius:8px;font-weight:600;font-size:14px">
-                Ver ficha en admin
-              </a>
-            </div>
-            <p style="color:#aaa;font-size:12px;margin:24px 0 0">Hunch — hunch.fan</p>
-          </div>
-        `,
-      }),
-    }).catch(() => {});
-  }
 });
 
 // ─── Affiliate: get my affiliate record ──────────────────────────────────────
@@ -498,23 +459,9 @@ router.get("/affiliate/revenue", requireActiveAffiliate, async (req, res): Promi
 
 // ─── Admin: list affiliates ───────────────────────────────────────────────────
 
-const AFFILIATE_LIST_COLS = {
-  id: affiliatesTable.id,
-  name: affiliatesTable.name,
-  slug: affiliatesTable.slug,
-  email: affiliatesTable.email,
-  status: affiliatesTable.status,
-  bio: affiliatesTable.bio,
-  niche: affiliatesTable.niche,
-  avatarUrl: affiliatesTable.avatarUrl,
-  userId: affiliatesTable.userId,
-  createdAt: affiliatesTable.createdAt,
-  approvedAt: affiliatesTable.approvedAt,
-  approvedBy: affiliatesTable.approvedBy,
-};
-
 router.get("/admin/affiliates", requireAdmin, requireAdminHeader, async (req, res): Promise<void> => {
   const { q, status } = req.query as { q?: string; status?: string };
+  let query = db.select().from(affiliatesTable);
   const filters: any[] = [];
   if (status && ["pending", "active", "suspended", "rejected"].includes(status)) {
     filters.push(eq(affiliatesTable.status, status as any));
@@ -526,47 +473,18 @@ router.get("/admin/affiliates", requireAdmin, requireAdminHeader, async (req, re
       ilike(affiliatesTable.email, `%${q.trim()}%`),
     ));
   }
-  try {
-    const affiliates = filters.length > 0
-      ? await db.select(AFFILIATE_LIST_COLS).from(affiliatesTable).where(and(...filters)).orderBy(desc(affiliatesTable.createdAt)).limit(200)
-      : await db.select(AFFILIATE_LIST_COLS).from(affiliatesTable).orderBy(desc(affiliatesTable.createdAt)).limit(200);
-    res.json({ affiliates });
-  } catch (err) {
-    req.log.error({ err }, "Failed to list affiliates");
-    res.status(500).json({ error: "Database error listing affiliates. Run migration: ALTER TABLE affiliates ADD COLUMN IF NOT EXISTS referred_by_username TEXT;" });
-  }
+  const affiliates = filters.length > 0
+    ? await db.select().from(affiliatesTable).where(and(...filters)).orderBy(desc(affiliatesTable.createdAt)).limit(200)
+    : await db.select().from(affiliatesTable).orderBy(desc(affiliatesTable.createdAt)).limit(200);
+  res.json({ affiliates });
 });
 
 // ─── Admin: get affiliate detail ──────────────────────────────────────────────
 
 router.get("/admin/affiliates/:id", requireAdmin, requireAdminHeader, async (req, res): Promise<void> => {
   const id = Number(req.params["id"]);
-  if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
-  try {
-  const [aff] = await db.select({
-    id: affiliatesTable.id,
-    userId: affiliatesTable.userId,
-    name: affiliatesTable.name,
-    slug: affiliatesTable.slug,
-    email: affiliatesTable.email,
-    status: affiliatesTable.status,
-    avatarUrl: affiliatesTable.avatarUrl,
-    bio: affiliatesTable.bio,
-    niche: affiliatesTable.niche,
-    customMessage: affiliatesTable.customMessage,
-    referredByUsername: affiliatesTable.referredByUsername,
-    createdAt: affiliatesTable.createdAt,
-    updatedAt: affiliatesTable.updatedAt,
-    approvedAt: affiliatesTable.approvedAt,
-    approvedBy: affiliatesTable.approvedBy,
-  }).from(affiliatesTable).where(eq(affiliatesTable.id, id)).limit(1);
+  const [aff] = await db.select().from(affiliatesTable).where(eq(affiliatesTable.id, id)).limit(1);
   if (!aff) { res.status(404).json({ error: "Not found" }); return; }
-
-  // Each sub-query runs independently — if a table doesn't exist in production
-  // the query returns its fallback value instead of failing the whole request.
-  async function sq<T>(fn: () => Promise<T>, fallback: T): Promise<T> {
-    try { return await fn(); } catch { return fallback; }
-  }
 
   const [
     clicks,
@@ -577,13 +495,13 @@ router.get("/admin/affiliates/:id", requireAdmin, requireAdminHeader, async (req
     payoutsList,
     tierData,
   ] = await Promise.all([
-    sq(() => db.select({ cnt: count() }).from(affiliateClicksTable).where(eq(affiliateClicksTable.affiliateId, id)), [{ cnt: 0 }]),
-    sq(() => db.select({ cnt: count(), status: referralsTable.status })
-      .from(referralsTable).where(eq(referralsTable.affiliateId, id)).groupBy(referralsTable.status), []),
-    sq(() => db.select({ status: affiliateCommissionsTable.status, total: sum(affiliateCommissionsTable.commissionAmount) })
+    db.select({ cnt: count() }).from(affiliateClicksTable).where(eq(affiliateClicksTable.affiliateId, id)),
+    db.select({ cnt: count(), status: referralsTable.status })
+      .from(referralsTable).where(eq(referralsTable.affiliateId, id)).groupBy(referralsTable.status),
+    db.select({ status: affiliateCommissionsTable.status, total: sum(affiliateCommissionsTable.commissionAmount) })
       .from(affiliateCommissionsTable).where(eq(affiliateCommissionsTable.affiliateId, id))
-      .groupBy(affiliateCommissionsTable.status), []),
-    sq(() => db.select({
+      .groupBy(affiliateCommissionsTable.status),
+    db.select({
       id: referralsTable.id,
       status: referralsTable.status,
       signupAt: referralsTable.signupAt,
@@ -592,51 +510,47 @@ router.get("/admin/affiliates/:id", requireAdmin, requireAdminHeader, async (req
     }).from(referralsTable)
       .leftJoin(usersTable, eq(usersTable.id, referralsTable.referredUserId))
       .where(eq(referralsTable.affiliateId, id))
-      .orderBy(desc(referralsTable.signupAt)), []),
-    sq(() => db.select().from(affiliateCommissionsTable)
+      .orderBy(desc(referralsTable.signupAt)),
+    db.select().from(affiliateCommissionsTable)
       .where(eq(affiliateCommissionsTable.affiliateId, id))
-      .orderBy(desc(affiliateCommissionsTable.earnedAt)), []),
-    sq(() => db.select().from(affiliatePayoutsTable)
+      .orderBy(desc(affiliateCommissionsTable.earnedAt)),
+    db.select().from(affiliatePayoutsTable)
       .where(eq(affiliatePayoutsTable.affiliateId, id))
-      .orderBy(desc(affiliatePayoutsTable.createdAt)), []),
-    sq(() => getAffiliateTier(id), { current: null, next: null, activePremiumCount: 0 }),
+      .orderBy(desc(affiliatePayoutsTable.createdAt)),
+    getAffiliateTier(id),
   ]);
 
   const commByStatus = Object.fromEntries(
-    (commBreakdown as { status: string; total: string | null }[]).map(r => [r.status, Number(r.total ?? 0)]),
+    commBreakdown.map(r => [r.status, Number(r.total ?? 0)]),
   );
-  const totalSignups = (referralRows as { cnt: number | string }[]).reduce((s, r) => s + Number(r.cnt), 0);
-  const converted = (referralsList as { convertedAt: string | null }[]).filter(r => r.convertedAt !== null).length;
+  const totalSignups = referralRows.reduce((s, r) => s + Number(r.cnt), 0);
+  const converted = referralsList.filter(r => r.convertedAt !== null).length;
   const conversionRate = totalSignups > 0 ? Math.round((converted / totalSignups) * 100 * 10) / 10 : 0;
 
   res.json({
     affiliate: aff,
     stats: {
-      totalClicks: Number((clicks as { cnt: number | string }[])[0]?.cnt ?? 0),
+      totalClicks: Number(clicks[0]?.cnt ?? 0),
       totalSignups,
-      activePremiumUsers: (tierData as { activePremiumCount: number }).activePremiumCount,
+      activePremiumUsers: tierData.activePremiumCount,
       conversionRate,
       commissionPending:  commByStatus["pending"]  ?? 0,
       commissionApproved: commByStatus["approved"] ?? 0,
       commissionPaid:     commByStatus["paid"]     ?? 0,
-      commissionTotal: (commBreakdown as { total: string | null }[]).reduce((s, r) => s + Number(r.total ?? 0), 0),
+      commissionTotal: commBreakdown.reduce((s, r) => s + Number(r.total ?? 0), 0),
     },
     tier: {
-      current: (tierData as { current: unknown }).current,
-      next: (tierData as { next: unknown }).next,
-      activePremiumCount: (tierData as { activePremiumCount: number }).activePremiumCount,
-      usersToNextTier: (tierData as { next: { minActivePremiumUsers: number } | null }).next
-        ? Math.max(0, (tierData as { next: { minActivePremiumUsers: number } }).next.minActivePremiumUsers - (tierData as { activePremiumCount: number }).activePremiumCount)
+      current: tierData.current,
+      next: tierData.next,
+      activePremiumCount: tierData.activePremiumCount,
+      usersToNextTier: tierData.next
+        ? Math.max(0, tierData.next.minActivePremiumUsers - tierData.activePremiumCount)
         : 0,
     },
     referrals: referralsList,
     commissions: commissionsList,
     payouts: payoutsList,
   });
-  } catch (err) {
-    req.log.error({ err }, "Failed to get affiliate detail");
-    res.status(500).json({ error: "Database error loading affiliate detail" });
-  }
 });
 
 // ─── Admin: create affiliate ──────────────────────────────────────────────────
