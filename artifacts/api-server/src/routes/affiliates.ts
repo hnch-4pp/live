@@ -245,10 +245,11 @@ router.post("/affiliates/click", async (req, res): Promise<void> => {
 // ─── Public: apply to affiliate program ──────────────────────────────────────
 
 router.post("/affiliates/apply", async (req, res): Promise<void> => {
-  const { name, email, slug, bio, niche, customMessage, socialLinks } = req.body as {
+  const { name, email, slug, bio, niche, customMessage, socialLinks, referredBy } = req.body as {
     name?: string; email?: string; slug?: string;
     bio?: string; niche?: string; customMessage?: string;
     socialLinks?: Record<string, string>;
+    referredBy?: string;
   };
 
   if (!name?.trim()) { res.status(400).json({ error: "Name required" }); return; }
@@ -285,6 +286,7 @@ router.post("/affiliates/apply", async (req, res): Promise<void> => {
     niche: niche?.trim() ?? null,
     customMessage: customMessage?.trim() ?? null,
     socialLinks: Object.keys(cleanedLinks).length > 0 ? cleanedLinks : null,
+    referredByUsername: referredBy?.trim() || null,
     status: "pending",
   }).returning();
 

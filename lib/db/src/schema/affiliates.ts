@@ -37,6 +37,7 @@ export const affiliatesTable = pgTable("affiliates", {
   status: affiliateStatusEnum("status").notNull().default("pending"),
   customMessage: text("custom_message"),
   socialLinks: jsonb("social_links").$type<Record<string, string>>(),
+  referredByUsername: text("referred_by_username"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   approvedAt: timestamp("approved_at", { withTimezone: true }),
