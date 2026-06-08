@@ -57,6 +57,21 @@ interface Payout {
   paidAt: string | null; paymentReference: string | null;
 }
 
+interface SubAffiliate {
+  id: number;
+  name: string;
+  slug: string;
+  status: string;
+  niche: string | null;
+  createdAt: string;
+  commissionsEarned: {
+    pending: number;
+    approved: number;
+    paid: number;
+    total: number;
+  };
+}
+
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
 function fmt(cents: number) {
@@ -74,6 +89,7 @@ function StatusBadge({ status }: { status: string }) {
     paid:       "bg-emerald-100 text-emerald-700",
     rejected:   "bg-red-100 text-red-700",
     processing: "bg-indigo-100 text-indigo-700",
+    suspended:  "bg-orange-100 text-orange-700",
   };
   return (
     <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-semibold capitalize ${map[status] ?? "bg-zinc-100 text-zinc-600"}`}>
@@ -105,10 +121,11 @@ export default function AffiliateDashboard() {
   const [referrals, setReferrals] = useState<Referral[]>([]);
   const [commissions, setCommissions] = useState<Commission[]>([]);
   const [payouts, setPayouts] = useState<Payout[]>([]);
+  const [subAffiliates, setSubAffiliates] = useState<SubAffiliate[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [copied, setCopied] = useState(false);
-  const [tab, setTab] = useState<"referrals" | "commissions" | "payouts">("referrals");
+  const [tab, setTab] = useState<"referrals" | "commissions" | "payouts" | "network">("referrals");
 
   useEffect(() => {
     if (authLoading) return;
@@ -119,12 +136,14 @@ export default function AffiliateDashboard() {
       fetch(apiUrl("/api/affiliate/referrals"),  { credentials: "include" }).then(r => r.json()),
       fetch(apiUrl("/api/affiliate/commissions"), { credentials: "include" }).then(r => r.json()),
       fetch(apiUrl("/api/affiliate/payouts"),    { credentials: "include" }).then(r => r.json()),
-    ]).then(([dash, refs, comms, pays]) => {
+      fetch(apiUrl("/api/affiliate/sub-affiliates"), { credentials: "include" }).then(r => r.json()),
+    ]).then(([dash, refs, comms, pays, subs]) => {
       if (dash.error) { setError(dash.error); return; }
       setData(dash as AffiliateDashboard);
       setReferrals((refs as { referrals: Referral[] }).referrals ?? []);
       setCommissions((comms as { commissions: Commission[] }).commissions ?? []);
       setPayouts((pays as { payouts: Payout[] }).payouts ?? []);
+      setSubAffiliates((subs as { subAffiliates: SubAffiliate[] }).subAffiliates ?? []);
     }).catch(() => setError("Error loading dashboard")).finally(() => setLoading(false));
   }, [user, authLoading, setLocation]);
 
@@ -234,49 +253,60 @@ export default function AffiliateDashboard() {
           ))}
         </div>
 
-        {/* Sub-affiliate network section */}
-        {(subAffiliateStats.totalSubAffiliates > 0 || subAffiliateStats.commissionTotal > 0) && (
-          <div className="mb-8 p-5 rounded-2xl border border-indigo-200 bg-indigo-50">
-            <div className="flex items-center gap-2 mb-4">
-              <GitBranch className="w-5 h-5 text-indigo-600" />
+        {/* Sub-affiliate network section — always visible */}
+        <div className="mb-8 p-5 rounded-2xl border border-indigo-200 bg-indigo-50">
+          <div className="flex items-start justify-between gap-4 mb-4">
+            <div className="flex items-center gap-2">
+              <GitBranch className="w-5 h-5 text-indigo-600 shrink-0" />
               <div>
                 <p className="font-bold text-foreground">Your affiliate network</p>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  Affiliates you referred to the program — you earn a percentage of their generated commissions.
+                  Affiliates you referred to the program — you earn a percentage of their commissions.
                 </p>
               </div>
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <div className="bg-white/70 rounded-xl p-3">
-                <p className="text-xs text-muted-foreground">Affiliates referred</p>
-                <p className="text-xl font-black mt-0.5">{subAffiliateStats.totalSubAffiliates}</p>
-              </div>
-              <div className="bg-white/70 rounded-xl p-3">
-                <p className="text-xs text-muted-foreground">Pending</p>
-                <p className="text-xl font-black mt-0.5">{fmt(subAffiliateStats.commissionPending)}</p>
-              </div>
-              <div className="bg-white/70 rounded-xl p-3">
-                <p className="text-xs text-muted-foreground">Approved</p>
-                <p className="text-xl font-black mt-0.5">{fmt(subAffiliateStats.commissionApproved)}</p>
-              </div>
-              <div className="bg-white/70 rounded-xl p-3">
-                <p className="text-xs text-muted-foreground">Total earned</p>
-                <p className="text-xl font-black mt-0.5">{fmt(subAffiliateStats.commissionTotal)}</p>
-              </div>
+            {subAffiliateStats.totalSubAffiliates === 0 && (
+              <button
+                onClick={() => setTab("network")}
+                className="shrink-0 text-xs text-indigo-700 font-semibold underline underline-offset-2 hover:text-indigo-900 transition-colors"
+              >
+                How it works
+              </button>
+            )}
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="bg-white/70 rounded-xl p-3">
+              <p className="text-xs text-muted-foreground">Affiliates referred</p>
+              <p className="text-xl font-black mt-0.5">{subAffiliateStats.totalSubAffiliates}</p>
+            </div>
+            <div className="bg-white/70 rounded-xl p-3">
+              <p className="text-xs text-muted-foreground">Pending</p>
+              <p className="text-xl font-black mt-0.5">{fmt(subAffiliateStats.commissionPending)}</p>
+            </div>
+            <div className="bg-white/70 rounded-xl p-3">
+              <p className="text-xs text-muted-foreground">Approved</p>
+              <p className="text-xl font-black mt-0.5">{fmt(subAffiliateStats.commissionApproved)}</p>
+            </div>
+            <div className="bg-white/70 rounded-xl p-3">
+              <p className="text-xs text-muted-foreground">Total earned</p>
+              <p className="text-xl font-black mt-0.5">{fmt(subAffiliateStats.commissionTotal)}</p>
             </div>
           </div>
-        )}
+        </div>
 
         {/* Tables */}
         <div className="rounded-2xl border border-border overflow-hidden">
-          <div className="flex border-b border-border">
-            {(["referrals", "commissions", "payouts"] as const).map(t => (
+          <div className="flex border-b border-border overflow-x-auto">
+            {(["referrals", "commissions", "payouts", "network"] as const).map(t => (
               <button
                 key={t}
                 onClick={() => setTab(t)}
-                className={`px-5 py-3.5 text-sm font-semibold capitalize transition-colors ${tab === t ? "bg-background text-foreground border-b-2 border-violet-600" : "text-muted-foreground hover:text-foreground bg-muted/40"}`}
+                className={`px-5 py-3.5 text-sm font-semibold whitespace-nowrap transition-colors ${tab === t ? "bg-background text-foreground border-b-2 border-violet-600" : "text-muted-foreground hover:text-foreground bg-muted/40"}`}
               >
-                {t} {t === "referrals" ? `(${referrals.length})` : t === "commissions" ? `(${commissions.length})` : `(${payouts.length})`}
+                {t === "referrals" && `Referrals (${referrals.length})`}
+                {t === "commissions" && `Commissions (${commissions.length})`}
+                {t === "payouts" && `Payouts (${payouts.length})`}
+                {t === "network" && `Network (${subAffiliates.length})`}
               </button>
             ))}
           </div>
@@ -366,6 +396,51 @@ export default function AffiliateDashboard() {
                       <td className="px-4 py-3"><StatusBadge status={p.status} /></td>
                       <td className="px-4 py-3 text-muted-foreground">{p.paidAt ? new Date(p.paidAt).toLocaleDateString() : "—"}</td>
                       <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{p.paymentReference ?? "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+
+            {tab === "network" && (
+              <table className="w-full text-sm">
+                <thead className="bg-muted/40 text-muted-foreground">
+                  <tr>
+                    <th className="text-left px-4 py-3 font-medium">Affiliate</th>
+                    <th className="text-left px-4 py-3 font-medium">Niche</th>
+                    <th className="text-left px-4 py-3 font-medium">Status</th>
+                    <th className="text-left px-4 py-3 font-medium">Joined</th>
+                    <th className="text-left px-4 py-3 font-medium">Your earnings</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {subAffiliates.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="text-center py-12 text-muted-foreground">
+                        <div className="flex flex-col items-center gap-2">
+                          <GitBranch className="w-8 h-8 text-muted-foreground/40" />
+                          <p className="font-medium">No network affiliates yet</p>
+                          <p className="text-xs max-w-xs">
+                            Refer other creators or influencers to the affiliate program. When they earn commissions, you earn a percentage too.
+                          </p>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : subAffiliates.map(s => (
+                    <tr key={s.id} className="hover:bg-muted/20 transition-colors">
+                      <td className="px-4 py-3">
+                        <div className="font-medium">{s.name}</div>
+                        <div className="text-xs text-muted-foreground font-mono">hunch.fan/{s.slug}</div>
+                      </td>
+                      <td className="px-4 py-3 text-muted-foreground capitalize">{s.niche ?? "—"}</td>
+                      <td className="px-4 py-3"><StatusBadge status={s.status} /></td>
+                      <td className="px-4 py-3 text-muted-foreground">{new Date(s.createdAt).toLocaleDateString()}</td>
+                      <td className="px-4 py-3">
+                        <span className="font-semibold">{fmt(s.commissionsEarned.total)}</span>
+                        {s.commissionsEarned.pending > 0 && (
+                          <span className="ml-1.5 text-xs text-amber-600">({fmt(s.commissionsEarned.pending)} pending)</span>
+                        )}
+                      </td>
                     </tr>
                   ))}
                 </tbody>

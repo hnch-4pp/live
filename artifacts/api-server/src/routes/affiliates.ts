@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { eq, and, desc, sql, isNull, or, count, sum, ilike } from "drizzle-orm";
+import { eq, and, desc, sql, isNull, or, count, sum, ilike, inArray } from "drizzle-orm";
 import crypto from "crypto";
 import { db } from "@workspace/db";
 import {
@@ -490,6 +490,72 @@ router.get("/affiliate/payouts", requireActiveAffiliate, async (req, res): Promi
     .orderBy(desc(affiliatePayoutsTable.createdAt))
     .limit(100);
   res.json({ payouts: pays });
+});
+
+// ─── Affiliate: sub-affiliates list ──────────────────────────────────────────
+
+router.get("/affiliate/sub-affiliates", requireActiveAffiliate, async (req, res): Promise<void> => {
+  const aff = (req as any).affiliate as typeof affiliatesTable.$inferSelect;
+
+  const subAffs = await db
+    .select({
+      id: affiliatesTable.id,
+      name: affiliatesTable.name,
+      slug: affiliatesTable.slug,
+      status: affiliatesTable.status,
+      niche: affiliatesTable.niche,
+      createdAt: affiliatesTable.createdAt,
+    })
+    .from(affiliatesTable)
+    .where(eq(affiliatesTable.referredByAffiliateId, aff.id))
+    .orderBy(desc(affiliatesTable.createdAt))
+    .limit(200);
+
+  // Commissions earned by the parent from each sub-affiliate
+  const commRows = await db
+    .select({
+      sourceId: affiliateCommissionsTable.sourceCommissionId,
+      total: sum(affiliateCommissionsTable.commissionAmount),
+      status: affiliateCommissionsTable.status,
+    })
+    .from(affiliateCommissionsTable)
+    .where(and(
+      eq(affiliateCommissionsTable.affiliateId, aff.id),
+      eq(affiliateCommissionsTable.isSubAffiliate, true),
+    ))
+    .groupBy(affiliateCommissionsTable.sourceCommissionId, affiliateCommissionsTable.status);
+
+  // Map sourceCommissionId → sub-affiliate id by joining back
+  const sourceIds = [...new Set(commRows.map(r => r.sourceId).filter((x): x is number => x != null))];
+  const sourceMap: Record<number, number> = {};
+  if (sourceIds.length > 0) {
+    const sources = await db
+      .select({ id: affiliateCommissionsTable.id, affId: affiliateCommissionsTable.affiliateId })
+      .from(affiliateCommissionsTable)
+      .where(inArray(affiliateCommissionsTable.id, sourceIds));
+    for (const s of sources) sourceMap[s.id] = s.affId;
+  }
+
+  // Aggregate totals per sub-affiliate
+  const totals: Record<number, { pending: number; approved: number; paid: number; total: number }> = {};
+  for (const row of commRows) {
+    if (row.sourceId == null) continue;
+    const affId = sourceMap[row.sourceId];
+    if (!affId) continue;
+    if (!totals[affId]) totals[affId] = { pending: 0, approved: 0, paid: 0, total: 0 };
+    const amt = Number(row.total ?? 0);
+    totals[affId].total += amt;
+    if (row.status === "pending") totals[affId].pending += amt;
+    else if (row.status === "approved") totals[affId].approved += amt;
+    else if (row.status === "paid") totals[affId].paid += amt;
+  }
+
+  const result = subAffs.map(s => ({
+    ...s,
+    commissionsEarned: totals[s.id] ?? { pending: 0, approved: 0, paid: 0, total: 0 },
+  }));
+
+  res.json({ subAffiliates: result });
 });
 
 // ─── Affiliate: update profile ────────────────────────────────────────────────
