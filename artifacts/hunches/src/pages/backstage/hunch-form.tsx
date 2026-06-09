@@ -398,7 +398,9 @@ export default function HunchForm() {
         setSaving(false);
         return;
       }
-      await sendSave(buildBody());
+      // Draft → submit = publish (set status to "open")
+      const overrideStatus = form.status === "draft" ? "open" : undefined;
+      await sendSave(buildBody(overrideStatus));
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       setError(msg || "Unexpected error — check console for details");
