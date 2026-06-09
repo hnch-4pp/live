@@ -274,9 +274,29 @@ function DistributionChart({
 
     chartData = bins;
   } else {
-    chartData = withCounts
-      .slice()
-      .sort((a, b) => b.count - a.count)
+    // Try to parse labels as a numeric value so we can sort ascending.
+    // Supports plain numbers ("30", "1.5") and MM:SS time strings ("13:30").
+    const parseLabel = (s: string): number | null => {
+      const plain = parseFloat(s);
+      if (!isNaN(plain) && String(plain) === s.trim()) return plain;
+      const timeMatch = s.trim().match(/^(\d+):(\d{2})$/);
+      if (timeMatch) return parseInt(timeMatch[1]!, 10) * 60 + parseInt(timeMatch[2]!, 10);
+      const numOnly = parseFloat(s);
+      if (!isNaN(numOnly)) return numOnly;
+      return null;
+    };
+
+    const numericValues = withCounts.map((o) => parseLabel(o.label));
+    const allNumericParseable = numericValues.every((v) => v !== null);
+
+    const sorted = withCounts.slice();
+    if (allNumericParseable) {
+      sorted.sort((a, b) => (parseLabel(a.label) ?? 0) - (parseLabel(b.label) ?? 0));
+    } else {
+      sorted.sort((a, b) => b.count - a.count);
+    }
+
+    chartData = sorted
       .slice(0, 12)
       .map((o) => ({
         label: o.label.length > 12 ? o.label.slice(0, 11) + "…" : o.label,
