@@ -42,11 +42,8 @@ export function Footer() {
       <div className="container mx-auto px-4 py-12">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-10 mb-10">
           <div className="md:col-span-2 space-y-4">
-            <div className="flex items-center gap-2.5">
-              <div className="w-7 h-7 rounded-lg bg-primary flex items-center justify-center shadow-sm">
-                <div className="w-2.5 h-2.5 bg-white rounded-full" />
-              </div>
-              <span className="font-display font-bold text-lg text-foreground">Hunches</span>
+            <div className="flex items-center">
+              <img src="/hunch-logo.png" alt="Hunch" className="h-[22px] w-auto" />
             </div>
             <p className="text-muted-foreground text-sm max-w-sm leading-relaxed">
               {t("footer_tagline")}
