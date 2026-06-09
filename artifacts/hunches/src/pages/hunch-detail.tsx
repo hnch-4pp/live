@@ -4,7 +4,7 @@ import { format, formatDistanceToNow, isPast, type Locale } from "date-fns";
 import {
   enUS, es, de, fr, pt, it, ja, ko, zhCN, id as idLocale, tr,
 } from "date-fns/locale";
-import { ArrowLeft, Users, Clock, Share2, AlertCircle, Trophy, CheckCircle2, Gift, Award, DollarSign, ChevronDown, ChevronUp, Check, Ticket, X, Info, Hash, Percent, Calendar, Clock as ClockIcon, Layers, Link as LinkIcon, Image, Video, ExternalLink, Activity, UserCircle2 } from "lucide-react";
+import { ArrowLeft, Users, Clock, Share2, AlertCircle, Trophy, CheckCircle2, Gift, Award, DollarSign, ChevronDown, ChevronUp, Check, Ticket, X, Info, Hash, Percent, Calendar, Clock as ClockIcon, Layers, Link as LinkIcon, Image, Video, ExternalLink, Activity, UserCircle2, ChevronRight } from "lucide-react";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, LabelList,
 } from "recharts";
@@ -286,25 +286,33 @@ function ActivityFeed({ hunchId, dateFnsLocale }: { hunchId: number | string; da
             <p className="text-xs text-muted-foreground">Aún no hay participantes</p>
           </div>
         ) : (
-          visible.map((p, idx) => (
-            <div key={idx} className="flex items-center gap-3 px-5 py-3 hover:bg-muted/30 transition-colors">
-              {p.avatarUrl ? (
-                <img src={p.avatarUrl} alt={p.username ?? ""} className="w-8 h-8 rounded-full object-cover shrink-0" />
-              ) : (
-                <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                  <span className="text-[10px] font-bold text-primary">{initials(p.username)}</span>
+          visible.map((p, idx) => {
+            const inner = (
+              <div className="flex items-center gap-3 px-5 py-3 hover:bg-muted/30 transition-colors">
+                {p.avatarUrl ? (
+                  <img src={p.avatarUrl} alt={p.username ?? ""} className="w-8 h-8 rounded-full object-cover shrink-0" />
+                ) : (
+                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                    <span className="text-[10px] font-bold text-primary">{initials(p.username)}</span>
+                  </div>
+                )}
+                <div className="flex-1 min-w-0">
+                  <p className={`text-sm font-semibold truncate ${p.username ? "text-primary" : "text-foreground"}`}>
+                    {p.username ? `@${p.username}` : `Usuario ${p.userId}`}
+                  </p>
+                  <p className="text-[10px] text-muted-foreground">
+                    {formatDistanceToNow(new Date(p.joinedAt), { addSuffix: true, locale: dateFnsLocale })}
+                  </p>
                 </div>
-              )}
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-foreground truncate">
-                  {p.username ? `@${p.username}` : `Usuario ${p.userId}`}
-                </p>
-                <p className="text-[10px] text-muted-foreground">
-                  {formatDistanceToNow(new Date(p.joinedAt), { addSuffix: true, locale: dateFnsLocale })}
-                </p>
+                {p.username && <ChevronRight className="w-3.5 h-3.5 text-muted-foreground/40 shrink-0" />}
               </div>
-            </div>
-          ))
+            );
+            return p.username ? (
+              <Link key={idx} href={`/u/${p.username}`}>{inner}</Link>
+            ) : (
+              <div key={idx}>{inner}</div>
+            );
+          })
         )}
       </div>
 
