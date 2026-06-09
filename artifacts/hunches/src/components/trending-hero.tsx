@@ -195,6 +195,94 @@ function DistributionChart({
     );
   }
 
+  // ── 2-option "head-to-head" display ──────────────────────────────────────
+  if (options.length === 2) {
+    const [a, b] = options as [typeof options[0], typeof options[0]];
+    const pctA = a.percentage;
+    const pctB = b.percentage;
+    const leading = pctA >= pctB ? "a" : "b";
+
+    const truncate = (s: string, max: number) =>
+      s.length > max ? s.slice(0, max - 1) + "…" : s;
+
+    return (
+      <div className="w-full select-none">
+        {/* Percentage row */}
+        <div className="flex items-end justify-between mb-3">
+          {/* Option A */}
+          <div className="flex flex-col items-start gap-0.5">
+            <span
+              className="font-black leading-none tabular-nums"
+              style={{
+                fontSize: "clamp(2rem, 4vw, 2.75rem)",
+                color: leading === "a" ? "#a3e635" : "rgba(255,255,255,0.55)",
+              }}
+            >
+              {pctA}%
+            </span>
+            <span
+              className="text-[11px] font-semibold uppercase tracking-wide max-w-[140px] leading-tight"
+              style={{ color: leading === "a" ? "rgba(163,230,53,0.85)" : "rgba(255,255,255,0.45)" }}
+            >
+              {truncate(a.label, 22)}
+            </span>
+          </div>
+
+          {/* VS badge */}
+          <div className="flex flex-col items-center px-2 pb-1">
+            <span className="text-[10px] font-black uppercase tracking-widest text-white/30">vs</span>
+          </div>
+
+          {/* Option B */}
+          <div className="flex flex-col items-end gap-0.5">
+            <span
+              className="font-black leading-none tabular-nums"
+              style={{
+                fontSize: "clamp(2rem, 4vw, 2.75rem)",
+                color: leading === "b" ? "#a3e635" : "rgba(255,255,255,0.55)",
+              }}
+            >
+              {pctB}%
+            </span>
+            <span
+              className="text-[11px] font-semibold uppercase tracking-wide max-w-[140px] leading-tight text-right"
+              style={{ color: leading === "b" ? "rgba(163,230,53,0.85)" : "rgba(255,255,255,0.45)" }}
+            >
+              {truncate(b.label, 22)}
+            </span>
+          </div>
+        </div>
+
+        {/* Split bar */}
+        <div className="relative h-2 rounded-full overflow-hidden bg-white/10">
+          <div
+            className="absolute inset-y-0 left-0 rounded-full transition-all duration-700"
+            style={{
+              width: `${pctA}%`,
+              background: leading === "a"
+                ? "linear-gradient(90deg, #a3e635 0%, #65a30d 100%)"
+                : "rgba(255,255,255,0.35)",
+            }}
+          />
+          <div
+            className="absolute inset-y-0 right-0 rounded-full transition-all duration-700"
+            style={{
+              width: `${pctB}%`,
+              background: leading === "b"
+                ? "linear-gradient(270deg, #a3e635 0%, #65a30d 100%)"
+                : "rgba(255,255,255,0.35)",
+            }}
+          />
+        </div>
+
+        {/* Participant count */}
+        <p className="text-white/40 text-[10px] mt-2 text-center tabular-nums">
+          {participantCount.toLocaleString()} {participantCount === 1 ? "predicción" : "predicciones"}
+        </p>
+      </div>
+    );
+  }
+
   // ── Categorical fallback: green bars ─────────────────────────────────────
   const chartData = options
     .slice()
