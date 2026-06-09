@@ -40,10 +40,12 @@ async function enrichComments(
   const authorMap = new Map(authors.map((a) => [a.id, a]));
 
   // Like counts
-  const likeCounts = await db.execute<{ comment_id: number; cnt: string }>(
-    sql`SELECT comment_id, COUNT(*)::int as cnt FROM comment_likes WHERE comment_id = ANY(${ids}) GROUP BY comment_id`
-  );
-  const likeMap = new Map(likeCounts.rows.map((r) => [Number(r.comment_id), Number(r.cnt)]));
+  const likeCounts = await db
+    .select({ commentId: commentLikesTable.commentId, cnt: sql<number>`COUNT(*)::int` })
+    .from(commentLikesTable)
+    .where(inArray(commentLikesTable.commentId, ids))
+    .groupBy(commentLikesTable.commentId);
+  const likeMap = new Map(likeCounts.map((r) => [r.commentId, r.cnt]));
 
   // My likes & bookmarks
   let myLikes = new Set<number>();
