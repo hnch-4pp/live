@@ -85,8 +85,14 @@ export function HunchCard({ hunch, featured = false }: HunchCardProps) {
     return t("status_open");
   })();
 
-  const topOption = hunch.options.length > 0
-    ? hunch.options.reduce((a, b) => a.percentage > b.percentage ? a : b)
+  const firstQuestion = (hunch as any)?.questions?.[0] as { prompt: string; options: Array<{ id: number; label: string; percentage: number }> } | undefined;
+  const displayOptions: Array<{ id: number; label: string; percentage: number }> =
+    hunch.isMulti && hunch.options.length === 0 && firstQuestion?.options?.length
+      ? firstQuestion.options
+      : hunch.options;
+
+  const topOption = displayOptions.length > 0
+    ? displayOptions.reduce((a, b) => a.percentage > b.percentage ? a : b)
     : null;
 
   const imgHeight = featured ? "h-56" : "h-44";
@@ -150,7 +156,12 @@ export function HunchCard({ hunch, featured = false }: HunchCardProps) {
 
           {/* Options */}
           <div className="space-y-2.5 mb-4 flex-1">
-            {hunch.options.slice(0, 3).map((option) => {
+            {hunch.isMulti && firstQuestion && displayOptions.length > 0 && (
+              <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide truncate mb-1">
+                {firstQuestion.prompt}
+              </p>
+            )}
+            {displayOptions.slice(0, 3).map((option) => {
               const isWinner  = hunch.status === "resolved" && hunch.winnerOption === option.label;
               const isLeading = topOption?.id === option.id && hunch.status !== "resolved";
               return (
