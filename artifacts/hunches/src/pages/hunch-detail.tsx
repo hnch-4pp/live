@@ -230,6 +230,26 @@ interface ActivityParticipant {
   joinedAt: string;
 }
 
+function ActivityAvatar({ username, avatarUrl }: { username: string | null; avatarUrl: string | null }) {
+  const [imgError, setImgError] = useState(false);
+  const initials = username ? username.slice(0, 2).toUpperCase() : "?";
+  if (avatarUrl && !imgError) {
+    return (
+      <img
+        src={avatarUrl}
+        alt={username ?? ""}
+        className="w-8 h-8 rounded-full object-cover shrink-0"
+        onError={() => setImgError(true)}
+      />
+    );
+  }
+  return (
+    <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+      <span className="text-[10px] font-bold text-primary">{initials}</span>
+    </div>
+  );
+}
+
 const ACTIVITY_PREVIEW = 7;
 
 function ActivityFeed({ hunchId, dateFnsLocale }: { hunchId: number | string; dateFnsLocale: Locale }) {
@@ -289,13 +309,7 @@ function ActivityFeed({ hunchId, dateFnsLocale }: { hunchId: number | string; da
           visible.map((p, idx) => {
             const inner = (
               <div className="flex items-center gap-3 px-5 py-3 hover:bg-muted/30 transition-colors">
-                {p.avatarUrl ? (
-                  <img src={p.avatarUrl} alt={p.username ?? ""} className="w-8 h-8 rounded-full object-cover shrink-0" />
-                ) : (
-                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                    <span className="text-[10px] font-bold text-primary">{initials(p.username)}</span>
-                  </div>
-                )}
+                <ActivityAvatar username={p.username} avatarUrl={p.avatarUrl} />
                 <div className="flex-1 min-w-0">
                   <p className={`text-sm font-semibold truncate ${p.username ? "text-primary" : "text-foreground"}`}>
                     {p.username ? `@${p.username}` : `Usuario ${p.userId}`}

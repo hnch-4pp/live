@@ -49,14 +49,17 @@ interface BookmarkedComment {
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
 function Avatar({ username, avatarUrl, size = 80 }: { username: string; avatarUrl: string | null; size?: number }) {
+  const [imgError, setImgError] = useState(false);
   const initials = username.slice(0, 2).toUpperCase();
-  if (avatarUrl) {
+
+  if (avatarUrl && !imgError) {
     return (
       <img
         src={avatarUrl}
         alt={username}
         className="rounded-full object-cover border-4 border-background shadow-md"
         style={{ width: size, height: size }}
+        onError={() => setImgError(true)}
       />
     );
   }
