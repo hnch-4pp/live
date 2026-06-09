@@ -1651,8 +1651,10 @@ router.get("/admin/metrics/users", requireAdmin, requireAdminHeader, async (req,
       break;
   }
 
+  const subJoinExpr = joinExpr.replace("created_at", "s.created_at");
+
   try {
-    const [dataRows, prevRows, beforeRows, nowRows] = await Promise.all([
+    const [dataRows, prevRows, beforeRows, nowRows, paidDataRows, paidNowRows, paidBeforeRows] = await Promise.all([
       db.execute(sql.raw(`
         SELECT
           ${labelExpr} AS label,
@@ -1674,22 +1676,51 @@ router.get("/admin/metrics/users", requireAdmin, requireAdminHeader, async (req,
         WHERE created_at < ${periodStart}
       `)),
       db.execute(sql.raw(`SELECT COUNT(*)::int AS total FROM users`)),
+      db.execute(sql.raw(`
+        SELECT
+          ${labelExpr} AS label,
+          COUNT(s.id)::int AS paid_count
+        FROM ${seriesQuery} AS gs
+        LEFT JOIN subscriptions s ON ${subJoinExpr}
+          AND s.status IN ('active', 'trialing')
+        GROUP BY gs, label
+        ORDER BY gs
+      `)),
+      db.execute(sql.raw(`
+        SELECT COUNT(DISTINCT user_id)::int AS total
+        FROM subscriptions
+        WHERE status IN ('active', 'trialing')
+      `)),
+      db.execute(sql.raw(`
+        SELECT COUNT(DISTINCT user_id)::int AS total
+        FROM subscriptions
+        WHERE status IN ('active', 'trialing')
+          AND created_at < ${periodStart}
+      `)),
     ]);
+
+    const paidByLabel = new Map(
+      (paidDataRows.rows as { label: string; paid_count: number }[]).map((r) => [r.label, Number(r.paid_count)])
+    );
 
     const data = (dataRows.rows as { label: string; count: number }[]).map((r) => ({
       label: r.label,
       count: Number(r.count),
+      paidCount: paidByLabel.get(r.label) ?? 0,
     }));
 
     const total = data.reduce((s, r) => s + r.count, 0);
     const previousTotal = Number((prevRows.rows as { total: number }[])[0]?.total ?? 0);
     const totalBeforePeriod = Number((beforeRows.rows as { total: number }[])[0]?.total ?? 0);
     const totalNow = Number((nowRows.rows as { total: number }[])[0]?.total ?? 0);
+    const paidNow = Number((paidNowRows.rows as { total: number }[])[0]?.total ?? 0);
+    const freeNow = totalNow - paidNow;
+    const paidBeforePeriod = Number((paidBeforeRows.rows as { total: number }[])[0]?.total ?? 0);
 
-    res.json({ period, total, previousTotal, totalNow, totalBeforePeriod, data });
+    res.json({ period, total, previousTotal, totalNow, totalBeforePeriod, paidNow, freeNow, paidBeforePeriod, data });
   } catch (err) {
     req.log.warn({ err }, "metrics/users query failed");
-    res.json({ period, total: 0, previousTotal: 0, totalNow: 0, totalBeforePeriod: 0, data: [] });
+    res.json({ period, total: 0, previousTotal: 0, totalNow: 0, totalBeforePeriod: 0, paidNow: 0, freeNow: 0, paidBeforePeriod: 0, data: [] });
   }
 });
 

@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { AdminLayout } from "@/components/admin-layout";
 import { useAdminAuth, adminFetch } from "./dashboard";
-import { Users, TrendingUp, TrendingDown, Minus, Activity, UsersRound } from "lucide-react";
+import { Users, TrendingUp, TrendingDown, Minus, Activity, UsersRound, CreditCard, UserCheck } from "lucide-react";
 import {
   AreaChart,
   Area,
@@ -12,6 +12,7 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
+  Legend,
 } from "recharts";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -32,7 +33,10 @@ interface MetricsData {
   previousTotal: number;
   totalNow: number;
   totalBeforePeriod: number;
-  data: { label: string; count: number }[];
+  paidNow: number;
+  freeNow: number;
+  paidBeforePeriod: number;
+  data: { label: string; count: number; paidCount: number }[];
 }
 
 interface ActiveUsersData {
@@ -104,14 +108,17 @@ const RegTooltip = ({ active, payload, label }: { active?: boolean; payload?: { 
   );
 };
 
-const CumTooltip = ({ active, payload, label }: { active?: boolean; payload?: { value: number }[]; label?: string }) => {
+const CumTooltip = ({ active, payload, label }: { active?: boolean; payload?: { name?: string; value?: number; color?: string }[]; label?: string }) => {
   if (!active || !payload?.length) return null;
+  const labelMap: Record<string, string> = { total: "Total", paid: "Paid", free: "Free" };
   return (
-    <div className="bg-white border border-gray-200 rounded-xl shadow-lg px-4 py-3">
-      <p className="text-xs font-semibold text-gray-500 mb-1">{label}</p>
-      <p className="text-lg font-bold text-indigo-700">
-        {payload[0].value?.toLocaleString()} <span className="text-sm font-normal text-gray-500">total users</span>
-      </p>
+    <div className="bg-white border border-gray-200 rounded-xl shadow-lg px-4 py-3 min-w-[140px]">
+      <p className="text-xs font-semibold text-gray-500 mb-2">{label}</p>
+      {payload.map((p) => (
+        <p key={p.name} className="text-sm font-bold" style={{ color: p.color }}>
+          {(p.value ?? 0).toLocaleString()} <span className="font-normal text-gray-500">{labelMap[p.name ?? ""] ?? p.name}</span>
+        </p>
+      ))}
     </div>
   );
 };
@@ -169,12 +176,15 @@ export default function AdminMetrics() {
   }, []);
 
   // Derive cumulative series from registration data (no separate endpoint needed)
-  const cumSeries: { label: string; total: number }[] | null = regData
+  const cumSeries: { label: string; total: number; paid: number; free: number }[] | null = regData
     ? (() => {
         let running = regData.totalBeforePeriod ?? 0;
+        let runningPaid = regData.paidBeforePeriod ?? 0;
         return regData.data.map((bucket) => {
           running += bucket.count;
-          return { label: bucket.label, total: running };
+          runningPaid += bucket.paidCount ?? 0;
+          const runningFree = running - runningPaid;
+          return { label: bucket.label, total: running, paid: runningPaid, free: runningFree };
         });
       })()
     : null;
@@ -227,8 +237,8 @@ export default function AdminMetrics() {
             <h2 className="text-base font-bold text-gray-800">Total registered users</h2>
           </div>
 
-          {/* Stat card */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-6">
+          {/* Stat cards row 1: totals */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-4">
             <div className="bg-white border border-gray-200 rounded-2xl p-5">
               <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Total users now</p>
               {regLoading ? <StatSkeleton /> : (
@@ -263,6 +273,42 @@ export default function AdminMetrics() {
             </div>
           </div>
 
+          {/* Stat cards row 2: free / paid breakdown */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-6">
+            <div className="bg-white border border-gray-200 rounded-2xl p-5">
+              <div className="flex items-center gap-1.5 mb-2">
+                <UserCheck className="w-3.5 h-3.5 text-sky-500" />
+                <p className="text-xs font-semibold text-sky-600 uppercase tracking-wide">Free users</p>
+              </div>
+              {regLoading ? <StatSkeleton /> : (
+                <span className="text-3xl font-bold text-gray-900">{(regData?.freeNow ?? 0).toLocaleString()}</span>
+              )}
+              <p className="text-xs text-gray-400 mt-1">no active subscription</p>
+            </div>
+            <div className="bg-white border border-violet-100 rounded-2xl p-5">
+              <div className="flex items-center gap-1.5 mb-2">
+                <CreditCard className="w-3.5 h-3.5 text-violet-500" />
+                <p className="text-xs font-semibold text-violet-600 uppercase tracking-wide">Paying subscribers</p>
+              </div>
+              {regLoading ? <StatSkeleton /> : (
+                <span className="text-3xl font-bold text-gray-900">{(regData?.paidNow ?? 0).toLocaleString()}</span>
+              )}
+              <p className="text-xs text-gray-400 mt-1">active subscription</p>
+            </div>
+            <div className="bg-white border border-gray-200 rounded-2xl p-5">
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Conversion rate</p>
+              {regLoading ? <StatSkeleton /> : (() => {
+                const pct = cumTotalNow > 0
+                  ? ((regData?.paidNow ?? 0) / cumTotalNow * 100).toFixed(1)
+                  : "0.0";
+                return (
+                  <span className="text-3xl font-bold text-gray-900">{pct}%</span>
+                );
+              })()}
+              <p className="text-xs text-gray-400 mt-1">free → paid</p>
+            </div>
+          </div>
+
           {/* Chart */}
           <div className="bg-white border border-gray-200 rounded-2xl p-6">
             {regLoading ? (
@@ -283,23 +329,44 @@ export default function AdminMetrics() {
                 </div>
                 <ResponsiveContainer width="100%" height={280}>
                   <LineChart data={cumSeries} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
-                    <defs>
-                      <linearGradient id="cumGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%"  stopColor="#4f46e5" stopOpacity={0.15} />
-                        <stop offset="95%" stopColor="#4f46e5" stopOpacity={0} />
-                      </linearGradient>
-                    </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
                     <XAxis dataKey="label" tick={{ fontSize: 11, fill: "#9ca3af" }} tickLine={false} axisLine={false} interval="preserveStartEnd" />
                     <YAxis tick={{ fontSize: 11, fill: "#9ca3af" }} tickLine={false} axisLine={false} allowDecimals={false} width={36} />
-                    <Tooltip content={<CumTooltip />} cursor={{ stroke: "#4f46e5", strokeWidth: 1, strokeDasharray: "4 2" }} />
+                    <Tooltip content={<CumTooltip />} cursor={{ stroke: "#94a3b8", strokeWidth: 1, strokeDasharray: "4 2" }} />
+                    <Legend
+                      iconType="circle"
+                      iconSize={8}
+                      wrapperStyle={{ fontSize: 12, paddingTop: 12 }}
+                      formatter={(value: string) => ({ total: "Total", paid: "Paid", free: "Free" } as Record<string, string>)[value] ?? value}
+                    />
                     <Line
                       type="monotone"
                       dataKey="total"
+                      name="total"
                       stroke="#4f46e5"
                       strokeWidth={2.5}
                       dot={cumSeries.length <= 14 ? { r: 4, fill: "#4f46e5", strokeWidth: 0 } : false}
                       activeDot={{ r: 5, fill: "#4f46e5", strokeWidth: 0 }}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="paid"
+                      name="paid"
+                      stroke="#7c3aed"
+                      strokeWidth={2}
+                      strokeDasharray="5 3"
+                      dot={cumSeries.length <= 14 ? { r: 3, fill: "#7c3aed", strokeWidth: 0 } : false}
+                      activeDot={{ r: 4, fill: "#7c3aed", strokeWidth: 0 }}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="free"
+                      name="free"
+                      stroke="#0ea5e9"
+                      strokeWidth={2}
+                      strokeDasharray="5 3"
+                      dot={cumSeries.length <= 14 ? { r: 3, fill: "#0ea5e9", strokeWidth: 0 } : false}
+                      activeDot={{ r: 4, fill: "#0ea5e9", strokeWidth: 0 }}
                     />
                   </LineChart>
                 </ResponsiveContainer>
