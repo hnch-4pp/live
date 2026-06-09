@@ -401,10 +401,13 @@ function DistributionChart({
     chartData = bins;
   } else {
     // Try to parse labels as a numeric value so we can sort ascending.
-    // Supports plain numbers ("30", "1.5") and MM:SS time strings ("13:30").
+    // Supports plain numbers ("30", "1.5"), MM:SS ("13:30"), and HH:MM:SS ("00:09:56").
     const parseLabel = (s: string): number | null => {
       const plain = parseFloat(s);
       if (!isNaN(plain) && String(plain) === s.trim()) return plain;
+      // HH:MM:SS — must check before MM:SS
+      const hmsMatch = s.trim().match(/^(\d+):(\d{2}):(\d{2})$/);
+      if (hmsMatch) return parseInt(hmsMatch[1]!, 10) * 3600 + parseInt(hmsMatch[2]!, 10) * 60 + parseInt(hmsMatch[3]!, 10);
       const timeMatch = s.trim().match(/^(\d+):(\d{2})$/);
       if (timeMatch) return parseInt(timeMatch[1]!, 10) * 60 + parseInt(timeMatch[2]!, 10);
       const numOnly = parseFloat(s);
