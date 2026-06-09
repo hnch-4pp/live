@@ -230,10 +230,13 @@ interface ActivityParticipant {
   joinedAt: string;
 }
 
+const ACTIVITY_PREVIEW = 7;
+
 function ActivityFeed({ hunchId, dateFnsLocale }: { hunchId: number | string; dateFnsLocale: Locale }) {
   const [participants, setParticipants] = useState<ActivityParticipant[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [expanded, setExpanded] = useState(false);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -250,6 +253,9 @@ function ActivityFeed({ hunchId, dateFnsLocale }: { hunchId: number | string; da
     if (!name) return "?";
     return name.slice(0, 2).toUpperCase();
   };
+
+  const visible = expanded ? participants : participants.slice(0, ACTIVITY_PREVIEW);
+  const hasMore = participants.length > ACTIVITY_PREVIEW;
 
   return (
     <div id="activity-feed" className="bg-card border border-border rounded-2xl overflow-hidden card-shadow">
@@ -280,9 +286,8 @@ function ActivityFeed({ hunchId, dateFnsLocale }: { hunchId: number | string; da
             <p className="text-xs text-muted-foreground">Aún no hay participantes</p>
           </div>
         ) : (
-          participants.map((p, idx) => (
+          visible.map((p, idx) => (
             <div key={idx} className="flex items-center gap-3 px-5 py-3 hover:bg-muted/30 transition-colors">
-              {/* Avatar */}
               {p.avatarUrl ? (
                 <img src={p.avatarUrl} alt={p.username ?? ""} className="w-8 h-8 rounded-full object-cover shrink-0" />
               ) : (
@@ -290,7 +295,6 @@ function ActivityFeed({ hunchId, dateFnsLocale }: { hunchId: number | string; da
                   <span className="text-[10px] font-bold text-primary">{initials(p.username)}</span>
                 </div>
               )}
-              {/* Info */}
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-semibold text-foreground truncate">
                   {p.username ? `@${p.username}` : `Usuario ${p.userId}`}
@@ -304,10 +308,18 @@ function ActivityFeed({ hunchId, dateFnsLocale }: { hunchId: number | string; da
         )}
       </div>
 
-      {total > 30 && !loading && (
-        <div className="px-5 py-3 border-t border-border">
-          <p className="text-[10px] text-muted-foreground text-center">Mostrando los 30 más recientes</p>
-        </div>
+      {/* Expand / collapse */}
+      {!loading && hasMore && (
+        <button
+          onClick={() => setExpanded((v) => !v)}
+          className="w-full flex items-center justify-center gap-1.5 px-5 py-3 border-t border-border text-xs font-semibold text-primary hover:bg-primary/5 transition-colors"
+        >
+          {expanded ? (
+            <><ChevronUp className="w-3.5 h-3.5" /> Ver menos</>
+          ) : (
+            <><ChevronDown className="w-3.5 h-3.5" /> Ver todos ({total} participantes)</>
+          )}
+        </button>
       )}
     </div>
   );
