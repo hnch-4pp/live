@@ -1,10 +1,10 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useParams, Link, useLocation } from "wouter";
-import { format, isPast, type Locale } from "date-fns";
+import { format, formatDistanceToNow, isPast, type Locale } from "date-fns";
 import {
   enUS, es, de, fr, pt, it, ja, ko, zhCN, id as idLocale, tr,
 } from "date-fns/locale";
-import { ArrowLeft, Users, Clock, Share2, AlertCircle, Trophy, CheckCircle2, Gift, Award, DollarSign, ChevronDown, ChevronUp, Check, Ticket, X, Info, Hash, Percent, Calendar, Clock as ClockIcon, Layers, Link as LinkIcon, Image, Video, ExternalLink } from "lucide-react";
+import { ArrowLeft, Users, Clock, Share2, AlertCircle, Trophy, CheckCircle2, Gift, Award, DollarSign, ChevronDown, ChevronUp, Check, Ticket, X, Info, Hash, Percent, Calendar, Clock as ClockIcon, Layers, Link as LinkIcon, Image, Video, ExternalLink, Activity, UserCircle2 } from "lucide-react";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, LabelList,
 } from "recharts";
@@ -218,6 +218,98 @@ function AnswerInput({
       maxLength={20}
       className={baseCls}
     />
+  );
+}
+
+// ── Activity feed ─────────────────────────────────────────────────────────────
+
+interface ActivityParticipant {
+  userId: number | null;
+  username: string | null;
+  avatarUrl: string | null;
+  joinedAt: string;
+}
+
+function ActivityFeed({ hunchId, dateFnsLocale }: { hunchId: number | string; dateFnsLocale: Locale }) {
+  const [participants, setParticipants] = useState<ActivityParticipant[]>([]);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(true);
+
+  const load = useCallback(() => {
+    setLoading(true);
+    fetch(`/api/hunches/${hunchId}/activity`)
+      .then((r) => r.json() as Promise<{ participants: ActivityParticipant[]; total: number }>)
+      .then((d) => { setParticipants(d.participants ?? []); setTotal(d.total ?? 0); })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [hunchId]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const initials = (name: string | null) => {
+    if (!name) return "?";
+    return name.slice(0, 2).toUpperCase();
+  };
+
+  return (
+    <div id="activity-feed" className="bg-card border border-border rounded-2xl overflow-hidden card-shadow">
+      {/* Header */}
+      <div className="flex items-center gap-2 px-5 py-4 border-b border-border">
+        <Activity className="w-4 h-4 text-primary" />
+        <h3 className="text-sm font-bold text-foreground">Actividad</h3>
+        {total > 0 && (
+          <span className="ml-auto text-xs text-muted-foreground font-medium">{total} participante{total !== 1 ? "s" : ""}</span>
+        )}
+      </div>
+
+      {/* List */}
+      <div className="divide-y divide-border">
+        {loading ? (
+          Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="flex items-center gap-3 px-5 py-3">
+              <div className="w-8 h-8 rounded-full bg-muted animate-pulse shrink-0" />
+              <div className="flex-1 space-y-1.5">
+                <div className="h-3 bg-muted rounded animate-pulse w-24" />
+                <div className="h-2.5 bg-muted rounded animate-pulse w-16" />
+              </div>
+            </div>
+          ))
+        ) : participants.length === 0 ? (
+          <div className="px-5 py-8 text-center">
+            <UserCircle2 className="w-8 h-8 text-muted-foreground/40 mx-auto mb-2" />
+            <p className="text-xs text-muted-foreground">Aún no hay participantes</p>
+          </div>
+        ) : (
+          participants.map((p, idx) => (
+            <div key={idx} className="flex items-center gap-3 px-5 py-3 hover:bg-muted/30 transition-colors">
+              {/* Avatar */}
+              {p.avatarUrl ? (
+                <img src={p.avatarUrl} alt={p.username ?? ""} className="w-8 h-8 rounded-full object-cover shrink-0" />
+              ) : (
+                <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                  <span className="text-[10px] font-bold text-primary">{initials(p.username)}</span>
+                </div>
+              )}
+              {/* Info */}
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-foreground truncate">
+                  {p.username ? `@${p.username}` : `Usuario ${p.userId}`}
+                </p>
+                <p className="text-[10px] text-muted-foreground">
+                  {formatDistanceToNow(new Date(p.joinedAt), { addSuffix: true, locale: dateFnsLocale })}
+                </p>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      {total > 30 && !loading && (
+        <div className="px-5 py-3 border-t border-border">
+          <p className="text-[10px] text-muted-foreground text-center">Mostrando los 30 más recientes</p>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -545,7 +637,13 @@ export default function HunchDetail() {
             <div className="flex flex-wrap items-center gap-5 text-sm text-muted-foreground pb-5 border-b border-border">
               <div className="flex items-center gap-1.5">
                 <Users className="w-4 h-4" />
-                <span><strong className="text-foreground font-semibold">{hunch.participantCount.toLocaleString()}</strong> {t("participants")}</span>
+                <a
+                  href="#activity-feed"
+                  onClick={(e) => { e.preventDefault(); document.getElementById("activity-feed")?.scrollIntoView({ behavior: "smooth", block: "start" }); }}
+                  className="hover:text-primary transition-colors cursor-pointer"
+                >
+                  <strong className="text-foreground font-semibold">{hunch.participantCount.toLocaleString()}</strong> {t("participants")}
+                </a>
               </div>
               <div className="flex items-center gap-1.5">
                 <Clock className="w-4 h-4" />
@@ -1081,6 +1179,9 @@ export default function HunchDetail() {
                 </div>
               </Link>
             )}
+
+            {/* Activity feed */}
+            <ActivityFeed hunchId={hunch.id} dateFnsLocale={dateFnsLocale} />
           </div>
         </div>
       </div>

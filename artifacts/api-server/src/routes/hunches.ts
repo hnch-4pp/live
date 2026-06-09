@@ -479,6 +479,48 @@ router.get("/hunches/:id", async (req, res): Promise<void> => {
   res.json(translated);
 });
 
+// ─── Activity feed ───────────────────────────────────────────────────────────
+
+router.get("/hunches/:id/activity", async (req, res): Promise<void> => {
+  const rawId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  const isNumeric = /^\d+$/.test(rawId);
+  const [hunch] = await db
+    .select({ id: hunchesTable.id })
+    .from(hunchesTable)
+    .where(isNumeric ? eq(hunchesTable.id, parseInt(rawId, 10)) : eq(hunchesTable.slug, rawId));
+
+  if (!hunch) {
+    res.status(404).json({ error: "Hunch not found" });
+    return;
+  }
+
+  // One row per user — take the most recent prediction per user
+  const rows = await db
+    .selectDistinctOn([predictionsTable.userId], {
+      userId: predictionsTable.userId,
+      joinedAt: predictionsTable.createdAt,
+      username: usersTable.username,
+      avatarUrl: usersTable.avatarUrl,
+    })
+    .from(predictionsTable)
+    .leftJoin(usersTable, eq(predictionsTable.userId, usersTable.id))
+    .where(and(eq(predictionsTable.hunchId, hunch.id), isNotNull(predictionsTable.userId)))
+    .orderBy(asc(predictionsTable.userId), asc(predictionsTable.createdAt));
+
+  // Sort by joinedAt desc (most recent first) after deduplication
+  const participants = rows
+    .sort((a, b) => new Date(b.joinedAt).getTime() - new Date(a.joinedAt).getTime())
+    .slice(0, 30)
+    .map((r) => ({
+      userId: r.userId,
+      username: r.username ?? null,
+      avatarUrl: r.avatarUrl ?? null,
+      joinedAt: r.joinedAt,
+    }));
+
+  res.json({ participants, total: rows.length });
+});
+
 // ─── Winners ─────────────────────────────────────────────────────────────────
 
 router.get("/hunches/:id/winners", async (req, res): Promise<void> => {
