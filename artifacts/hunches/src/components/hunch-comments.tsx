@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Link } from "wouter";
-import { MessageSquare, Heart, Bookmark, CornerDownRight, Trash2, Loader2, Send } from "lucide-react";
+import { MessageSquare, Heart, Bookmark, CornerDownRight, Trash2, Loader2, Send, RefreshCw } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
+import { useToast } from "@/hooks/use-toast";
 import { apiUrl } from "@/lib/apiFetch";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -251,17 +252,25 @@ function CommentRow({
 
 export function HunchComments({ hunchSlug }: Props) {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [comments, setComments] = useState<CommentData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const fetchComments = useCallback(async () => {
+    setError(null);
+    setLoading(true);
     try {
       const res = await fetch(apiUrl(`/api/hunches/${hunchSlug}/comments`), { credentials: "include" });
-      if (!res.ok) throw new Error("Failed to load");
+      if (!res.ok) {
+        const text = await res.text().catch(() => "");
+        console.error("[HunchComments] GET failed", res.status, text.slice(0, 200));
+        throw new Error(`HTTP ${res.status}`);
+      }
       const data = await res.json() as { comments: CommentData[] };
-      setComments(data.comments);
-    } catch {
+      setComments(data.comments ?? []);
+    } catch (err) {
+      console.error("[HunchComments] load error", err);
       setError("Couldn't load comments.");
     } finally {
       setLoading(false);
@@ -278,7 +287,12 @@ export function HunchComments({ hunchSlug }: Props) {
       credentials: "include",
       body: JSON.stringify({ body, parentId }),
     });
-    if (!res.ok) throw new Error("Failed to post");
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({})) as { error?: string };
+      const msg = errData.error ?? `Error ${res.status}`;
+      toast({ title: "Couldn't post comment", description: msg, variant: "destructive" });
+      throw new Error(msg);
+    }
     const newComment = await res.json() as CommentData;
     setComments((prev) => [...prev, newComment]);
   }
@@ -361,7 +375,15 @@ export function HunchComments({ hunchSlug }: Props) {
           <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
         </div>
       ) : error ? (
-        <p className="text-sm text-muted-foreground text-center py-4">{error}</p>
+        <div className="flex flex-col items-center gap-3 py-6">
+          <p className="text-sm text-muted-foreground">{error}</p>
+          <button
+            onClick={() => { void fetchComments(); }}
+            className="flex items-center gap-1.5 text-xs font-semibold text-primary hover:underline"
+          >
+            <RefreshCw className="w-3 h-3" /> Try again
+          </button>
+        </div>
       ) : roots.length === 0 ? (
         <p className="text-sm text-muted-foreground text-center py-4">No comments yet. Be the first to share your take.</p>
       ) : (
