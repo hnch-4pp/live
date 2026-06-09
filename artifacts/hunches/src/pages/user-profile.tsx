@@ -3,7 +3,7 @@ import { useParams, Link } from "wouter";
 import { Layout } from "@/components/layout";
 import { apiUrl } from "@/lib/apiFetch";
 import { useAuth } from "@/hooks/use-auth";
-import { Loader2, Trophy, Target, Calendar, TrendingUp, Clock, XCircle, Bookmark, Heart, MessageSquare } from "lucide-react";
+import { Loader2, Trophy, Target, Calendar, TrendingUp, Clock, XCircle, Bookmark, Heart, MessageSquare, ChevronRight } from "lucide-react";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -70,14 +70,16 @@ function Avatar({ username, avatarUrl, size = 80 }: { username: string; avatarUr
   );
 }
 
-function PredStatusIcon({ status, won }: { status: string; won: boolean }) {
+function StatusBadge({ status, won }: { status: string; won: boolean }) {
   if (status === "resolved") {
     return won
-      ? <Trophy className="w-4 h-4 text-amber-500 shrink-0" />
-      : <XCircle className="w-4 h-4 text-muted-foreground/50 shrink-0" />;
+      ? <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-600 bg-amber-50 border border-amber-200 rounded-full px-2 py-0.5"><Trophy className="w-3 h-3" />Won</span>
+      : <span className="text-[11px] font-semibold text-muted-foreground/70 bg-muted rounded-full px-2 py-0.5">Lost</span>;
   }
-  if (status === "open") return <TrendingUp className="w-4 h-4 text-green-500 shrink-0" />;
-  return <Clock className="w-4 h-4 text-muted-foreground/50 shrink-0" />;
+  if (status === "open") {
+    return <span className="inline-flex items-center gap-1 text-[11px] font-bold text-green-700 bg-green-50 border border-green-200 rounded-full px-2 py-0.5"><TrendingUp className="w-3 h-3" />Active</span>;
+  }
+  return <span className="text-[11px] font-semibold text-muted-foreground/70 bg-muted rounded-full px-2 py-0.5"><Clock className="w-3 h-3 inline mr-0.5" />Closed</span>;
 }
 
 // ── Component ──────────────────────────────────────────────────────────────────
@@ -89,7 +91,6 @@ export default function UserProfilePage() {
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
 
-  // Bookmarks — only loaded when viewing own profile
   const [bookmarks, setBookmarks] = useState<BookmarkedComment[]>([]);
   const [bookmarksLoading, setBookmarksLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<"predictions" | "bookmarks">("predictions");
@@ -159,36 +160,39 @@ export default function UserProfilePage() {
 
   return (
     <Layout>
-      <div className="max-w-2xl mx-auto px-4 py-10">
-        {/* Profile header */}
-        <div className="flex items-center gap-5 mb-8">
-          <Avatar username={profile.username} avatarUrl={profile.avatarUrl} size={80} />
-          <div>
-            <h1 className="text-2xl font-black text-foreground">@{profile.username}</h1>
-            <div className="flex items-center gap-1.5 text-sm text-muted-foreground mt-1">
-              <Calendar className="w-3.5 h-3.5" />
+      <div className="max-w-2xl mx-auto px-4 py-6 sm:py-10">
+
+        {/* ── Profile header ─────────────────────────────────────────── */}
+        <div className="flex items-center gap-4 mb-6">
+          <Avatar username={profile.username} avatarUrl={profile.avatarUrl} size={72} />
+          <div className="min-w-0">
+            <h1 className="text-xl sm:text-2xl font-black text-foreground leading-tight truncate">
+              @{profile.username}
+            </h1>
+            <div className="flex items-center gap-1.5 text-xs sm:text-sm text-muted-foreground mt-1">
+              <Calendar className="w-3 h-3 shrink-0" />
               <span>Member since {joinedDate}</span>
             </div>
           </div>
         </div>
 
-        {/* Stats */}
-        <div className="grid grid-cols-3 gap-3 mb-8">
-          <div className="bg-card border border-border rounded-2xl p-4 text-center">
-            <p className="text-2xl font-black text-foreground">{stats.totalPredictions.toLocaleString()}</p>
-            <p className="text-xs text-muted-foreground mt-0.5">Predictions</p>
+        {/* ── Stats ──────────────────────────────────────────────────── */}
+        <div className="grid grid-cols-3 gap-2 sm:gap-3 mb-6">
+          <div className="bg-card border border-border rounded-2xl p-3 sm:p-4 text-center">
+            <p className="text-xl sm:text-2xl font-black text-foreground">{stats.totalPredictions.toLocaleString()}</p>
+            <p className="text-[11px] sm:text-xs text-muted-foreground mt-0.5 leading-tight">Predictions</p>
           </div>
-          <div className="bg-card border border-border rounded-2xl p-4 text-center">
-            <p className="text-2xl font-black text-amber-500">{stats.totalWins}</p>
-            <p className="text-xs text-muted-foreground mt-0.5">Wins</p>
+          <div className="bg-card border border-border rounded-2xl p-3 sm:p-4 text-center">
+            <p className="text-xl sm:text-2xl font-black text-amber-500">{stats.totalWins}</p>
+            <p className="text-[11px] sm:text-xs text-muted-foreground mt-0.5 leading-tight">Wins</p>
           </div>
-          <div className="bg-card border border-border rounded-2xl p-4 text-center">
-            <p className="text-2xl font-black text-foreground">{winRate}%</p>
-            <p className="text-xs text-muted-foreground mt-0.5">Win rate</p>
+          <div className="bg-card border border-border rounded-2xl p-3 sm:p-4 text-center">
+            <p className="text-xl sm:text-2xl font-black text-foreground">{winRate}%</p>
+            <p className="text-[11px] sm:text-xs text-muted-foreground mt-0.5 leading-tight">Win rate</p>
           </div>
         </div>
 
-        {/* Tabs — show bookmarks tab only on own profile */}
+        {/* ── Tabs — own profile only ────────────────────────────────── */}
         {isOwnProfile && (
           <div className="flex border-b border-border mb-5 gap-1">
             <button
@@ -216,11 +220,11 @@ export default function UserProfilePage() {
           </div>
         )}
 
-        {/* Predictions tab */}
+        {/* ── Predictions tab ───────────────────────────────────────── */}
         {activeTab === "predictions" && (
           <div>
             {!isOwnProfile && (
-              <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">Recent predictions</h2>
+              <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Recent predictions</h2>
             )}
             {recentPredictions.length === 0 ? (
               <div className="bg-card border border-border rounded-2xl p-8 text-center text-muted-foreground text-sm">
@@ -232,30 +236,22 @@ export default function UserProfilePage() {
                   <Link
                     key={`${p.hunchId}-${p.predCreatedAt}`}
                     href={p.hunchSlug ? `/hunch/${p.hunchSlug}` : `/hunch/${p.hunchId}`}
-                    className="block bg-card border border-border rounded-2xl px-4 py-3 hover:border-primary/30 hover:bg-muted/20 transition-colors"
+                    className="block bg-card border border-border rounded-2xl px-4 py-3.5 hover:border-primary/30 hover:bg-muted/20 transition-colors active:scale-[0.99]"
                   >
-                    <div className="flex items-start gap-3">
-                      <PredStatusIcon status={p.hunchStatus} won={p.won} />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-foreground truncate leading-snug">{p.hunchTitle}</p>
-                        <div className="flex items-center gap-3 mt-0.5 flex-wrap">
-                          <span className="text-xs text-muted-foreground">
-                            Pick: <span className="font-medium text-foreground">{p.optionLabel}</span>
-                          </span>
-                          {p.hunchStatus === "resolved" && (
-                            <span className={`text-xs font-semibold ${p.won ? "text-amber-500" : "text-muted-foreground/60"}`}>
-                              {p.won ? "Won" : "Lost"}
-                            </span>
-                          )}
-                          {p.hunchStatus === "open" && (
-                            <span className="text-xs font-semibold text-green-600">Active</span>
-                          )}
-                          {p.hunchStatus === "closed" && (
-                            <span className="text-xs font-semibold text-muted-foreground">Closed</span>
-                          )}
-                        </div>
-                      </div>
-                      <span className="text-xs text-muted-foreground shrink-0 tabular-nums">
+                    {/* Title row */}
+                    <div className="flex items-start justify-between gap-2 mb-2">
+                      <p className="text-sm font-semibold text-foreground leading-snug line-clamp-2 flex-1">
+                        {p.hunchTitle}
+                      </p>
+                      <ChevronRight className="w-4 h-4 text-muted-foreground/40 shrink-0 mt-0.5" />
+                    </div>
+                    {/* Meta row */}
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <StatusBadge status={p.hunchStatus} won={p.won} />
+                      <span className="text-xs text-muted-foreground">
+                        Pick: <span className="font-semibold text-foreground">{p.optionLabel}</span>
+                      </span>
+                      <span className="ml-auto text-xs text-muted-foreground tabular-nums shrink-0">
                         {new Date(p.predCreatedAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
                       </span>
                     </div>
@@ -266,7 +262,7 @@ export default function UserProfilePage() {
           </div>
         )}
 
-        {/* Bookmarks tab — own profile only */}
+        {/* ── Bookmarks tab — own profile only ──────────────────────── */}
         {activeTab === "bookmarks" && isOwnProfile && (
           <div>
             {bookmarksLoading ? (
@@ -280,7 +276,7 @@ export default function UserProfilePage() {
             ) : (
               <div className="space-y-3">
                 {bookmarks.map((b) => (
-                  <div key={b.id} className="bg-card border border-border rounded-2xl px-4 py-3">
+                  <div key={b.id} className="bg-card border border-border rounded-2xl px-4 py-3.5">
                     {b.isDeleted || b.isHidden ? (
                       <p className="text-sm text-muted-foreground italic">[This comment is no longer available]</p>
                     ) : (
@@ -299,7 +295,7 @@ export default function UserProfilePage() {
                           </span>
                         </div>
                         <p className="text-sm text-foreground whitespace-pre-wrap break-words leading-relaxed mb-2">{b.body}</p>
-                        <div className="flex items-center justify-between">
+                        <div className="flex items-center justify-between gap-2">
                           <div className="flex items-center gap-1 text-xs text-muted-foreground">
                             <Heart className="w-3 h-3" />
                             <span>{b.likeCount}</span>
@@ -307,7 +303,7 @@ export default function UserProfilePage() {
                           {b.hunch && (
                             <Link
                               href={b.hunch.slug ? `/hunch/${b.hunch.slug}` : `/hunch/${b.hunch.id}`}
-                              className="text-xs text-muted-foreground hover:text-primary hover:underline flex items-center gap-1 truncate max-w-[60%]"
+                              className="text-xs text-muted-foreground hover:text-primary hover:underline flex items-center gap-1 truncate max-w-[65%]"
                             >
                               <MessageSquare className="w-3 h-3 shrink-0" />
                               <span className="truncate">{b.hunch.title}</span>
