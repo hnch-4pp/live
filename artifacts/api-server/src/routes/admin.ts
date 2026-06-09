@@ -20,7 +20,7 @@ import {
   topNotificationsTable,
   trendingTopicsTable,
 } from "@workspace/db";
-import { eq, or, ilike, sql, desc, and, asc } from "drizzle-orm";
+import { eq, or, ilike, sql, desc, and, asc, isNull } from "drizzle-orm";
 import { getUncachableStripeClient } from "../stripeClient";
 import { handleCheckoutSessionCompleted } from "../webhookHandlers";
 import { getAdminAlertPrefs, saveAdminAlertPrefs, DEFAULT_ALERT_PREFS } from "../adminAlerts";
@@ -317,7 +317,12 @@ router.get(
       .from(hunchQuestionsTable)
       .where(eq(hunchQuestionsTable.hunchId, id))
       .orderBy(hunchQuestionsTable.sortOrder);
-    res.json({ ...hunch, prizeTiers: tiers, questions });
+    const options = await db
+      .select({ id: optionsTable.id, label: optionsTable.label })
+      .from(optionsTable)
+      .where(eq(optionsTable.hunchId, id))
+      .orderBy(optionsTable.id);
+    res.json({ ...hunch, prizeTiers: tiers, questions, options });
   },
 );
 
@@ -445,6 +450,14 @@ router.post(
     await db.insert(hunchPrizeTiersTable).values(
       resolvedTiers.map((t) => ({ hunchId: hunch.id, rank: t.rank, prizeId: t.prizeId })),
     );
+
+    // Save pre-defined options for option-type hunches
+    if (answerType === "option" && Array.isArray(req.body.options)) {
+      const opts = (req.body.options as string[]).map((o) => String(o).trim()).filter(Boolean);
+      if (opts.length > 0) {
+        await db.insert(optionsTable).values(opts.map((label) => ({ hunchId: hunch.id, label, percentage: 0 })));
+      }
+    }
 
     // Save questions for multi-prediction hunches
     const isMulti = req.body.isMulti === true || req.body.isMulti === "true";
@@ -574,20 +587,38 @@ router.patch(
       }
     }
 
-    if (Object.keys(updates).length === 0) {
+    const hasOptionsList = Array.isArray(req.body.options);
+
+    if (Object.keys(updates).length === 0 && !hasOptionsList) {
       res.status(400).json({ error: "Nothing to update" });
       return;
     }
 
-    const [hunch] = await db
-      .update(hunchesTable)
-      .set(updates)
-      .where(eq(hunchesTable.id, id))
-      .returning();
+    let hunch: typeof hunchesTable.$inferSelect | undefined;
+    if (Object.keys(updates).length > 0) {
+      const [updated] = await db
+        .update(hunchesTable)
+        .set(updates)
+        .where(eq(hunchesTable.id, id))
+        .returning();
+      hunch = updated;
+    } else {
+      const [existing] = await db.select().from(hunchesTable).where(eq(hunchesTable.id, id));
+      hunch = existing;
+    }
 
     if (!hunch) {
       res.status(404).json({ error: "Hunch not found" });
       return;
+    }
+
+    // Update pre-defined options for option-type hunches
+    if (hasOptionsList) {
+      const opts = (req.body.options as string[]).map((o) => String(o).trim()).filter(Boolean);
+      await db.delete(optionsTable).where(and(eq(optionsTable.hunchId, id), isNull(optionsTable.questionId)));
+      if (opts.length > 0) {
+        await db.insert(optionsTable).values(opts.map((label) => ({ hunchId: id, label, percentage: 0 })));
+      }
     }
 
     if (req.body.notifyWinners === true) {

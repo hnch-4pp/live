@@ -26,6 +26,7 @@ const ANSWER_TYPES = [
   { value: "decimal", label: "Decimal",  description: "With decimals (e.g. 3.14)",          Icon: Percent },
   { value: "date",    label: "Date",     description: "Date in dd/mm/yyyy",                 Icon: Calendar },
   { value: "time",    label: "Time",     description: "Duration in hh:mm:ss",               Icon: Clock },
+  { value: "option",  label: "Opcion",   description: "Seleccion de una lista de opciones", Icon: List },
 ];
 
 interface Question {
@@ -244,6 +245,7 @@ export default function HunchForm() {
   const isEditing = !!params.id;
 
   const [form, setForm]           = useState({ ...EMPTY });
+  const [optionChoices, setOptionChoices] = useState<string[]>(["", ""]);
   const [prizeTiers, setPrizeTiers] = useState<{ rank: number; prizeLabel: string; prizeValue: string; prizeImageUrl: string }[]>([{ rank: 1, prizeLabel: "", prizeValue: "", prizeImageUrl: "" }]);
   const [prizeConditions, setPrizeConditions] = useState("");
   const [prizeConditionsOpen, setPrizeConditionsOpen] = useState(false);
@@ -318,6 +320,9 @@ export default function HunchForm() {
           try { setWinnerRanks(JSON.parse(h.winnerRanks) as Array<{ rank: number; userId: number }>); }
           catch { /* ignore */ }
         }
+        if (Array.isArray(h.options) && h.options.length > 0 && h.answerType === "option") {
+          setOptionChoices((h.options as { label: string }[]).map((o) => o.label));
+        }
         if (Array.isArray(h.questions) && h.questions.length > 0) {
           setQuestions(h.questions.map((q: { id: number; prompt: string; answerType: string; placeholder?: string; sortOrder: number }) => ({
             id: q.id,
@@ -355,6 +360,9 @@ export default function HunchForm() {
       prizeTiers: validTiers,
       isMulti: form.isMulti,
     };
+    if (form.answerType === "option") {
+      body["options"] = optionChoices.map((o) => o.trim()).filter(Boolean);
+    }
     if (form.isMulti) {
       body["questions"] = questions.map((q, i) => ({ ...q, sortOrder: i }));
       body["winnerOption"] = null;
@@ -616,10 +624,49 @@ export default function HunchForm() {
 
             {/* Single question answer type */}
             {!form.isMulti && (
-              <div>
-                <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">Answer type</p>
-                <p className="text-xs text-gray-400 mb-3">Determines what kind of input users will see when submitting</p>
-                <AnswerTypePicker value={form.answerType} onChange={(v) => setForm({ ...form, answerType: v })} />
+              <div className="space-y-4">
+                <div>
+                  <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">Answer type</p>
+                  <p className="text-xs text-gray-400 mb-3">Determines what kind of input users will see when submitting</p>
+                  <AnswerTypePicker value={form.answerType} onChange={(v) => setForm({ ...form, answerType: v })} />
+                </div>
+                {form.answerType === "option" && (
+                  <div className="border border-gray-200 rounded-xl p-4 space-y-3 bg-gray-50">
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs font-semibold text-gray-700">Opciones predefinidas</p>
+                      <button
+                        type="button"
+                        onClick={() => setOptionChoices((prev) => [...prev, ""])}
+                        className="inline-flex items-center gap-1 text-xs text-violet-600 hover:text-violet-800 font-semibold"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        Añadir
+                      </button>
+                    </div>
+                    <div className="space-y-2">
+                      {optionChoices.map((opt, idx) => (
+                        <div key={idx} className="flex items-center gap-2">
+                          <input
+                            value={opt}
+                            onChange={(e) => setOptionChoices((prev) => prev.map((o, i) => (i === idx ? e.target.value : o)))}
+                            placeholder={`Opcion ${idx + 1}`}
+                            className="flex-1 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-violet-400 focus:border-transparent"
+                          />
+                          {optionChoices.length > 2 && (
+                            <button
+                              type="button"
+                              onClick={() => setOptionChoices((prev) => prev.filter((_, i) => i !== idx))}
+                              className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                    <p className="text-xs text-gray-400">Los usuarios deben elegir exactamente una de estas opciones.</p>
+                  </div>
+                )}
               </div>
             )}
 

@@ -160,12 +160,36 @@ function TimeInput({ value, onChange }: { value: string; onChange: (v: string) =
 }
 
 function AnswerInput({
-  answerType, value, onChange, onEnter, compact = false,
+  answerType, value, onChange, onEnter, compact = false, options,
 }: {
   answerType: string; value: string; onChange: (v: string) => void;
   onEnter?: () => void; compact?: boolean;
+  options?: Array<{ id: number; label: string; percentage: number }>;
 }) {
   const baseCls = `w-full rounded-xl border border-border bg-white px-4 text-sm font-medium text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all ${compact ? "py-2.5" : "py-3"}`;
+  if (answerType === "option" && options && options.length > 0) {
+    return (
+      <div className="grid grid-cols-1 gap-2">
+        {options.map((opt) => {
+          const selected = value === opt.label;
+          return (
+            <button
+              key={opt.id}
+              type="button"
+              onClick={() => onChange(selected ? "" : opt.label)}
+              className={`w-full text-left px-4 py-3 rounded-xl border-2 text-sm font-medium transition-all ${
+                selected
+                  ? "border-primary bg-primary/5 text-primary"
+                  : "border-border bg-white text-foreground hover:border-primary/40"
+              }`}
+            >
+              {opt.label}
+            </button>
+          );
+        })}
+      </div>
+    );
+  }
   if (answerType === "date") return <DateInput value={value} onChange={onChange} />;
   if (answerType === "time") return <TimeInput value={value} onChange={onChange} />;
   if (answerType === "decimal") {
@@ -868,6 +892,7 @@ export default function HunchDetail() {
                     value={freeText}
                     onChange={setFreeText}
                     onEnter={handlePredict}
+                    options={(hunch as any)?.options}
                   />
                 </div>
               )}
