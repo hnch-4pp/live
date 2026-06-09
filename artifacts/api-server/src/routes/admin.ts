@@ -20,7 +20,7 @@ import {
   topNotificationsTable,
   trendingTopicsTable,
 } from "@workspace/db";
-import { eq, or, ilike, sql, desc, and, asc, isNull } from "drizzle-orm";
+import { eq, or, ilike, sql, desc, and, asc, isNull, isNotNull } from "drizzle-orm";
 import { getUncachableStripeClient } from "../stripeClient";
 import { handleCheckoutSessionCompleted } from "../webhookHandlers";
 import { getAdminAlertPrefs, saveAdminAlertPrefs, DEFAULT_ALERT_PREFS } from "../adminAlerts";
@@ -318,7 +318,7 @@ router.get(
       .where(eq(hunchQuestionsTable.hunchId, id))
       .orderBy(hunchQuestionsTable.sortOrder);
     const options = await db
-      .select({ id: optionsTable.id, label: optionsTable.label })
+      .select({ id: optionsTable.id, label: optionsTable.label, questionId: optionsTable.questionId })
       .from(optionsTable)
       .where(eq(optionsTable.hunchId, id))
       .orderBy(optionsTable.id);
@@ -462,10 +462,10 @@ router.post(
     // Save questions for multi-prediction hunches
     const isMulti = req.body.isMulti === true || req.body.isMulti === "true";
     if (isMulti && Array.isArray(req.body.questions)) {
-      const qs = req.body.questions as Array<{ prompt: string; answerType: string; placeholder?: string; sortOrder?: number }>;
+      const qs = req.body.questions as Array<{ prompt: string; answerType: string; placeholder?: string; sortOrder?: number; options?: string[] }>;
       const validQs = qs.filter((q) => q.prompt?.trim());
       if (validQs.length > 0) {
-        await db.insert(hunchQuestionsTable).values(
+        const insertedQs = await db.insert(hunchQuestionsTable).values(
           validQs.map((q, i) => ({
             hunchId: hunch.id,
             sortOrder: q.sortOrder ?? i,
@@ -473,7 +473,17 @@ router.post(
             answerType: q.answerType ?? "integer",
             placeholder: q.placeholder?.trim() || null,
           }))
-        );
+        ).returning();
+        for (let i = 0; i < validQs.length; i++) {
+          const q = validQs[i];
+          const inserted = insertedQs[i];
+          if (q.answerType === "option" && Array.isArray(q.options) && inserted) {
+            const opts = q.options.map((o) => String(o).trim()).filter(Boolean);
+            if (opts.length > 0) {
+              await db.insert(optionsTable).values(opts.map((label) => ({ hunchId: hunch.id, label, percentage: 0, questionId: inserted.id })));
+            }
+          }
+        }
       }
     }
 
@@ -568,10 +578,11 @@ router.patch(
     const isMultiReq = req.body.isMulti === true || req.body.isMulti === "true";
     if (isMultiReq && Array.isArray(req.body.questions)) {
       await db.delete(hunchQuestionsTable).where(eq(hunchQuestionsTable.hunchId, id));
-      const qs = req.body.questions as Array<{ prompt: string; answerType: string; placeholder?: string; sortOrder?: number }>;
+      await db.delete(optionsTable).where(and(eq(optionsTable.hunchId, id), isNotNull(optionsTable.questionId)));
+      const qs = req.body.questions as Array<{ prompt: string; answerType: string; placeholder?: string; sortOrder?: number; options?: string[] }>;
       const validQs = qs.filter((q) => q.prompt?.trim());
       if (validQs.length > 0) {
-        await db.insert(hunchQuestionsTable).values(
+        const insertedQs = await db.insert(hunchQuestionsTable).values(
           validQs.map((q, i) => ({
             hunchId: id,
             sortOrder: q.sortOrder ?? i,
@@ -579,7 +590,17 @@ router.patch(
             answerType: q.answerType ?? "integer",
             placeholder: q.placeholder?.trim() || null,
           }))
-        );
+        ).returning();
+        for (let i = 0; i < validQs.length; i++) {
+          const q = validQs[i];
+          const inserted = insertedQs[i];
+          if (q.answerType === "option" && Array.isArray(q.options) && inserted) {
+            const opts = q.options.map((o) => String(o).trim()).filter(Boolean);
+            if (opts.length > 0) {
+              await db.insert(optionsTable).values(opts.map((label) => ({ hunchId: id, label, percentage: 0, questionId: inserted.id })));
+            }
+          }
+        }
       }
       // isMulti flag follows question count when questions are provided
       if (!("isMulti" in req.body)) {

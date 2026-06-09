@@ -35,6 +35,7 @@ interface Question {
   answerType: string;
   placeholder: string;
   sortOrder: number;
+  options: string[];
 }
 
 
@@ -250,8 +251,8 @@ export default function HunchForm() {
   const [prizeConditions, setPrizeConditions] = useState("");
   const [prizeConditionsOpen, setPrizeConditionsOpen] = useState(false);
   const [questions, setQuestions] = useState<Question[]>([
-    { prompt: "", answerType: "integer", placeholder: "", sortOrder: 0 },
-    { prompt: "", answerType: "integer", placeholder: "", sortOrder: 1 },
+    { prompt: "", answerType: "integer", placeholder: "", sortOrder: 0, options: ["", ""] },
+    { prompt: "", answerType: "integer", placeholder: "", sortOrder: 1, options: ["", ""] },
   ]);
   const [winnerUserId, setWinnerUserId] = useState<number | null>(null);
   const [winnerRanks, setWinnerRanks] = useState<Array<{ rank: number; userId: number }>>([]);
@@ -320,8 +321,9 @@ export default function HunchForm() {
           try { setWinnerRanks(JSON.parse(h.winnerRanks) as Array<{ rank: number; userId: number }>); }
           catch { /* ignore */ }
         }
-        if (Array.isArray(h.options) && h.options.length > 0 && h.answerType === "option") {
-          setOptionChoices((h.options as { label: string }[]).map((o) => o.label));
+        const loadedOptions = Array.isArray(h.options) ? h.options as { id: number; label: string; questionId: number | null }[] : [];
+        if (loadedOptions.length > 0 && h.answerType === "option") {
+          setOptionChoices(loadedOptions.filter((o) => !o.questionId).map((o) => o.label));
         }
         if (Array.isArray(h.questions) && h.questions.length > 0) {
           setQuestions(h.questions.map((q: { id: number; prompt: string; answerType: string; placeholder?: string; sortOrder: number }) => ({
@@ -330,11 +332,12 @@ export default function HunchForm() {
             answerType: q.answerType,
             placeholder: q.placeholder ?? "",
             sortOrder: q.sortOrder,
+            options: loadedOptions.filter((o) => o.questionId === q.id).map((o) => o.label).concat(["", ""]).slice(0, Math.max(2, loadedOptions.filter((o) => o.questionId === q.id).length)),
           })));
         } else if (h.isMulti) {
           setQuestions([
-            { prompt: "", answerType: "integer", placeholder: "", sortOrder: 0 },
-            { prompt: "", answerType: "integer", placeholder: "", sortOrder: 1 },
+            { prompt: "", answerType: "integer", placeholder: "", sortOrder: 0, options: ["", ""] },
+            { prompt: "", answerType: "integer", placeholder: "", sortOrder: 1, options: ["", ""] },
           ]);
         }
       })
@@ -364,7 +367,11 @@ export default function HunchForm() {
       body["options"] = optionChoices.map((o) => o.trim()).filter(Boolean);
     }
     if (form.isMulti) {
-      body["questions"] = questions.map((q, i) => ({ ...q, sortOrder: i }));
+      body["questions"] = questions.map((q, i) => ({
+        ...q,
+        sortOrder: i,
+        options: q.answerType === "option" ? q.options.map((o) => o.trim()).filter(Boolean) : undefined,
+      }));
       body["winnerOption"] = null;
       if (prizeTiers.length > 1) {
         body["winnerRanks"] = winnerRanks.length > 0 ? winnerRanks : null;
@@ -431,12 +438,28 @@ export default function HunchForm() {
     }
   };
 
-  const updateQuestion = (idx: number, field: keyof Question, value: string) => {
+  const updateQuestion = (idx: number, field: keyof Omit<Question, "options">, value: string) => {
     setQuestions((prev) => prev.map((q, i) => i === idx ? { ...q, [field]: value } : q));
   };
 
+  const updateQuestionOption = (qIdx: number, optIdx: number, value: string) => {
+    setQuestions((prev) => prev.map((q, i) => i === qIdx ? {
+      ...q, options: q.options.map((o, oi) => oi === optIdx ? value : o),
+    } : q));
+  };
+
+  const addQuestionOption = (qIdx: number) => {
+    setQuestions((prev) => prev.map((q, i) => i === qIdx ? { ...q, options: [...q.options, ""] } : q));
+  };
+
+  const removeQuestionOption = (qIdx: number, optIdx: number) => {
+    setQuestions((prev) => prev.map((q, i) => i === qIdx ? {
+      ...q, options: q.options.filter((_, oi) => oi !== optIdx),
+    } : q));
+  };
+
   const addQuestion = () => {
-    setQuestions((prev) => [...prev, { prompt: "", answerType: "integer", placeholder: "", sortOrder: prev.length }]);
+    setQuestions((prev) => [...prev, { prompt: "", answerType: "integer", placeholder: "", sortOrder: prev.length, options: ["", ""] }]);
   };
 
   const removeQuestion = (idx: number) => {
@@ -706,6 +729,43 @@ export default function HunchForm() {
                         <label className="block text-xs font-medium text-gray-600 mb-2">Answer type</label>
                         <AnswerTypePicker value={q.answerType} onChange={(v) => updateQuestion(idx, "answerType", v)} compact />
                       </div>
+                      {q.answerType === "option" && (
+                        <div className="border border-violet-200 rounded-xl p-3 space-y-2 bg-violet-50/40">
+                          <div className="flex items-center justify-between">
+                            <p className="text-xs font-semibold text-gray-700">Opciones predefinidas</p>
+                            <button
+                              type="button"
+                              onClick={() => addQuestionOption(idx)}
+                              className="inline-flex items-center gap-1 text-xs text-violet-600 hover:text-violet-800 font-semibold"
+                            >
+                              <Plus className="w-3.5 h-3.5" />
+                              Añadir
+                            </button>
+                          </div>
+                          <div className="space-y-1.5">
+                            {q.options.map((opt, optIdx) => (
+                              <div key={optIdx} className="flex items-center gap-2">
+                                <input
+                                  value={opt}
+                                  onChange={(e) => updateQuestionOption(idx, optIdx, e.target.value)}
+                                  placeholder={`Opcion ${optIdx + 1}`}
+                                  className="flex-1 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-violet-400 focus:border-transparent"
+                                />
+                                {q.options.length > 2 && (
+                                  <button
+                                    type="button"
+                                    onClick={() => removeQuestionOption(idx, optIdx)}
+                                    className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      {q.answerType !== "option" && (
                       <div>
                         <label className="block text-xs font-medium text-gray-600 mb-1">Placeholder hint <span className="text-gray-400 font-normal">(optional)</span></label>
                         <input
@@ -715,6 +775,7 @@ export default function HunchForm() {
                           className={inputCls}
                         />
                       </div>
+                      )}
                     </div>
                   ))}
                 </div>
