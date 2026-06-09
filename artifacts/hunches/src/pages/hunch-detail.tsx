@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useParams, Link, useLocation } from "wouter";
 import { format, isPast, type Locale } from "date-fns";
 import {
@@ -80,6 +80,122 @@ const getAnswerTypePlaceholder = (answerType: string, placeholder?: string | nul
     default: return "Your answer...";
   }
 };
+
+// ── Smart prediction inputs ───────────────────────────────────────────────────
+
+function SegmentBox({
+  value, onChange, placeholder, maxLen, widthCls, onFull, segRef, onBackspace,
+}: {
+  value: string; onChange: (v: string) => void; placeholder: string;
+  maxLen: number; widthCls: string; onFull?: () => void;
+  segRef?: React.RefObject<HTMLInputElement | null>; onBackspace?: () => void;
+}) {
+  return (
+    <input
+      ref={segRef}
+      type="text"
+      inputMode="numeric"
+      value={value}
+      onChange={(e) => {
+        const v = e.target.value.replace(/\D/g, "").slice(0, maxLen);
+        onChange(v);
+        if (v.length === maxLen) onFull?.();
+      }}
+      onKeyDown={(e) => { if (e.key === "Backspace" && value === "") onBackspace?.(); }}
+      placeholder={placeholder}
+      maxLength={maxLen}
+      className={`${widthCls} text-center bg-transparent border-none outline-none text-sm font-medium focus:outline-none`}
+    />
+  );
+}
+
+function DateInput({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const parseDate = (v: string) => {
+    const m = v.match(/^(\d{1,2})\/(\d{1,2})\/(\d{1,4})$/);
+    return m ? [m[1] ?? "", m[2] ?? "", m[3] ?? ""] : ["", "", ""];
+  };
+  const init = parseDate(value);
+  const [day, setDay] = useState(init[0]);
+  const [mon, setMon] = useState(init[1]);
+  const [yr, setYr]   = useState(init[2]);
+  const dayRef = useRef<HTMLInputElement | null>(null);
+  const monRef = useRef<HTMLInputElement | null>(null);
+  const yrRef  = useRef<HTMLInputElement | null>(null);
+  useEffect(() => { if (!value) { setDay(""); setMon(""); setYr(""); } }, [value]);
+  const emit = (d: string, m: string, y: string) => onChange(d || m || y ? `${d}/${m}/${y}` : "");
+  return (
+    <div className="flex items-center gap-0.5 w-full rounded-xl border border-border bg-white px-4 py-3 focus-within:ring-2 focus-within:ring-primary/30 focus-within:border-primary transition-all">
+      <SegmentBox segRef={dayRef} value={day} onChange={(v) => { setDay(v); emit(v, mon, yr); }} placeholder="dd" maxLen={2} widthCls="w-8" onFull={() => monRef.current?.focus()} />
+      <span className="text-muted-foreground text-sm select-none">/</span>
+      <SegmentBox segRef={monRef} value={mon} onChange={(v) => { setMon(v); emit(day, v, yr); }} placeholder="mm" maxLen={2} widthCls="w-8" onFull={() => yrRef.current?.focus()} onBackspace={() => dayRef.current?.focus()} />
+      <span className="text-muted-foreground text-sm select-none">/</span>
+      <SegmentBox segRef={yrRef} value={yr} onChange={(v) => { setYr(v); emit(day, mon, v); }} placeholder="aaaa" maxLen={4} widthCls="w-14" onBackspace={() => monRef.current?.focus()} />
+    </div>
+  );
+}
+
+function TimeInput({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const parseTime = (v: string) => {
+    const m = v.match(/^(\d{1,2}):(\d{1,2}):(\d{1,2})$/);
+    return m ? [m[1] ?? "", m[2] ?? "", m[3] ?? ""] : ["", "", ""];
+  };
+  const init = parseTime(value);
+  const [hrs, setHrs]   = useState(init[0]);
+  const [mins, setMins] = useState(init[1]);
+  const [secs, setSecs] = useState(init[2]);
+  const hrRef  = useRef<HTMLInputElement | null>(null);
+  const minRef = useRef<HTMLInputElement | null>(null);
+  const secRef = useRef<HTMLInputElement | null>(null);
+  useEffect(() => { if (!value) { setHrs(""); setMins(""); setSecs(""); } }, [value]);
+  const emit = (h: string, m: string, s: string) => onChange(h || m || s ? `${h}:${m}:${s}` : "");
+  return (
+    <div className="flex items-center gap-0.5 w-full rounded-xl border border-border bg-white px-4 py-3 focus-within:ring-2 focus-within:ring-primary/30 focus-within:border-primary transition-all">
+      <SegmentBox segRef={hrRef}  value={hrs}  onChange={(v) => { setHrs(v);  emit(v, mins, secs); }} placeholder="hh" maxLen={2} widthCls="w-8" onFull={() => minRef.current?.focus()} />
+      <span className="text-muted-foreground text-sm select-none">:</span>
+      <SegmentBox segRef={minRef} value={mins} onChange={(v) => { setMins(v); emit(hrs, v, secs); }} placeholder="mm" maxLen={2} widthCls="w-8" onFull={() => secRef.current?.focus()} onBackspace={() => hrRef.current?.focus()} />
+      <span className="text-muted-foreground text-sm select-none">:</span>
+      <SegmentBox segRef={secRef} value={secs} onChange={(v) => { setSecs(v); emit(hrs, mins, v); }} placeholder="ss" maxLen={2} widthCls="w-8" onBackspace={() => minRef.current?.focus()} />
+    </div>
+  );
+}
+
+function AnswerInput({
+  answerType, value, onChange, onEnter, compact = false,
+}: {
+  answerType: string; value: string; onChange: (v: string) => void;
+  onEnter?: () => void; compact?: boolean;
+}) {
+  const baseCls = `w-full rounded-xl border border-border bg-white px-4 text-sm font-medium text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all ${compact ? "py-2.5" : "py-3"}`;
+  if (answerType === "date") return <DateInput value={value} onChange={onChange} />;
+  if (answerType === "time") return <TimeInput value={value} onChange={onChange} />;
+  if (answerType === "decimal") {
+    return (
+      <div className="flex items-center gap-2">
+        <input
+          type="text" inputMode="decimal"
+          value={value}
+          onChange={(e) => onChange(e.target.value.replace(/[^\d.]/g, "").replace(/(\..*)\./g, "$1"))}
+          onKeyDown={(e) => { if (e.key === "Enter") onEnter?.(); }}
+          placeholder="Ej. 3.14"
+          maxLength={20}
+          className={baseCls}
+        />
+        <span className="text-base font-semibold text-muted-foreground shrink-0">%</span>
+      </div>
+    );
+  }
+  return (
+    <input
+      type="text" inputMode="numeric"
+      value={fmtNumericInput(value)}
+      onChange={(e) => onChange(e.target.value.replace(/[^\d-]/g, ""))}
+      onKeyDown={(e) => { if (e.key === "Enter") onEnter?.(); }}
+      placeholder="Ej. 42"
+      maxLength={20}
+      className={baseCls}
+    />
+  );
+}
 
 // ── Single-question distribution chart ───────────────────────────────────────
 
@@ -745,24 +861,16 @@ export default function HunchDetail() {
               )}
 
               {/* Single-question input */}
-              {isOpen && !submitted && !isMulti && (() => {
-                const singleAnswerType = (hunch as any)?.answerType;
-                const isNumSingle = isNumericType(singleAnswerType);
-                return (
-                  <div className="mb-4">
-                    <input
-                      type="text"
-                      inputMode={singleAnswerType === "decimal" ? "decimal" : isNumSingle ? "numeric" : undefined}
-                      value={isNumSingle ? fmtNumericInput(freeText) : freeText}
-                      onChange={(e) => setFreeText(isNumSingle ? e.target.value.replace(/,/g, "") : e.target.value)}
-                      onKeyDown={(e) => { if (e.key === "Enter") handlePredict(); }}
-                      placeholder={t("type_your_answer")}
-                      maxLength={200}
-                      className="w-full rounded-xl border border-border bg-white px-4 py-3 text-sm font-medium text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
-                    />
-                  </div>
-                );
-              })()}
+              {isOpen && !submitted && !isMulti && (
+                <div className="mb-4">
+                  <AnswerInput
+                    answerType={(hunch as any)?.answerType ?? "integer"}
+                    value={freeText}
+                    onChange={setFreeText}
+                    onEnter={handlePredict}
+                  />
+                </div>
+              )}
 
               {/* Multi-question inputs */}
               {isOpen && !submitted && isMulti && questions.length > 0 && (
@@ -777,15 +885,11 @@ export default function HunchDetail() {
                           <p className="text-sm font-semibold text-foreground leading-snug">{q.prompt}</p>
                         </div>
                       </div>
-                      <input
-                        type="text"
-                        inputMode={q.answerType === "decimal" ? "decimal" : isNumericType(q.answerType) ? "numeric" : undefined}
-                        value={isNumericType(q.answerType) ? fmtNumericInput(multiAnswers[q.id] ?? "") : (multiAnswers[q.id] ?? "")}
-                        onChange={(e) => setMultiAnswers((prev) => ({ ...prev, [q.id]: isNumericType(q.answerType) ? e.target.value.replace(/,/g, "") : e.target.value }))}
-
-                        placeholder={getAnswerTypePlaceholder(q.answerType, q.placeholder)}
-                        maxLength={200}
-                        className="w-full rounded-xl border border-border bg-white px-4 py-2.5 text-sm font-medium text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
+                      <AnswerInput
+                        answerType={q.answerType}
+                        value={multiAnswers[q.id] ?? ""}
+                        onChange={(v) => setMultiAnswers((prev) => ({ ...prev, [q.id]: v }))}
+                        compact
                       />
                     </div>
                   ))}
