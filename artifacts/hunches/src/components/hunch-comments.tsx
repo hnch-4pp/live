@@ -31,13 +31,13 @@ interface Props {
 function relativeTime(date: string): string {
   const diff = Date.now() - new Date(date).getTime();
   const m = Math.floor(diff / 60000);
-  if (m < 1) return "just now";
+  if (m < 1) return "ahora";
   if (m < 60) return `${m}m`;
   const h = Math.floor(m / 60);
   if (h < 24) return `${h}h`;
   const d = Math.floor(h / 24);
   if (d < 30) return `${d}d`;
-  return new Date(date).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  return new Date(date).toLocaleDateString("es-MX", { month: "short", day: "numeric" });
 }
 
 function AuthorAvatar({ username, avatarUrl, size = 32 }: { username: string | null; avatarUrl: string | null; size?: number }) {
@@ -97,17 +97,17 @@ function ComposeBox({
         onKeyDown={(e) => {
           if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) handleSubmit();
         }}
-        placeholder={placeholder ?? "Write a comment…"}
+        placeholder={placeholder ?? "Escribe un comentario…"}
         rows={3}
         maxLength={1000}
         className="w-full resize-none rounded-xl border border-border bg-background px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/60 transition-colors"
       />
       <div className="flex items-center justify-between">
-        <span className="text-xs text-muted-foreground">{body.length}/1000 · Cmd+Enter to send</span>
+        <span className="text-xs text-muted-foreground">{body.length}/1000 · Cmd+Enter para enviar</span>
         <div className="flex gap-2">
           {onCancel && (
             <button onClick={onCancel} className="text-xs text-muted-foreground hover:text-foreground px-3 py-1.5 rounded-lg hover:bg-muted transition-colors">
-              Cancel
+              Cancelar
             </button>
           )}
           <button
@@ -116,7 +116,7 @@ function ComposeBox({
             className="flex items-center gap-1.5 text-xs font-semibold bg-primary text-primary-foreground px-3 py-1.5 rounded-lg hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             {submitting ? <Loader2 className="w-3 h-3 animate-spin" /> : <Send className="w-3 h-3" />}
-            Post
+            Publicar
           </button>
         </div>
       </div>
@@ -146,7 +146,7 @@ function CommentRow({
   if (comment.isDeleted) {
     return (
       <div className="text-xs text-muted-foreground/50 italic py-1 pl-1">
-        [deleted]
+        [eliminado]
         {comment.replies && comment.replies.length > 0 && (
           <div className="mt-2 ml-6 space-y-3">
             {comment.replies.map((r) => (
@@ -173,7 +173,7 @@ function CommentRow({
                 @{comment.author.username}
               </Link>
             ) : (
-              <span className="text-xs font-bold text-muted-foreground">anonymous</span>
+              <span className="text-xs font-bold text-muted-foreground">anónimo</span>
             )}
             <span className="text-xs text-muted-foreground">{relativeTime(comment.createdAt)}</span>
           </div>
@@ -193,7 +193,7 @@ function CommentRow({
             <button
               onClick={() => onBookmark(comment.id)}
               className={`transition-colors ${comment.bookmarkedByMe ? "text-primary" : "text-muted-foreground hover:text-primary"}`}
-              title="Bookmark"
+              title="Guardar"
             >
               <Bookmark className={`w-3.5 h-3.5 ${comment.bookmarkedByMe ? "fill-current" : ""}`} />
             </button>
@@ -204,7 +204,7 @@ function CommentRow({
                 className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors"
               >
                 <CornerDownRight className="w-3 h-3" />
-                Reply
+                Responder
               </button>
             )}
 
@@ -212,7 +212,7 @@ function CommentRow({
               <button
                 onClick={() => onDelete(comment.id)}
                 className="text-xs text-muted-foreground hover:text-destructive transition-colors"
-                title="Delete"
+                title="Eliminar"
               >
                 <Trash2 className="w-3.5 h-3.5" />
               </button>
@@ -223,7 +223,7 @@ function CommentRow({
           {replyOpen && (
             <div className="mt-3">
               <ComposeBox
-                placeholder="Write a reply…"
+                placeholder="Escribe una respuesta…"
                 autoFocus
                 onCancel={() => setReplyOpen(false)}
                 onSubmit={async (body) => {
@@ -271,7 +271,7 @@ export function HunchComments({ hunchSlug }: Props) {
       setComments(data.comments ?? []);
     } catch (err) {
       console.error("[HunchComments] load error", err);
-      setError("Couldn't load comments.");
+      setError("No se pudieron cargar los comentarios.");
     } finally {
       setLoading(false);
     }
@@ -290,7 +290,7 @@ export function HunchComments({ hunchSlug }: Props) {
     if (!res.ok) {
       const errData = await res.json().catch(() => ({})) as { error?: string };
       const msg = errData.error ?? `Error ${res.status}`;
-      toast({ title: "Couldn't post comment", description: msg, variant: "destructive" });
+      toast({ title: "No se pudo publicar el comentario", description: msg, variant: "destructive" });
       throw new Error(msg);
     }
     const newComment = await res.json() as CommentData;
@@ -323,7 +323,7 @@ export function HunchComments({ hunchSlug }: Props) {
 
   async function deleteComment(id: number) {
     if (!user) return;
-    if (!confirm("Delete this comment?")) return;
+    if (!confirm("¿Eliminar este comentario?")) return;
     const res = await fetch(apiUrl(`/api/comments/${id}`), { method: "DELETE", credentials: "include" });
     if (!res.ok) return;
     setComments((prev) => prev.map((c) => (c.id === id ? { ...c, isDeleted: true, body: null } : c)));
@@ -353,7 +353,7 @@ export function HunchComments({ hunchSlug }: Props) {
       <div className="flex items-center gap-2 mb-5">
         <MessageSquare className="w-4 h-4 text-primary" />
         <h3 className="text-base font-display font-bold text-foreground">
-          Community {visibleCount > 0 ? `(${visibleCount})` : ""}
+          Comunidad {visibleCount > 0 ? `(${visibleCount})` : ""}
         </h3>
       </div>
 
@@ -364,8 +364,8 @@ export function HunchComments({ hunchSlug }: Props) {
         </div>
       ) : (
         <div className="mb-6 rounded-xl border border-border bg-muted/30 p-4 text-center text-sm text-muted-foreground">
-          <Link href="/login" className="font-semibold text-primary hover:underline">Log in</Link> or{" "}
-          <Link href="/signup" className="font-semibold text-primary hover:underline">sign up</Link> to join the conversation.
+          <Link href="/login" className="font-semibold text-primary hover:underline">Inicia sesión</Link> o{" "}
+          <Link href="/signup" className="font-semibold text-primary hover:underline">regístrate</Link> para unirte a la conversación.
         </div>
       )}
 
@@ -381,11 +381,11 @@ export function HunchComments({ hunchSlug }: Props) {
             onClick={() => { void fetchComments(); }}
             className="flex items-center gap-1.5 text-xs font-semibold text-primary hover:underline"
           >
-            <RefreshCw className="w-3 h-3" /> Try again
+            <RefreshCw className="w-3 h-3" /> Intentar de nuevo
           </button>
         </div>
       ) : roots.length === 0 ? (
-        <p className="text-sm text-muted-foreground text-center py-4">No comments yet. Be the first to share your take.</p>
+        <p className="text-sm text-muted-foreground text-center py-4">Aun no hay comentarios. Se el primero en compartir tu opinion.</p>
       ) : (
         <div className="space-y-5">
           {roots.map((c) => (
