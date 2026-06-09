@@ -90,7 +90,9 @@ app.use(
       if (
         !origin ||
         /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin) ||
-        /^https?:\/\/(www\.)?hunch\.fan$/.test(origin)
+        /^https?:\/\/(www\.)?hunch\.fan$/.test(origin) ||
+        /\.replit\.dev$/.test(origin) ||
+        /\.repl\.co$/.test(origin)
       ) {
         cb(null, true);
       } else {
