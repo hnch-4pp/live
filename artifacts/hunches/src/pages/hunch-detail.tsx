@@ -1193,7 +1193,9 @@ export default function HunchDetail() {
             )}
 
             {/* Activity feed */}
-            <ActivityFeed hunchId={hunch.id} dateFnsLocale={dateFnsLocale} />
+            <div className="mt-4">
+              <ActivityFeed hunchId={hunch.id} dateFnsLocale={dateFnsLocale} />
+            </div>
           </div>
         </div>
       </div>
