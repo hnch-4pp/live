@@ -198,8 +198,8 @@ function DistributionChart({
   // ── 2-option "head-to-head" display ──────────────────────────────────────
   if (options.length === 2) {
     const [a, b] = options as [typeof options[0], typeof options[0]];
-    const pctA = a.percentage;
-    const pctB = b.percentage;
+    const pctA = Math.round(a.percentage * 10) / 10;
+    const pctB = Math.round(b.percentage * 10) / 10;
     const leading = pctA >= pctB ? "a" : "b";
 
     const truncate = (s: string, max: number) =>
