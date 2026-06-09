@@ -382,7 +382,7 @@ const resources = {
       footer_support: "Support",
       footer_pricing: "Pricing",
       footer_rights: "© {{year}} Hunch Inc. All rights reserved.",
-      footer_type: "Skill-based prediction platform",
+      footer_type: "Hunch is a game where you win when you're right",
       // ── categories ───────────────────────────────────────────
       cat_sports: "Sports",
       cat_music: "Music",
@@ -771,7 +771,7 @@ const resources = {
       footer_support: "Soporte",
       footer_pricing: "Precios",
       footer_rights: "© {{year}} Hunch Inc. Todos los derechos reservados.",
-      footer_type: "Plataforma de predicciones basada en habilidades",
+      footer_type: "Hunch es un juego en el que ganas cuando tienes la razón",
       // ── categories ───────────────────────────────────────────
       cat_sports: "Deportes",
       cat_music: "Música",
