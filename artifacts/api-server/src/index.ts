@@ -209,6 +209,40 @@ async function runAppMigrations(): Promise<void> {
     }
   }
 
+  // Comments system
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS hunch_comments (
+      id          SERIAL PRIMARY KEY,
+      hunch_id    INTEGER NOT NULL REFERENCES hunches(id) ON DELETE CASCADE,
+      user_id     INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      parent_id   INTEGER,
+      body        TEXT NOT NULL,
+      is_hidden   BOOLEAN NOT NULL DEFAULT false,
+      deleted_at  TIMESTAMPTZ,
+      created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS hunch_comments_hunch_idx ON hunch_comments(hunch_id)`);
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS hunch_comments_parent_idx ON hunch_comments(parent_id)`);
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS comment_likes (
+      id          SERIAL PRIMARY KEY,
+      comment_id  INTEGER NOT NULL REFERENCES hunch_comments(id) ON DELETE CASCADE,
+      user_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      UNIQUE (comment_id, user_id)
+    )
+  `);
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS comment_bookmarks (
+      id          SERIAL PRIMARY KEY,
+      comment_id  INTEGER NOT NULL REFERENCES hunch_comments(id) ON DELETE CASCADE,
+      user_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      UNIQUE (comment_id, user_id)
+    )
+  `);
+
   logger.info("App schema migrations applied");
 }
 

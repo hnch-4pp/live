@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 
 import { useToast } from "@/hooks/use-toast";
+import { HunchComments } from "@/components/hunch-comments";
 import { useGetHunch, useSubmitPrediction, getGetHunchQueryKey, useGetHunchWinners, getGetHunchWinnersQueryKey } from "@workspace/api-client-react";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "@/hooks/use-auth";
@@ -666,6 +667,9 @@ export default function HunchDetail() {
                 </div>
               );
             })()}
+
+            {/* Community comments */}
+            {hunch.slug && <HunchComments hunchSlug={hunch.slug} />}
           </div>
 
           {/* Sidebar */}

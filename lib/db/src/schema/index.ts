@@ -16,3 +16,4 @@ export * from "./appSettings";
 export * from "./topNotifications";
 export * from "./affiliates";
 export * from "./trendingTopics";
+export * from "./comments";

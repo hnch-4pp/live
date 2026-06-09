@@ -11,11 +11,13 @@ import subscriptionsRouter from "./subscriptions";
 import notificationsRouter from "./notifications";
 import affiliatesRouter from "./affiliates";
 import usersRouter from "./users";
+import commentsRouter from "./comments";
 
 const router: IRouter = Router();
 
 router.use(healthRouter);
 router.use(usersRouter);
+router.use(commentsRouter);
 router.use(authRouter);
 router.use(stripeRouter);
 router.use(subscriptionsRouter);
