@@ -324,7 +324,12 @@ export function TrendingHero({ hunches }: TrendingHeroProps) {
   const isExpired = isPast(new Date(hunch.endsAt));
   const effectiveStatus = hunch.status === "open" && isExpired ? "closed" : hunch.status;
   const isOpen = effectiveStatus === "open";
-  const hasOptions = hunch.options.filter((o) => o.percentage > 0).length > 0;
+  const firstQuestion = (hunch as any)?.questions?.[0] as { prompt: string; options: Array<{ id: number; label: string; percentage: number }> } | undefined;
+  const displayOptions: Array<{ id: number; label: string; percentage: number }> =
+    hunch.isMulti && hunch.options.length === 0 && firstQuestion?.options?.length
+      ? firstQuestion.options
+      : hunch.options;
+  const hasOptions = displayOptions.filter((o) => o.percentage > 0).length > 0;
 
   const timeLeft = isOpen
     ? formatDistanceToNow(new Date(hunch.endsAt), { locale: dateFnsLocale })
@@ -433,13 +438,15 @@ export function TrendingHero({ hunches }: TrendingHeroProps) {
           {/* Right — distribution chart */}
           {hasOptions && (
             <div className="hidden md:flex flex-col justify-end w-[420px] shrink-0">
-              <p className="text-white/90 text-[11px] font-semibold uppercase tracking-wider mb-1">{t("predictions_dist")}</p>
+              <p className="text-white/90 text-[11px] font-semibold uppercase tracking-wider mb-1">
+                {hunch.isMulti && firstQuestion ? firstQuestion.prompt : t("predictions_dist")}
+              </p>
               <p className="text-white/65 text-[10px] mb-2">
                 {hunch.participantCount !== 1
                   ? t("predictions_so_far_plural", { count: hunch.participantCount.toLocaleString() })
                   : t("predictions_so_far", { count: hunch.participantCount.toLocaleString() })}
               </p>
-              <DistributionChart options={hunch.options} participantCount={hunch.participantCount} />
+              <DistributionChart options={displayOptions} participantCount={hunch.participantCount} />
             </div>
           )}
         </div>
