@@ -914,6 +914,7 @@ export default function HunchDetail() {
                         answerType={q.answerType}
                         value={multiAnswers[q.id] ?? ""}
                         onChange={(v) => setMultiAnswers((prev) => ({ ...prev, [q.id]: v }))}
+                        options={q.options}
                         compact
                       />
                     </div>
