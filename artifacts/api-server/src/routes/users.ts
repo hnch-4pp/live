@@ -7,7 +7,7 @@ import {
   optionsTable,
   categoriesTable,
 } from "@workspace/db";
-import { eq, and, desc, count } from "drizzle-orm";
+import { eq, and, desc, count, sql, isNotNull } from "drizzle-orm";
 
 const router = Router();
 
@@ -126,6 +126,65 @@ router.get("/users/:username", async (req, res): Promise<void> => {
       totalWins: wonHunchIds.size,
     },
     recentPredictions,
+  });
+});
+
+// ── Leaderboard ──────────────────────────────────────────────────────────────
+
+router.get("/leaderboard", async (req, res): Promise<void> => {
+  const page  = Math.max(1, parseInt((req.query.page  as string) ?? "1",  10) || 1);
+  const limit = Math.min(100, Math.max(1, parseInt((req.query.limit as string) ?? "50", 10) || 50));
+  const offset = (page - 1) * limit;
+
+  // CTE: one row per (user, hunch) that the user won.
+  // Handles case 1 (winnerUserId) and case 3 (label match for non-multi hunches).
+  const rows = await db.execute(sql`
+    WITH won_hunches AS (
+      SELECT DISTINCT p.user_id, p.hunch_id
+      FROM predictions p
+      JOIN hunches h ON h.id = p.hunch_id
+      JOIN options o ON o.id = p.option_id
+      WHERE h.status = 'resolved'
+        AND (
+          h.winner_user_id = p.user_id
+          OR (
+            h.is_multi = false
+            AND h.winner_option IS NOT NULL
+            AND lower(o.label) = lower(h.winner_option)
+          )
+        )
+    ),
+    win_counts AS (
+      SELECT user_id, COUNT(*) AS wins
+      FROM won_hunches
+      GROUP BY user_id
+    ),
+    total_count AS (
+      SELECT COUNT(*) AS total
+      FROM win_counts
+      WHERE wins > 0
+    )
+    SELECT
+      u.id,
+      u.username,
+      u.avatar_url AS "avatarUrl",
+      COALESCE(wc.wins, 0)::int AS wins,
+      (SELECT total FROM total_count)::int AS total
+    FROM win_counts wc
+    JOIN users u ON u.id = wc.user_id
+    WHERE u.username IS NOT NULL AND wc.wins > 0
+    ORDER BY wc.wins DESC, u.created_at ASC
+    LIMIT ${limit} OFFSET ${offset}
+  `);
+
+  const users = (rows.rows as Array<{ id: number; username: string; avatarUrl: string | null; wins: number; total: number }>);
+  const total = users[0]?.total ?? 0;
+
+  res.json({
+    users: users.map((u) => ({ id: u.id, username: u.username, avatarUrl: u.avatarUrl, wins: u.wins })),
+    total,
+    page,
+    hasMore: offset + limit < total,
   });
 });
 

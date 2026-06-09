@@ -1,7 +1,7 @@
 import { Link, useLocation, useSearch } from "wouter";
 import { Button } from "@/components/ui/button";
 import { useEffect, useRef, useState } from "react";
-import { Globe, ChevronDown, Search, X, Trophy, Music, Film, Clapperboard, TrendingUp, Star, Zap as ZapIcon, Globe2, Heart as HeartIcon, LogOut, Settings, Ticket, Target, Users, Gift } from "lucide-react";
+import { Globe, ChevronDown, Search, X, Trophy, Music, Film, Clapperboard, TrendingUp, Star, Zap as ZapIcon, Globe2, Heart as HeartIcon, LogOut, Settings, Ticket, Target, Users, Gift, Award } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import i18n from "@/i18n";
 import { useListCategories } from "@workspace/api-client-react";
@@ -99,6 +99,23 @@ function LanguageSelector() {
         </div>
       )}
     </div>
+  );
+}
+
+function RankingButton() {
+  const [location, setLocation] = useLocation();
+  const active = location === "/ranking";
+  return (
+    <button
+      onClick={() => setLocation("/ranking")}
+      className={`flex items-center justify-center w-8 h-8 rounded-full transition-colors ${
+        active ? "text-primary bg-primary/10" : "text-muted-foreground hover:text-primary hover:bg-primary/10"
+      }`}
+      title="Ranking"
+      aria-label="Ranking"
+    >
+      <Award className="w-4 h-4" />
+    </button>
   );
 }
 
@@ -315,6 +332,7 @@ export function Navbar() {
 
         <div className="flex items-center gap-2">
           <LanguageSelector />
+          <RankingButton />
           <ReferralButton />
           <TicketCounter />
           <AuthButtons />

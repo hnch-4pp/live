@@ -42,6 +42,7 @@ import AdminTrending from "@/pages/backstage/trending";
 import AdminComments from "@/pages/backstage/comments";
 import Referral from "@/pages/referral";
 import UserProfile from "@/pages/user-profile";
+import Ranking from "@/pages/ranking";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -100,6 +101,7 @@ function Router() {
       <Route path="/referral" component={Referral} />
       <Route path="/affiliate" component={AffiliateLanding} />
       <Route path="/affiliate/dashboard" component={AffiliateDashboard} />
+      <Route path="/ranking" component={Ranking} />
       <Route path="/u/:username" component={UserProfile} />
       <Route path="/:affiliateSlug" component={AffiliateSlugPage} />
       <Route component={NotFound} />
