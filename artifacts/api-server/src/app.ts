@@ -141,7 +141,17 @@ app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
     const raw = err.message;
     // Don't expose raw SQL query strings to clients
     if (raw.startsWith("Failed query:") || raw.includes("insert into") || raw.includes("select ")) {
-      message = "Database operation failed. Please try again.";
+      // Check for PG error code on the error itself or its cause (Drizzle wraps pg errors)
+      const errAny = err as unknown as Record<string, unknown>;
+      const causeAny = (err.cause instanceof Error ? err.cause : null) as unknown as Record<string, unknown> | null;
+      const pgCode = errAny["code"] ?? causeAny?.["code"];
+      const pgMsg = causeAny?.["message"] ?? errAny["message"];
+      // Include PG error code + short message for diagnosability without leaking full SQL
+      const extra = [
+        pgCode ? `pg:${String(pgCode)}` : null,
+        pgMsg ? String(pgMsg).slice(0, 120) : null,
+      ].filter(Boolean).join(" — ");
+      message = extra ? `Database error: ${extra}` : "Database operation failed. Please try again.";
     } else {
       message = raw || message;
     }
