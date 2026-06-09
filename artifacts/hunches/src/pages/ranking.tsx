@@ -209,7 +209,7 @@ export default function RankingPage() {
             {/* ── Top 10 ── */}
             <div className="mb-6">
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Top 10</p>
-              <div className="space-y-2">
+              <div className="flex flex-col gap-3">
                 {top10.map((u, i) => (
                   <TopCard key={u.id} user={u} rank={i + 1} />
                 ))}

@@ -137,7 +137,10 @@ router.get("/leaderboard", async (req, res): Promise<void> => {
   const offset = (page - 1) * limit;
 
   // CTE: one row per (user, hunch) that the user won.
-  // Handles case 1 (winnerUserId) and case 3 (label match for non-multi hunches).
+  // Handles:
+  //   1. winnerUserId  — legacy single-winner field
+  //   2. winnerRanks   — JSON array [{ rank, userId }] for multi-prize hunches
+  //   3. winnerOption  — label match for plain single-option hunches
   const rows = await db.execute(sql`
     WITH won_hunches AS (
       SELECT DISTINCT p.user_id, p.hunch_id
@@ -147,6 +150,13 @@ router.get("/leaderboard", async (req, res): Promise<void> => {
       WHERE h.status = 'resolved'
         AND (
           h.winner_user_id = p.user_id
+          OR (
+            h.winner_ranks IS NOT NULL
+            AND EXISTS (
+              SELECT 1 FROM jsonb_array_elements(h.winner_ranks::jsonb) AS wr
+              WHERE (wr->>'userId')::int = p.user_id
+            )
+          )
           OR (
             h.is_multi = false
             AND h.winner_option IS NOT NULL
