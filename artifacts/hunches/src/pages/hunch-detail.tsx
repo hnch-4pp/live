@@ -963,8 +963,6 @@ export default function HunchDetail() {
               );
             })()}
 
-            {/* Community comments */}
-            {hunch.slug && <HunchComments hunchSlug={hunch.slug} />}
           </div>
 
           {/* Sidebar */}
@@ -1222,6 +1220,15 @@ export default function HunchDetail() {
               <ActivityFeed hunchId={hunch.id} dateFnsLocale={dateFnsLocale} />
             </div>
           </div>
+
+          {/* Community comments — third grid item so on mobile it appears after
+              the sidebar (prize + prediction), but on desktop it sits in the
+              left two-thirds column below the main content. */}
+          {hunch.slug && (
+            <div className="lg:col-span-2">
+              <HunchComments hunchSlug={hunch.slug} />
+            </div>
+          )}
         </div>
       </div>
       {/* Lightbox */}
