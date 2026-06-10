@@ -195,16 +195,43 @@ router.get("/hunch/:slug", async (req, res): Promise<void> => {
   res.send(html);
 });
 
-// Production (Render): share button shares this URL so bots see dynamic OG tags.
-// Returns a self-contained page: bots read OG tags; browsers are immediately
-// redirected to the canonical /hunch/:slug SPA route via window.location.replace.
+// Production (Render): /hunch/:slug in the static site _redirects to this endpoint.
+//
+// - Social bots (WhatsApp, Telegram, Twitter…): user-agent detection → minimal
+//   OG-only HTML. Bots read the tags and never follow the redirect script anyway.
+//
+// - Browsers: served the full SPA HTML with OG tags injected + a
+//   history.replaceState() that silently fixes the address bar back to
+//   /hunch/:slug — no navigation, no loop.
+const BOT_RE =
+  /whatsapp|facebookexternalhit|twitterbot|telegrambot|slackbot|discordbot|linkedinbot|googlebot|bingbot|yandex|duckduckbot|applebot|crawler|spider\b|bot\b/i;
+
 router.get("/api/og/hunch/:slug", async (req, res): Promise<void> => {
   const slug = String(req.params["slug"] ?? "");
   const data = await fetchHunchData(slug);
-  const html = buildOgPage({ ...data, redirectTo: `/hunch/${slug}` });
+
+  const ua = req.headers["user-agent"] ?? "";
+  const isBot = BOT_RE.test(ua);
+
+  if (isBot) {
+    // Pure OG page — no redirect script, bots don't execute JS anyway.
+    const html = buildOgPage({ ...data });
+    res.setHeader("Content-Type", "text/html; charset=utf-8");
+    res.setHeader("Cache-Control", "public, max-age=60, stale-while-revalidate=300");
+    res.send(html);
+    return;
+  }
+
+  // Browser: serve the full SPA with OG tags so it boots normally,
+  // then silently rewrite the address bar to the canonical /hunch/:slug URL.
+  // We do NOT redirect — that would loop back through _redirects.
+  const indexHtml = getIndexHtml();
+  let injected = injectOgTags(indexHtml, data);
+  const fixUrl = `<script>if(window.history)window.history.replaceState(null,'',${JSON.stringify(`/hunch/${slug}`)})</script>`;
+  injected = injected.replace("</body>", `${fixUrl}</body>`);
   res.setHeader("Content-Type", "text/html; charset=utf-8");
-  res.setHeader("Cache-Control", "public, max-age=60, stale-while-revalidate=300");
-  res.send(html);
+  res.setHeader("Cache-Control", "no-store");
+  res.send(injected);
 });
 
 export default router;
