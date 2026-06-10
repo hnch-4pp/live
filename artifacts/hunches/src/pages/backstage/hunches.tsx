@@ -40,6 +40,7 @@ export default function AdminHunches() {
   const ANSWER_TYPE_LABEL: Record<string, string> = {
     integer: "Integer",
     decimal: "Decimal",
+    number:  "Número",
     date:    "Date",
     time:    "Time",
   };

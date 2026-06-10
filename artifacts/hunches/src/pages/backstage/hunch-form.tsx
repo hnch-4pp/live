@@ -3,7 +3,7 @@ import { useLocation, useParams } from "wouter";
 import { AdminLayout } from "@/components/admin-layout";
 import { useAdminAuth, adminFetch } from "./dashboard";
 import { apiUrl } from "@/lib/apiFetch";
-import { Check, ChevronLeft, Hash, Percent, Calendar, Clock, Plus, Trash2, Gift, Layers, List, Users, Trophy, ChevronDown, Link as LinkIcon, Image, Video, X, Upload } from "lucide-react";
+import { Check, ChevronLeft, Hash, Percent, Sigma, Calendar, Clock, Plus, Trash2, Gift, Layers, List, Users, Trophy, ChevronDown, Link as LinkIcon, Image, Video, X, Upload } from "lucide-react";
 
 function ordinal(n: number): string {
   const s = ["th", "st", "nd", "rd"];
@@ -24,6 +24,7 @@ interface Category { id: number; name: string; slug: string; }
 const ANSWER_TYPES = [
   { value: "integer", label: "Integer",  description: "Whole number (e.g. 42)",            Icon: Hash },
   { value: "decimal", label: "Decimal",  description: "With decimals (e.g. 3.14)",          Icon: Percent },
+  { value: "number",  label: "Número",   description: "Decimal sin % (ej. 2.346)",          Icon: Sigma },
   { value: "date",    label: "Date",     description: "Date in dd/mm/yyyy",                 Icon: Calendar },
   { value: "time",    label: "Time",     description: "Duration in hh:mm:ss",               Icon: Clock },
   { value: "option",  label: "Opcion",   description: "Seleccion de una lista de opciones", Icon: List },

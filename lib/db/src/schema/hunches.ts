@@ -25,7 +25,7 @@ export const hunchesTable = pgTable("hunches", {
   resultSources: text("result_sources"), // JSON: Array<{ type, url, label }>
   rules: text("rules"),
   prizeConditions: text("prize_conditions"),
-  answerType: text("answer_type").notNull().default("integer"), // integer | decimal | date | time
+  answerType: text("answer_type").notNull().default("integer"), // integer | decimal | number | date | time | option
   isMulti: boolean("is_multi").notNull().default(false),
   ticketCost: integer("ticket_cost").notNull().default(1),
   endsAt: timestamp("ends_at", { withTimezone: true }).notNull(),

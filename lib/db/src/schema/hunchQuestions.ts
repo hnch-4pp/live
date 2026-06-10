@@ -8,7 +8,7 @@ export const hunchQuestionsTable = pgTable("hunch_questions", {
   hunchId: integer("hunch_id").notNull().references(() => hunchesTable.id, { onDelete: "cascade" }),
   sortOrder: integer("sort_order").notNull().default(0),
   prompt: text("prompt").notNull(),
-  answerType: text("answer_type").notNull().default("integer"),
+  answerType: text("answer_type").notNull().default("integer"), // integer | decimal | number | date | time | option
   placeholder: text("placeholder"),
 });
 

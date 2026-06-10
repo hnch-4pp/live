@@ -4,7 +4,7 @@ import { format, formatDistanceToNow, isPast, type Locale } from "date-fns";
 import {
   enUS, es, de, fr, pt, it, ja, ko, zhCN, id as idLocale, tr,
 } from "date-fns/locale";
-import { ArrowLeft, Users, Clock, Share2, AlertCircle, Trophy, CheckCircle2, Gift, Award, DollarSign, ChevronDown, ChevronUp, Check, Ticket, X, Info, Hash, Percent, Calendar, Clock as ClockIcon, Layers, Link as LinkIcon, Image, Video, ExternalLink, Activity, UserCircle2, ChevronRight } from "lucide-react";
+import { ArrowLeft, Users, Clock, Share2, AlertCircle, Trophy, CheckCircle2, Gift, Award, DollarSign, ChevronDown, ChevronUp, Check, Ticket, X, Info, Hash, Percent, Sigma, Calendar, Clock as ClockIcon, Layers, Link as LinkIcon, Image, Video, ExternalLink, Activity, UserCircle2, ChevronRight } from "lucide-react";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, LabelList,
 } from "recharts";
@@ -38,7 +38,7 @@ function fmtNumericInput(raw: string): string {
 }
 
 function isNumericType(t: string | undefined): boolean {
-  return t === "integer" || t === "decimal";
+  return t === "integer" || t === "decimal" || t === "number";
 }
 
 function ordinal(n: number): string {
@@ -64,6 +64,7 @@ const getAnswerTypeIcon = (answerType: string) => {
   switch (answerType) {
     case "integer": return <Hash className="w-3 h-3" />;
     case "decimal": return <Percent className="w-3 h-3" />;
+    case "number":  return <Sigma className="w-3 h-3" />;
     case "date": return <Calendar className="w-3 h-3" />;
     case "time": return <ClockIcon className="w-3 h-3" />;
     default: return <Hash className="w-3 h-3" />;
@@ -75,6 +76,7 @@ const getAnswerTypePlaceholder = (answerType: string, placeholder?: string | nul
   switch (answerType) {
     case "integer": return "Enter a whole number (e.g. 3)";
     case "decimal": return "Enter a number (e.g. 1.5)";
+    case "number":  return "Ej. 2.346";
     case "date": return "Enter a date (e.g. 15/08/2025)";
     case "time": return "Enter a time (e.g. 01:23:45)";
     default: return "Your answer...";
@@ -206,6 +208,19 @@ function AnswerInput({
         />
         <span className="text-base font-semibold text-muted-foreground shrink-0">%</span>
       </div>
+    );
+  }
+  if (answerType === "number") {
+    return (
+      <input
+        type="text" inputMode="decimal"
+        value={value}
+        onChange={(e) => onChange(e.target.value.replace(/[^\d.]/g, "").replace(/(\..*)\./g, "$1"))}
+        onKeyDown={(e) => { if (e.key === "Enter") onEnter?.(); }}
+        placeholder="Ej. 2.346"
+        maxLength={20}
+        className={baseCls}
+      />
     );
   }
   return (
