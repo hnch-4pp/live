@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { logger } from "../lib/logger";
-import { getAdminAlertPrefs } from "../adminAlerts";
+
+const BUG_REPORT_RECIPIENT = "g@hunch.me";
 
 const router = Router();
 
@@ -25,13 +26,7 @@ router.post("/api/bug-reports", async (req, res): Promise<void> => {
   }
 
   try {
-    const prefs = await getAdminAlertPrefs();
-    const adminEmail = prefs.adminEmail?.trim();
-    if (!adminEmail) {
-      logger.warn("No admin email configured — bug report received but not forwarded");
-      res.json({ ok: true });
-      return;
-    }
+    const adminEmail = BUG_REPORT_RECIPIENT;
 
     const fromLabel = username ? `${username}${email ? ` (${email})` : ""}` : email ?? "Visitante anónimo";
     const pageLine = pageUrl ? `<tr><td style="padding:4px 0;color:#555;font-size:13px"><strong>Página:</strong> ${pageUrl}</td></tr>` : "";
