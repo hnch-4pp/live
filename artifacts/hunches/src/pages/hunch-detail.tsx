@@ -544,14 +544,10 @@ export default function HunchDetail() {
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
 
   const handleShare = async () => {
-    // Use the /api/og/hunch/:slug URL so social platforms (WhatsApp, Telegram, etc.)
-    // receive the dynamic OG meta tags from Express. The response includes a
-    // history.replaceState that restores the canonical /hunch/:slug URL before React mounts.
     const ogUrl = `${window.location.origin}/api/og/hunch/${slug}`;
     const title = hunch?.title ?? "Hunch";
-    const text = hunch?.description ?? "";
     if (navigator.share) {
-      try { await navigator.share({ title, text, url: ogUrl }); } catch { /* cancelled */ }
+      try { await navigator.share({ title, url: ogUrl }); } catch { /* cancelled */ }
     } else {
       await navigator.clipboard.writeText(ogUrl);
       setCopied(true);
