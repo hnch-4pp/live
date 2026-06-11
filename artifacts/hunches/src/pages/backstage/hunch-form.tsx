@@ -132,22 +132,24 @@ function ImageUploadField({ value, onChange, compact = false }: { value: string;
     setUploadError("");
     setUploading(true);
     try {
-      const arrayBuffer = await file.arrayBuffer();
       const res = await fetch(apiUrl("/api/storage/uploads"), {
         method: "POST",
         credentials: "include",
         headers: {
           "X-Admin-Request": "1",
           "content-type": file.type || "application/octet-stream",
-          "x-file-name": file.name,
+          "x-file-name": encodeURIComponent(file.name),
         },
-        body: arrayBuffer,
+        body: file,
       });
-      if (!res.ok) throw new Error("Upload failed");
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({})) as { error?: string };
+        throw new Error(errData.error ?? `Server error ${res.status}`);
+      }
       const data = await res.json() as { publicUrl: string };
       onChange(data.publicUrl);
-    } catch {
-      setUploadError("Upload failed — try again");
+    } catch (err) {
+      setUploadError(err instanceof Error ? err.message : "Upload failed — try again");
     } finally {
       setUploading(false);
     }
