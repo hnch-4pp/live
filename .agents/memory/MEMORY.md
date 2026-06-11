@@ -1,0 +1,1 @@
+- [Hunch /hunch routing](hunch-routing.md) — /hunch/* must NOT be in the API server paths; serve from static SPA to avoid blank-page on API restart windows.

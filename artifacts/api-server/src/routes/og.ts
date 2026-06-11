@@ -184,18 +184,11 @@ async function fetchHunchData(slug: string): Promise<{
   return { title, description, image, url: `${APP_URL}/hunch/${slug}` };
 }
 
-// Dev / Replit: /hunch/:slug is routed directly to Express via artifact.toml.
-// Injects OG tags into index.html so the SPA boots normally in the same response.
-router.get("/hunch/:slug", async (req, res): Promise<void> => {
-  const slug = String(req.params["slug"] ?? "");
-  const data = await fetchHunchData(slug);
-  const html = injectOgTags(getIndexHtml(), data);
-  res.setHeader("Content-Type", "text/html; charset=utf-8");
-  res.setHeader("Cache-Control", "public, max-age=60, stale-while-revalidate=300");
-  res.send(html);
-});
-
-// Production (Render): /hunch/:slug in the static site _redirects to this endpoint.
+// /api/og/hunch/:slug — OG endpoint for social bots and share links.
+//
+// /hunch/* is served by the static SPA (artifact.toml paths = ["/api"] only),
+// so the SPA always loads reliably regardless of API server state.
+// This endpoint is the canonical OG surface:
 //
 // - Social bots (WhatsApp, Telegram, Twitter…): user-agent detection → minimal
 //   OG-only HTML. Bots read the tags and never follow the redirect script anyway.
