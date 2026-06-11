@@ -25,13 +25,14 @@ import { getUncachableStripeClient } from "../stripeClient";
 import { handleCheckoutSessionCompleted } from "../webhookHandlers";
 import { getAdminAlertPrefs, saveAdminAlertPrefs, DEFAULT_ALERT_PREFS } from "../adminAlerts";
 import { SUBSCRIPTION_TIERS } from "../subscriptionTiers";
+import { logger } from "../lib/logger";
 
 // ── Winner notification emails ──────────────────────────────────────────────
 
 async function sendWinnerEmails(hunchId: number): Promise<void> {
   const RESEND_API_KEY = process.env.RESEND_API_KEY;
   if (!RESEND_API_KEY) {
-    console.warn("[HUNCHES] RESEND_API_KEY not configured — winner emails not sent");
+    logger.warn("RESEND_API_KEY not configured — winner emails not sent");
     return;
   }
 
@@ -132,6 +133,88 @@ async function sendWinnerEmails(hunchId: number): Promise<void> {
 function ordinalEs(n: number): string {
   const map: Record<number, string> = { 1: "1er", 2: "2do", 3: "3er", 4: "4to", 5: "5to" };
   return map[n] ?? `${n}°`;
+}
+
+// ── Participant results notification emails ───────────────────────────────────
+
+async function sendParticipantResultsEmails(hunchId: number): Promise<void> {
+  const RESEND_API_KEY = process.env.RESEND_API_KEY;
+  if (!RESEND_API_KEY) {
+    logger.warn("RESEND_API_KEY not configured — participant results emails not sent");
+    return;
+  }
+
+  const [hunch] = await db
+    .select({
+      id: hunchesTable.id,
+      title: hunchesTable.title,
+      slug: hunchesTable.slug,
+      winnerRanks: hunchesTable.winnerRanks,
+      winnerUserId: hunchesTable.winnerUserId,
+      winnerOption: hunchesTable.winnerOption,
+    })
+    .from(hunchesTable)
+    .where(eq(hunchesTable.id, hunchId));
+
+  if (!hunch) return;
+
+  // Collect winner user IDs so we don't double-email them
+  const winnerUserIds = new Set<number>();
+
+  if (hunch.winnerRanks) {
+    try {
+      const ranked = JSON.parse(hunch.winnerRanks) as Array<{ rank: number; userId: number }>;
+      for (const e of ranked) winnerUserIds.add(e.userId);
+    } catch { /* ignore */ }
+  } else if (hunch.winnerUserId) {
+    winnerUserIds.add(hunch.winnerUserId);
+  } else if (hunch.winnerOption) {
+    const winnerPreds = await db
+      .select({ userId: predictionsTable.userId })
+      .from(predictionsTable)
+      .leftJoin(optionsTable, eq(predictionsTable.optionId, optionsTable.id))
+      .where(and(eq(predictionsTable.hunchId, hunchId), eq(optionsTable.label, hunch.winnerOption)));
+    for (const p of winnerPreds) {
+      if (p.userId) winnerUserIds.add(p.userId);
+    }
+  }
+
+  // All distinct participants (excluding winners)
+  const participants = await db
+    .selectDistinct({ email: usersTable.email, username: usersTable.username, userId: usersTable.id })
+    .from(predictionsTable)
+    .leftJoin(usersTable, eq(predictionsTable.userId, usersTable.id))
+    .where(eq(predictionsTable.hunchId, hunchId));
+
+  const hunchUrl = `https://hunch.fan/hunch/${hunch.slug ?? hunch.id}`;
+
+  for (const p of participants) {
+    if (!p.email || !p.userId || winnerUserIds.has(p.userId)) continue;
+    const username = p.username ?? "participante";
+    const html = `
+<!DOCTYPE html>
+<html lang="es">
+<body style="font-family:sans-serif;color:#111;max-width:520px;margin:0 auto;padding:24px">
+  <p style="font-size:18px;font-weight:700;margin-bottom:4px">Resultados publicados</p>
+  <p style="color:#6d6d6d;margin-top:0">Ya hay ganadores en tu Hunch</p>
+  <hr style="border:none;border-top:1px solid #eee;margin:16px 0"/>
+  <p>Hola <strong>${username}</strong>,</p>
+  <p>Los ganadores del Hunch <strong>"${hunch.title}"</strong> han sido publicados. Entra para ver quienes acertaron.</p>
+  <a href="${hunchUrl}" style="display:inline-block;background:#7c3aed;color:#fff;text-decoration:none;padding:10px 20px;border-radius:8px;font-weight:600;font-size:14px">Ver resultados</a>
+  <hr style="border:none;border-top:1px solid #eee;margin:24px 0"/>
+  <p style="font-size:12px;color:#aaa">El equipo de Hunch &mdash; <a href="https://hunch.fan" style="color:#7c3aed">hunch.fan</a></p>
+</body>
+</html>`;
+    const result = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ from: "Hunch <no-reply@hunch.fan>", to: [p.email], subject: `Resultados publicados - ${hunch.title}`, html }),
+    });
+    if (!result.ok) {
+      const body = await result.text().catch(() => "");
+      logger.error({ status: result.status, body }, "Resend participant results email error");
+    }
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -643,7 +726,10 @@ router.patch(
     }
 
     if (req.body.notifyWinners === true) {
-      void sendWinnerEmails(hunch.id);
+      void Promise.all([
+        sendWinnerEmails(hunch.id),
+        sendParticipantResultsEmails(hunch.id),
+      ]);
     }
 
     res.json(hunch);
