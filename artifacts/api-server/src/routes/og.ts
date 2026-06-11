@@ -1,6 +1,4 @@
 import { Router } from "express";
-import { readFileSync, existsSync } from "fs";
-import path from "path";
 import { db } from "@workspace/db";
 import { hunchesTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
@@ -82,74 +80,6 @@ function buildOgPage({
 </html>`;
 }
 
-// ── Dev-only: inject OG tags into index.html ────────────────────────────────
-// Used only by the /hunch/:slug route in Replit dev (artifact.toml routes
-// /hunch/* to Express). Not used in production.
-let cachedHtml: string | null = null;
-
-function getIndexHtml(): string {
-  if (cachedHtml && process.env.NODE_ENV === "production") return cachedHtml;
-
-  const isDev = process.env.NODE_ENV !== "production";
-  const candidates = isDev
-    ? [
-        path.join(process.cwd(), "../hunches/index.html"),
-        path.join(process.cwd(), "../../artifacts/hunches/index.html"),
-      ]
-    : [
-        path.join(process.cwd(), "artifacts/hunches/dist/public/index.html"),
-        path.join(process.cwd(), "../hunches/dist/public/index.html"),
-        path.join(process.cwd(), "../../artifacts/hunches/dist/public/index.html"),
-      ];
-
-  for (const p of candidates) {
-    if (existsSync(p)) {
-      const html = readFileSync(p, "utf-8");
-      if (process.env.NODE_ENV === "production") cachedHtml = html;
-      return html;
-    }
-  }
-
-  return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"/><title>Hunch</title></head><body><div id="root"></div></body></html>`;
-}
-
-function injectOgTags(
-  html: string,
-  { title, description, image, url }: { title: string; description: string; image: string; url: string },
-): string {
-  const t = escapeAttr(title);
-  const d = escapeAttr(description);
-  const img = escapeAttr(image);
-  const u = escapeAttr(url);
-
-  let result = html;
-
-  result = result.replace(/<title>[^<]*<\/title>/, `<title>${t}</title>`);
-  result = result.replace(/<meta name="description"[^>]*\/?>/, `<meta name="description" content="${d}" />`);
-  result = result.replace(/<meta property="og:title"[^>]*\/?>/, `<meta property="og:title" content="${t}" />`);
-  result = result.replace(/<meta property="og:description"[^>]*\/?>/, `<meta property="og:description" content="${d}" />`);
-  result = result.replace(/<meta name="twitter:title"[^>]*\/?>/, `<meta name="twitter:title" content="${t}" />`);
-  result = result.replace(/<meta name="twitter:description"[^>]*\/?>/, `<meta name="twitter:description" content="${d}" />`);
-
-  const extraTags = [
-    `<meta property="og:image" content="${img}" />`,
-    `<meta property="og:url" content="${u}" />`,
-    `<meta property="og:type" content="website" />`,
-    `<meta name="twitter:card" content="summary_large_image" />`,
-    `<meta name="twitter:image" content="${img}" />`,
-  ].join("\n    ");
-
-  if (result.includes('property="og:image"')) {
-    result = result.replace(/<meta property="og:image"[^>]*\/?>/, `<meta property="og:image" content="${img}" />`);
-    if (!result.includes('property="og:url"')) {
-      result = result.replace("</head>", `    <meta property="og:url" content="${u}" />\n  </head>`);
-    }
-  } else {
-    result = result.replace("</head>", `    ${extraTags}\n  </head>`);
-  }
-
-  return result;
-}
 
 async function fetchHunchData(slug: string): Promise<{
   title: string;
@@ -186,28 +116,22 @@ async function fetchHunchData(slug: string): Promise<{
 
 // /api/og/hunch/:slug — OG endpoint for social bots and share links.
 //
-// /hunch/* is served by the static SPA (artifact.toml paths = ["/api"] only),
-// so the SPA always loads reliably regardless of API server state.
-// This endpoint is the canonical OG surface:
+// /hunch/* is served by the static SPA (artifact.toml paths = ["/api"] only).
 //
-// - Social bots (WhatsApp, Telegram, Twitter…): user-agent detection → minimal
-//   OG-only HTML. Bots read the tags and never follow the redirect script anyway.
-//
-// - Browsers: served the full SPA HTML with OG tags injected + a
-//   history.replaceState() that silently fixes the address bar back to
-//   /hunch/:slug — no navigation, no loop.
+// - Social bots (WhatsApp, Telegram, Twitter…): user-agent detection →
+//   minimal OG-only HTML so the platform renders a rich preview.
+// - Browsers: 302 redirect to the canonical /hunch/:slug SPA route,
+//   which is served by the static file handler and never fails.
 const BOT_RE =
   /whatsapp|facebookexternalhit|twitterbot|telegrambot|slackbot|discordbot|linkedinbot|googlebot|bingbot|yandex|duckduckbot|applebot|crawler|spider\b|bot\b/i;
 
 router.get("/api/og/hunch/:slug", async (req, res): Promise<void> => {
   const slug = String(req.params["slug"] ?? "");
-  const data = await fetchHunchData(slug);
-
   const ua = req.headers["user-agent"] ?? "";
   const isBot = BOT_RE.test(ua);
 
   if (isBot) {
-    // Pure OG page — no redirect script, bots don't execute JS anyway.
+    const data = await fetchHunchData(slug);
     const html = buildOgPage({ ...data });
     res.setHeader("Content-Type", "text/html; charset=utf-8");
     res.setHeader("Cache-Control", "public, max-age=60, stale-while-revalidate=300");
@@ -215,16 +139,9 @@ router.get("/api/og/hunch/:slug", async (req, res): Promise<void> => {
     return;
   }
 
-  // Browser: serve the full SPA with OG tags so it boots normally,
-  // then silently rewrite the address bar to the canonical /hunch/:slug URL.
-  // We do NOT redirect — that would loop back through _redirects.
-  const indexHtml = getIndexHtml();
-  let injected = injectOgTags(indexHtml, data);
-  const fixUrl = `<script>if(window.history)window.history.replaceState(null,'',${JSON.stringify(`/hunch/${slug}`)})</script>`;
-  injected = injected.replace("</body>", `${fixUrl}</body>`);
-  res.setHeader("Content-Type", "text/html; charset=utf-8");
-  res.setHeader("Cache-Control", "no-store");
-  res.send(injected);
+  // Regular browser: redirect to the SPA route — static file handler serves
+  // index.html reliably regardless of API server state.
+  res.redirect(302, `/hunch/${encodeURIComponent(slug)}`);
 });
 
 export default router;
