@@ -5,6 +5,7 @@
  * Hunches - Prediction platform API
  * OpenAPI spec version: 0.1.0
  */
+import type { HunchWinnerPrediction } from './hunchWinnerPrediction';
 
 export interface HunchWinner {
   username: string;
@@ -14,4 +15,5 @@ export interface HunchWinner {
   rank?: number | null;
   /** @nullable */
   prediction?: string | null;
+  multiPredictions?: HunchWinnerPrediction[];
 }
