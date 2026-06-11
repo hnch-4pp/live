@@ -156,7 +156,10 @@ async function sendParticipantResultsEmails(hunchId: number): Promise<void> {
     .from(hunchesTable)
     .where(eq(hunchesTable.id, hunchId));
 
-  if (!hunch) return;
+  if (!hunch) {
+    logger.warn({ hunchId }, "sendParticipantResultsEmails: hunch not found");
+    return;
+  }
 
   // Collect winner user IDs so we don't double-email them
   const winnerUserIds = new Set<number>();
@@ -179,17 +182,27 @@ async function sendParticipantResultsEmails(hunchId: number): Promise<void> {
     }
   }
 
-  // All distinct participants (excluding winners)
+  // All distinct participants (including winners — filtered below)
   const participants = await db
     .selectDistinct({ email: usersTable.email, username: usersTable.username, userId: usersTable.id })
     .from(predictionsTable)
     .leftJoin(usersTable, eq(predictionsTable.userId, usersTable.id))
     .where(eq(predictionsTable.hunchId, hunchId));
 
+  logger.info(
+    { hunchId, hunchTitle: hunch.title, totalParticipants: participants.length, winnerCount: winnerUserIds.size },
+    "sendParticipantResultsEmails: starting",
+  );
+
   const hunchUrl = `https://hunch.fan/hunch/${hunch.slug ?? hunch.id}`;
+  let sent = 0;
+  let skipped = 0;
 
   for (const p of participants) {
-    if (!p.email || !p.userId || winnerUserIds.has(p.userId)) continue;
+    if (!p.email || !p.userId || winnerUserIds.has(p.userId)) {
+      skipped++;
+      continue;
+    }
     const username = p.username ?? "participante";
     const html = `
 <!DOCTYPE html>
@@ -211,10 +224,14 @@ async function sendParticipantResultsEmails(hunchId: number): Promise<void> {
       body: JSON.stringify({ from: "Hunch <no-reply@hunch.fan>", to: [p.email], subject: `Resultados publicados - ${hunch.title}`, html }),
     });
     if (!result.ok) {
-      const body = await result.text().catch(() => "");
-      logger.error({ status: result.status, body }, "Resend participant results email error");
+      const errBody = await result.text().catch(() => "");
+      logger.error({ status: result.status, errBody, userId: p.userId }, "Resend participant results email error");
+    } else {
+      sent++;
     }
   }
+
+  logger.info({ hunchId, sent, skipped }, "sendParticipantResultsEmails: done");
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -726,10 +743,10 @@ router.patch(
     }
 
     if (req.body.notifyWinners === true) {
-      void Promise.all([
+      Promise.all([
         sendWinnerEmails(hunch.id),
         sendParticipantResultsEmails(hunch.id),
-      ]);
+      ]).catch((err) => logger.error({ err, hunchId: hunch.id }, "Error sending result notification emails"));
     }
 
     res.json(hunch);
