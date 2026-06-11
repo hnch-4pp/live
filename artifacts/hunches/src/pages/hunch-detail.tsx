@@ -1027,6 +1027,36 @@ export default function HunchDetail() {
                 {isResolved ? t("final_results") : t("make_prediction")}
               </h3>
 
+              {/* Resolved: prediction distribution in sidebar */}
+              {isResolved && !isMulti && hunch.options.length > 0 && (
+                <div className="mb-4">
+                  <DistributionChart
+                    options={hunch.options}
+                    participantCount={hunch.participantCount}
+                    answerType={(hunch as any).answerType}
+                    compact
+                  />
+                </div>
+              )}
+              {isResolved && isMulti && questions.length > 0 && questions.some((q) => q.options.length > 0) && (
+                <div className="space-y-4 mb-4">
+                  {questions.map((q, idx) => q.options.length > 0 && (
+                    <div key={q.id} className="space-y-1.5">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold text-primary bg-primary/10 rounded-lg px-2 py-0.5">{idx + 1}</span>
+                        <span className="text-xs font-medium text-muted-foreground">{q.prompt}</span>
+                      </div>
+                      <DistributionChart
+                        options={q.options}
+                        participantCount={hunch.participantCount}
+                        answerType={q.answerType}
+                        compact
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+
               {/* Ticket cost */}
               {isOpen && !submitted && hunch.ticketCost && (
                 <div className="flex items-center gap-2 mb-4 px-3 py-2 bg-primary/5 border border-primary/15 rounded-xl">
