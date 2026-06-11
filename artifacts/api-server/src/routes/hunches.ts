@@ -273,7 +273,7 @@ async function buildHunch(hunch: typeof hunchesTable.$inferSelect) {
     prizeTiers,
     prizePoolTotal,
     options: isMulti
-      ? []
+      ? allOptions.filter((o) => o.questionId === null).map((o) => ({ id: o.id, label: o.label, percentage: o.percentage }))
       : allOptions.map((o) => ({ id: o.id, label: o.label, percentage: o.percentage })),
     questions,
     isMulti,

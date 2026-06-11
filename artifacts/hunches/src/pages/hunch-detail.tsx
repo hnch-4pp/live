@@ -753,6 +753,24 @@ export default function HunchDetail() {
               </div>
             )}
 
+            {/* Distribution: multi-question fallback (legacy combined predictions) */}
+            {isMulti && !questions.some((q) => q.options.length > 0) && hunch.options.length > 0 && (
+              <div className="bg-card border border-border rounded-2xl p-6 card-shadow space-y-6">
+                <div>
+                  <h3 className="text-base font-display font-bold text-foreground mb-1">Predictions distribution</h3>
+                  <p className="text-xs text-muted-foreground">
+                    {hunch.participantCount.toLocaleString()} prediction{hunch.participantCount !== 1 ? "s" : ""} so far
+                  </p>
+                </div>
+                <DistributionChart
+                  options={hunch.options}
+                  participantCount={hunch.participantCount}
+                  answerType="text"
+                  compact
+                />
+              </div>
+            )}
+
             {/* Prize Pool — main content */}
             {(() => {
               const tiers = hunch.prizeTiers && hunch.prizeTiers.length > 0
@@ -1062,6 +1080,16 @@ export default function HunchDetail() {
                       />
                     </div>
                   ))}
+                </div>
+              )}
+              {isResolved && isMulti && !questions.some((q) => q.options.length > 0) && hunch.options.length > 0 && (
+                <div className="mb-4">
+                  <DistributionChart
+                    options={hunch.options}
+                    participantCount={hunch.participantCount}
+                    answerType="text"
+                    compact
+                  />
                 </div>
               )}
 

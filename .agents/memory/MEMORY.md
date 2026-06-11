@@ -1,1 +1,2 @@
 - [Hunch /hunch routing](hunch-routing.md) — /hunch/* must NOT be in the API server paths; serve from static SPA to avoid blank-page on API restart windows.
+- [Multi-hunch legacy options](multi-hunch-legacy-options.md) — legacy multi-prediction submissions store options with questionId=null; buildHunch() must not discard them.
