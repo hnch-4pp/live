@@ -105,7 +105,7 @@ async function sendWinnerEmails(hunchId: number): Promise<void> {
 <!DOCTYPE html>
 <html lang="es">
 <body style="font-family:sans-serif;color:#111;max-width:520px;margin:0 auto;padding:24px">
-  <p style="font-size:18px;font-weight:700;margin-bottom:4px">Ganaste en Hunches</p>
+  <p style="font-size:18px;font-weight:700;margin-bottom:4px">Ganaste en Hunch</p>
   <p style="color:#6d6d6d;margin-top:0">Resultados del Hunch</p>
   <hr style="border:none;border-top:1px solid #eee;margin:16px 0"/>
   <p>Hola <strong>${w.username}</strong>,</p>
@@ -125,7 +125,7 @@ async function sendWinnerEmails(hunchId: number): Promise<void> {
     await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: { Authorization: `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ from: "Hunch <no-reply@hunch.fan>", to: [w.email], subject: `Ganaste en Hunches - ${hunch.title}`, html }),
+      body: JSON.stringify({ from: "Hunch <no-reply@hunch.fan>", to: [w.email], subject: `Ganaste en Hunch - ${hunch.title}`, html }),
     });
   }
 }
