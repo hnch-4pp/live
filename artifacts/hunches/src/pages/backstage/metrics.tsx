@@ -1,10 +1,12 @@
 import { useState, useEffect } from "react";
 import { AdminLayout } from "@/components/admin-layout";
 import { useAdminAuth, adminFetch } from "./dashboard";
-import { Users, TrendingUp, TrendingDown, Minus, Activity, UsersRound, CreditCard, UserCheck } from "lucide-react";
+import { Users, TrendingUp, TrendingDown, Minus, Activity, UsersRound, CreditCard, UserCheck, Target } from "lucide-react";
 import {
   AreaChart,
   Area,
+  BarChart,
+  Bar,
   LineChart,
   Line,
   XAxis,
@@ -47,6 +49,21 @@ interface ActiveUsersData {
 }
 
 type AuView = "dau" | "wau" | "mau";
+
+interface PredictionsMetricsData {
+  stats: {
+    total: number;
+    today: number;
+    thisWeek: number;
+    thisMonth: number;
+    peakDay: { label: string; count: number } | null;
+  };
+  daily:   { label: string; iso: string; count: number }[];
+  weekly:  { label: string; count: number }[];
+  monthly: { label: string; count: number }[];
+}
+
+type PredView = "daily" | "weekly" | "monthly";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -135,6 +152,18 @@ const AuTooltip = ({ active, payload, label }: { active?: boolean; payload?: { v
   );
 };
 
+const PredTooltip = ({ active, payload, label }: { active?: boolean; payload?: { value?: number }[]; label?: string }) => {
+  if (!active || !payload?.length) return null;
+  return (
+    <div className="bg-white border border-gray-200 rounded-xl shadow-lg px-4 py-3">
+      <p className="text-xs font-semibold text-gray-500 mb-1">{label}</p>
+      <p className="text-lg font-bold text-orange-600">
+        {(payload[0].value ?? 0).toLocaleString()} <span className="text-sm font-normal text-gray-500">predicciones</span>
+      </p>
+    </div>
+  );
+};
+
 // ── Skeleton ──────────────────────────────────────────────────────────────────
 
 function StatSkeleton() {
@@ -157,6 +186,19 @@ export default function AdminMetrics() {
   const [auView, setAuView] = useState<AuView>("dau");
   const [auData, setAuData] = useState<ActiveUsersData | null>(null);
   const [auLoading, setAuLoading] = useState(true);
+
+  // Daily predictions state
+  const [predView, setPredView] = useState<PredView>("daily");
+  const [predData, setPredData] = useState<PredictionsMetricsData | null>(null);
+  const [predLoading, setPredLoading] = useState(true);
+
+  useEffect(() => {
+    setPredLoading(true);
+    adminFetch("/admin/metrics/predictions")
+      .then(async (r) => { if (!r.ok) throw new Error(`${r.status}`); return r.json() as Promise<PredictionsMetricsData>; })
+      .then((d) => { setPredData(d); setPredLoading(false); })
+      .catch(() => setPredLoading(false));
+  }, []);
 
   useEffect(() => {
     setRegLoading(true);
@@ -600,9 +642,142 @@ export default function AdminMetrics() {
             <span className="text-xs font-bold uppercase tracking-widest text-gray-400">Actividades</span>
             <div className="flex-1 h-px bg-gray-200" />
           </div>
-          <div className="bg-white border border-dashed border-gray-200 rounded-2xl py-14 flex items-center justify-center">
-            <p className="text-sm text-gray-400">Próximamente</p>
-          </div>
+
+          {/* ── Predicciones diarias ── */}
+          <section>
+            <div className="flex items-center gap-2 mb-5">
+              <div className="w-7 h-7 bg-orange-100 rounded-lg flex items-center justify-center">
+                <Target className="w-4 h-4 text-orange-500" />
+              </div>
+              <div>
+                <h2 className="text-base font-bold text-gray-800">Predicciones</h2>
+                <p className="text-xs text-gray-400 mt-0.5">Predicciones realizadas por los usuarios desde el primer día</p>
+              </div>
+            </div>
+
+            {/* Stat cards */}
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 mb-6">
+              <div className="bg-white border border-gray-200 rounded-2xl p-5 sm:col-span-1">
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Total</p>
+                {predLoading ? <StatSkeleton /> : (
+                  <span className="text-3xl font-bold text-gray-900">{(predData?.stats.total ?? 0).toLocaleString()}</span>
+                )}
+                <p className="text-xs text-gray-400 mt-1">all time</p>
+              </div>
+              <div className="bg-white border border-gray-200 rounded-2xl p-5">
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Hoy</p>
+                {predLoading ? <StatSkeleton /> : (
+                  <span className="text-3xl font-bold text-gray-900">{(predData?.stats.today ?? 0).toLocaleString()}</span>
+                )}
+                <p className="text-xs text-gray-400 mt-1">desde 00:00 UTC</p>
+              </div>
+              <div className="bg-white border border-gray-200 rounded-2xl p-5">
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Esta semana</p>
+                {predLoading ? <StatSkeleton /> : (
+                  <span className="text-3xl font-bold text-gray-900">{(predData?.stats.thisWeek ?? 0).toLocaleString()}</span>
+                )}
+                <p className="text-xs text-gray-400 mt-1">lunes–hoy</p>
+              </div>
+              <div className="bg-white border border-gray-200 rounded-2xl p-5">
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Este mes</p>
+                {predLoading ? <StatSkeleton /> : (
+                  <span className="text-3xl font-bold text-gray-900">{(predData?.stats.thisMonth ?? 0).toLocaleString()}</span>
+                )}
+                <p className="text-xs text-gray-400 mt-1">mes en curso</p>
+              </div>
+              <div className="bg-white border border-orange-100 rounded-2xl p-5">
+                <p className="text-xs font-semibold text-orange-500 uppercase tracking-wide mb-2">Día pico</p>
+                {predLoading ? <StatSkeleton /> : predData?.stats.peakDay ? (
+                  <>
+                    <span className="text-3xl font-bold text-gray-900">{predData.stats.peakDay.count.toLocaleString()}</span>
+                    <p className="text-xs text-gray-400 mt-1 truncate">{predData.stats.peakDay.label}</p>
+                  </>
+                ) : (
+                  <span className="text-3xl font-bold text-gray-900">—</span>
+                )}
+              </div>
+            </div>
+
+            {/* Chart */}
+            <div className="bg-white border border-gray-200 rounded-2xl p-6">
+              {/* View tabs */}
+              <div className="flex items-center justify-between mb-5">
+                <div className="flex gap-1">
+                  {([ { value: "daily", label: "Diario" }, { value: "weekly", label: "Semanal" }, { value: "monthly", label: "Mensual" } ] as { value: PredView; label: string }[]).map((v) => (
+                    <button
+                      key={v.value}
+                      onClick={() => setPredView(v.value)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                        predView === v.value
+                          ? "bg-orange-500 text-white"
+                          : "text-gray-500 hover:bg-gray-100 hover:text-gray-800"
+                      }`}
+                    >
+                      {v.label}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-xs text-gray-400">
+                  {predView === "daily" ? "Desde el primer día" : predView === "weekly" ? "Desde la primera semana" : "Desde el primer mes"}
+                </p>
+              </div>
+
+              {predLoading ? (
+                <div className="h-72 flex items-center justify-center">
+                  <div className="text-sm text-gray-400">Cargando gráfica...</div>
+                </div>
+              ) : (() => {
+                const chartData = predData?.[predView] ?? [];
+                if (chartData.length === 0) {
+                  return (
+                    <div className="h-72 flex items-center justify-center">
+                      <div className="text-sm text-gray-400">Sin datos todavía</div>
+                    </div>
+                  );
+                }
+                const showDots = chartData.length <= 14;
+                return (
+                  <>
+                    <ResponsiveContainer width="100%" height={280}>
+                      <BarChart data={chartData} margin={{ top: 4, right: 4, left: -20, bottom: 0 }} barCategoryGap="30%">
+                        <defs>
+                          <linearGradient id="predGradient" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%"  stopColor="#f97316" stopOpacity={0.9} />
+                            <stop offset="100%" stopColor="#fb923c" stopOpacity={0.6} />
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
+                        <XAxis
+                          dataKey="label"
+                          tick={{ fontSize: 11, fill: "#9ca3af" }}
+                          tickLine={false}
+                          axisLine={false}
+                          interval={chartData.length > 60 ? Math.floor(chartData.length / 20) : "preserveStartEnd"}
+                        />
+                        <YAxis tick={{ fontSize: 11, fill: "#9ca3af" }} tickLine={false} axisLine={false} allowDecimals={false} width={36} />
+                        <Tooltip
+                          content={(props) => (
+                            <PredTooltip
+                              active={props.active}
+                              payload={props.payload as { value?: number }[]}
+                              label={props.label}
+                            />
+                          )}
+                          cursor={{ fill: "#f97316", fillOpacity: 0.08 }}
+                        />
+                        <Bar
+                          dataKey="count"
+                          fill="url(#predGradient)"
+                          radius={[4, 4, 0, 0]}
+                          maxBarSize={showDots ? 40 : 20}
+                        />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </>
+                );
+              })()}
+            </div>
+          </section>
         </div>
 
       </div>

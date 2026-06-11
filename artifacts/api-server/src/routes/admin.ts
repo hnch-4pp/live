@@ -2028,6 +2028,107 @@ router.get("/admin/metrics/active-users", requireAdmin, requireAdminHeader, asyn
   }
 });
 
+// ─── Admin: Daily predictions metrics ────────────────────────────────────────
+
+router.get("/admin/metrics/predictions", requireAdmin, requireAdminHeader, async (_req, res): Promise<void> => {
+  try {
+    const [dailyRows, weeklyRows, monthlyRows, statsRows] = await Promise.all([
+      // Daily: from first prediction to today
+      db.execute(sql.raw(`
+        SELECT
+          to_char(gs, 'Mon DD') AS label,
+          to_char(gs, 'YYYY-MM-DD') AS iso,
+          COUNT(p.id)::int AS count
+        FROM generate_series(
+          COALESCE(
+            (SELECT date_trunc('day', MIN(created_at) AT TIME ZONE 'UTC') FROM predictions),
+            date_trunc('day', now() AT TIME ZONE 'UTC')
+          ),
+          date_trunc('day', now() AT TIME ZONE 'UTC'),
+          interval '1 day'
+        ) AS gs
+        LEFT JOIN predictions p
+          ON date_trunc('day', p.created_at AT TIME ZONE 'UTC') = gs
+        GROUP BY gs, label, iso
+        ORDER BY gs
+      `)),
+      // Weekly: from first week to current week
+      db.execute(sql.raw(`
+        SELECT
+          to_char(gs, 'Mon DD') AS label,
+          COUNT(p.id)::int AS count
+        FROM generate_series(
+          COALESCE(
+            (SELECT date_trunc('week', MIN(created_at) AT TIME ZONE 'UTC') FROM predictions),
+            date_trunc('week', now() AT TIME ZONE 'UTC')
+          ),
+          date_trunc('week', now() AT TIME ZONE 'UTC'),
+          interval '1 week'
+        ) AS gs
+        LEFT JOIN predictions p
+          ON date_trunc('week', p.created_at AT TIME ZONE 'UTC') = gs
+        GROUP BY gs, label
+        ORDER BY gs
+      `)),
+      // Monthly: from first month to current month
+      db.execute(sql.raw(`
+        SELECT
+          to_char(gs, 'Mon YY') AS label,
+          COUNT(p.id)::int AS count
+        FROM generate_series(
+          COALESCE(
+            (SELECT date_trunc('month', MIN(created_at) AT TIME ZONE 'UTC') FROM predictions),
+            date_trunc('month', now() AT TIME ZONE 'UTC')
+          ),
+          date_trunc('month', now() AT TIME ZONE 'UTC'),
+          interval '1 month'
+        ) AS gs
+        LEFT JOIN predictions p
+          ON date_trunc('month', p.created_at AT TIME ZONE 'UTC') = gs
+        GROUP BY gs, label
+        ORDER BY gs
+      `)),
+      // Summary stats
+      db.execute(sql.raw(`
+        SELECT
+          (SELECT COUNT(*)::int FROM predictions) AS total,
+          (SELECT COUNT(*)::int FROM predictions
+            WHERE created_at >= date_trunc('day', now() AT TIME ZONE 'UTC')) AS today,
+          (SELECT COUNT(*)::int FROM predictions
+            WHERE created_at >= date_trunc('week', now() AT TIME ZONE 'UTC')) AS this_week,
+          (SELECT COUNT(*)::int FROM predictions
+            WHERE created_at >= date_trunc('month', now() AT TIME ZONE 'UTC')) AS this_month
+      `)),
+    ]);
+
+    const stats = (statsRows.rows as { total: number; today: number; this_week: number; this_month: number }[])[0]
+      ?? { total: 0, today: 0, this_week: 0, this_month: 0 };
+
+    const daily = (dailyRows.rows as { label: string; iso: string; count: number }[]).map((r) => ({
+      label: r.label, iso: r.iso, count: Number(r.count),
+    }));
+
+    const peakDay = daily.length > 0
+      ? daily.reduce((best, r) => r.count > best.count ? r : best, daily[0])
+      : null;
+
+    res.json({
+      stats: {
+        total:     Number(stats.total),
+        today:     Number(stats.today),
+        thisWeek:  Number(stats.this_week),
+        thisMonth: Number(stats.this_month),
+        peakDay:   peakDay ? { label: peakDay.label, count: peakDay.count } : null,
+      },
+      daily,
+      weekly:  (weeklyRows.rows as { label: string; count: number }[]).map((r) => ({ label: r.label, count: Number(r.count) })),
+      monthly: (monthlyRows.rows as { label: string; count: number }[]).map((r) => ({ label: r.label, count: Number(r.count) })),
+    });
+  } catch (_err) {
+    res.json({ stats: { total: 0, today: 0, thisWeek: 0, thisMonth: 0, peakDay: null }, daily: [], weekly: [], monthly: [] });
+  }
+});
+
 // ─── Admin: Alert preferences ────────────────────────────────────────────────
 
 router.get(
