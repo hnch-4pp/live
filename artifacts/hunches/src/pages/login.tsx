@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
-import { Mail, Lock, KeyRound } from "lucide-react";
+import { Mail, Lock, KeyRound, Eye, EyeOff } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 function OtpInput({ value, onChange }: { value: string; onChange: (v: string) => void }) {
@@ -63,6 +63,9 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [devHint, setDevHint] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const post = async (path: string, body: object) => {
     const res = await fetch(apiUrl(`/api${path}`), {
@@ -237,17 +240,28 @@ export default function Login() {
             {step === "password" && (
               <div className="space-y-1.5">
                 <Label htmlFor="password">{t("password")}</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  autoFocus
-                  autoComplete="new-password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && password && handlePassword()}
-                  placeholder={t("your_password")}
-                  className="rounded-xl h-11 bg-background border-border"
-                />
+                <div className="relative">
+                  <Input
+                    id="password"
+                    type={showPassword ? "text" : "password"}
+                    autoFocus
+                    autoComplete="new-password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && password && handlePassword()}
+                    placeholder={t("your_password")}
+                    className="rounded-xl h-11 bg-background border-border pr-10"
+                  />
+                  <button
+                    type="button"
+                    tabIndex={-1}
+                    onClick={() => setShowPassword((v) => !v)}
+                    className="absolute inset-y-0 right-0 flex items-center px-3 text-muted-foreground hover:text-foreground transition-colors"
+                    aria-label={showPassword ? "Hide password" : "Show password"}
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
                 <div className="flex justify-end pt-0.5">
                   <button
                     type="button"
@@ -276,29 +290,51 @@ export default function Login() {
               <div className="space-y-3">
                 <div className="space-y-1.5">
                   <Label>{t("new_password_label")}</Label>
-                  <Input
-                    type="password"
-                    autoFocus
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    placeholder="••••••••"
-                    className="rounded-xl h-11 bg-background border-border"
-                  />
+                  <div className="relative">
+                    <Input
+                      type={showNewPassword ? "text" : "password"}
+                      autoFocus
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      placeholder="••••••••"
+                      className="rounded-xl h-11 bg-background border-border pr-10"
+                    />
+                    <button
+                      type="button"
+                      tabIndex={-1}
+                      onClick={() => setShowNewPassword((v) => !v)}
+                      className="absolute inset-y-0 right-0 flex items-center px-3 text-muted-foreground hover:text-foreground transition-colors"
+                      aria-label={showNewPassword ? "Hide password" : "Show password"}
+                    >
+                      {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
                 </div>
                 <div className="space-y-1.5">
                   <Label>{t("confirm_new_password_label")}</Label>
-                  <Input
-                    type="password"
-                    value={confirmNewPassword}
-                    onChange={(e) => setConfirmNewPassword(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" && newPassword.length >= 8 && newPassword === confirmNewPassword) {
-                        void handleSetNewPassword();
-                      }
-                    }}
-                    placeholder="••••••••"
-                    className="rounded-xl h-11 bg-background border-border"
-                  />
+                  <div className="relative">
+                    <Input
+                      type={showConfirmPassword ? "text" : "password"}
+                      value={confirmNewPassword}
+                      onChange={(e) => setConfirmNewPassword(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && newPassword.length >= 8 && newPassword === confirmNewPassword) {
+                          void handleSetNewPassword();
+                        }
+                      }}
+                      placeholder="••••••••"
+                      className="rounded-xl h-11 bg-background border-border pr-10"
+                    />
+                    <button
+                      type="button"
+                      tabIndex={-1}
+                      onClick={() => setShowConfirmPassword((v) => !v)}
+                      className="absolute inset-y-0 right-0 flex items-center px-3 text-muted-foreground hover:text-foreground transition-colors"
+                      aria-label={showConfirmPassword ? "Hide password" : "Show password"}
+                    >
+                      {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
