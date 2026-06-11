@@ -12,6 +12,7 @@ import notificationsRouter from "./notifications";
 import affiliatesRouter from "./affiliates";
 import usersRouter from "./users";
 import commentsRouter from "./comments";
+import bugReportsRouter from "./bug-reports";
 
 const router: IRouter = Router();
 
@@ -28,5 +29,6 @@ router.use(affiliatesRouter);
 router.use(hunchesRouter);
 router.use(categoriesRouter);
 router.use(adminRouter);
+router.use(bugReportsRouter);
 
 export default router;

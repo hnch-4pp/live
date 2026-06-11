@@ -81,6 +81,7 @@ export function Footer() {
               <li><Link href="/pricing" className="hover:text-primary transition-colors">{t("footer_pricing")}</Link></li>
               <li><a href="#" className="hover:text-primary transition-colors">{t("footer_how")}</a></li>
               <li><a href="#" className="hover:text-primary transition-colors">{t("footer_support")}</a></li>
+              <li><Link href="/report-bug" className="hover:text-primary transition-colors">{t("footer_report_bug")}</Link></li>
             </ul>
           </div>
         </div>
