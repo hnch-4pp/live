@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { logger } from "../lib/logger";
 
-const BUG_REPORT_RECIPIENT = "g@hunch.me";
+const BUG_REPORT_RECIPIENT = "ger@hunch.me";
 
 const router = Router();
 
