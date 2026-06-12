@@ -1791,6 +1791,7 @@ router.post(
         preds.map((p) => p.questionId).filter((qId): qId is number => qId !== null)
       )].sort((a, b) => a - b);
 
+      const sortedNewQuestions = [...questions].sort((a, b) => a.sortOrder - b.sortOrder);
       const exactMatch = distinctOldQIds.some((id) => officialByNewQId.has(id));
 
       if (exactMatch) {
@@ -1800,9 +1801,7 @@ router.post(
           if (q) effectiveByOldQId.set(newQId, { officialAnswer: answer, answerType: q.answerType, prompt: q.prompt });
         }
       } else if (distinctOldQIds.length > 0) {
-        // Positional fallback: questions may have been recreated — sort old IDs and match to new questions by sortOrder.
-        // Match as many as possible (min of the two counts). Extra questions without predictions are skipped.
-        const sortedNewQuestions = [...questions].sort((a, b) => a.sortOrder - b.sortOrder);
+        // Positional fallback: questions were recreated — sort old IDs and match to new questions by sortOrder.
         const matchCount = Math.min(distinctOldQIds.length, sortedNewQuestions.length);
         for (let i = 0; i < matchCount; i++) {
           const oldId = distinctOldQIds[i];
@@ -1811,6 +1810,15 @@ router.post(
           if (official !== undefined) {
             effectiveByOldQId.set(oldId, { officialAnswer: official, answerType: newQ.answerType, prompt: newQ.prompt });
           }
+        }
+      } else {
+        // All predictions have questionId = null — hunch was single-prediction before being converted to multi.
+        // Score each user's earliest prediction against the first question's official result.
+        // Use a sentinel key of 0 (null predictions) mapped to the first question.
+        const firstQ = sortedNewQuestions[0];
+        const official = firstQ ? officialByNewQId.get(firstQ.id) : undefined;
+        if (firstQ && official !== undefined) {
+          effectiveByOldQId.set(0, { officialAnswer: official, answerType: firstQ.answerType, prompt: firstQ.prompt });
         }
       }
 
@@ -1830,10 +1838,12 @@ router.post(
         if (!userMap.has(p.userId)) {
           userMap.set(p.userId, { userId: p.userId, username: p.username ?? null, phone: p.phone ?? null, answers: [], firstAt: p.createdAt });
         }
-        if (p.questionId && effectiveByOldQId.has(p.questionId)) {
+        // effectiveKey: the key we use in effectiveByOldQId — real questionId, or 0 for null questionIds
+        const effectiveKey = p.questionId ?? 0;
+        if (effectiveByOldQId.has(effectiveKey)) {
           // Only keep one answer per question per user (earliest wins — preds already sorted by createdAt)
-          if (!userMap.get(p.userId)!.answers.some((a) => a.questionId === p.questionId)) {
-            userMap.get(p.userId)!.answers.push({ questionId: p.questionId, label: p.optionLabel ?? "" });
+          if (!userMap.get(p.userId)!.answers.some((a) => a.questionId === effectiveKey)) {
+            userMap.get(p.userId)!.answers.push({ questionId: effectiveKey, label: p.optionLabel ?? "" });
           }
         }
       }
