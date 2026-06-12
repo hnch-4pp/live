@@ -1708,6 +1708,159 @@ router.get(
   },
 );
 
+// ─── Auto-calculate winners ───────────────────────────────────────────────────
+
+function parseNumericLabel(label: string): number | null {
+  const trimmed = label.trim();
+  const timeMatch = trimmed.match(/^(\d+):(\d+)(?::(\d+))?$/);
+  if (timeMatch) {
+    if (timeMatch[3] !== undefined) {
+      return parseInt(timeMatch[1]) * 3600 + parseInt(timeMatch[2]) * 60 + parseInt(timeMatch[3]);
+    }
+    return parseInt(timeMatch[1]) * 60 + parseInt(timeMatch[2]);
+  }
+  const n = parseFloat(trimmed.replace(/,/g, "."));
+  return isNaN(n) ? null : n;
+}
+
+function scoreAnswer(predLabel: string, officialAnswer: string, answerType: string): number | null {
+  if (answerType === "option") {
+    return predLabel.trim().toLowerCase() === officialAnswer.trim().toLowerCase() ? 0 : null;
+  }
+  const predVal = parseNumericLabel(predLabel);
+  const officialVal = parseNumericLabel(officialAnswer);
+  if (predVal === null || officialVal === null) return null;
+  if (predVal === officialVal) return 0;
+  if (predVal < officialVal) return officialVal - predVal;
+  return null;
+}
+
+router.post(
+  "/admin/hunches/:id/calculate-winners",
+  requireAdmin,
+  requireAdminHeader,
+  async (req, res): Promise<void> => {
+    const id = parseInt(String(req.params["id"] ?? "0"), 10);
+    if (!id) { res.status(400).json({ error: "Invalid ID" }); return; }
+
+    const [hunchRow] = await db
+      .select({ isMulti: hunchesTable.isMulti, answerType: hunchesTable.answerType })
+      .from(hunchesTable)
+      .where(eq(hunchesTable.id, id));
+    if (!hunchRow) { res.status(404).json({ error: "Hunch not found" }); return; }
+
+    const preds = await db
+      .select({
+        id: predictionsTable.id,
+        userId: predictionsTable.userId,
+        questionId: predictionsTable.questionId,
+        optionLabel: optionsTable.label,
+        createdAt: predictionsTable.createdAt,
+        username: usersTable.username,
+        phone: usersTable.phone,
+      })
+      .from(predictionsTable)
+      .leftJoin(optionsTable, eq(predictionsTable.optionId, optionsTable.id))
+      .leftJoin(usersTable, eq(predictionsTable.userId, usersTable.id))
+      .where(eq(predictionsTable.hunchId, id))
+      .orderBy(asc(predictionsTable.createdAt));
+
+    if (hunchRow.isMulti) {
+      const results = req.body.results as Array<{ questionId: number; answer: string }> | undefined;
+      if (!results || results.length === 0) {
+        res.status(400).json({ error: "results is required for multi-prediction hunches" });
+        return;
+      }
+
+      const questions = await db
+        .select()
+        .from(hunchQuestionsTable)
+        .where(eq(hunchQuestionsTable.hunchId, id))
+        .orderBy(hunchQuestionsTable.sortOrder);
+
+      const officialByQ = new Map(results.map((r) => [r.questionId, r.answer]));
+      const questionById = new Map(questions.map((q) => [q.id, q]));
+
+      const userMap = new Map<number, {
+        userId: number; username: string | null; phone: string | null;
+        answers: Array<{ questionId: number; label: string }>;
+        firstAt: Date;
+      }>();
+
+      for (const p of preds) {
+        if (!p.userId) continue;
+        if (!userMap.has(p.userId)) {
+          userMap.set(p.userId, { userId: p.userId, username: p.username ?? null, phone: p.phone ?? null, answers: [], firstAt: p.createdAt });
+        }
+        if (p.questionId) {
+          userMap.get(p.userId)!.answers.push({ questionId: p.questionId, label: p.optionLabel ?? "" });
+        }
+      }
+
+      const candidates: Array<{
+        userId: number; username: string | null; phone: string | null;
+        score: number; matchType: string; submittedAt: string; prediction: string; rank: number;
+        questionScores: Array<{ questionId: number; prompt: string; answer: string; score: number }>;
+      }> = [];
+      let totalDisqualified = 0;
+
+      for (const [, u] of userMap) {
+        let totalScore = 0;
+        let disqualified = false;
+        const questionScores: Array<{ questionId: number; prompt: string; answer: string; score: number }> = [];
+
+        for (const [qId, official] of officialByQ) {
+          const q = questionById.get(qId);
+          if (!q) continue;
+          const userAnswer = u.answers.find((a) => a.questionId === qId);
+          if (!userAnswer) { disqualified = true; break; }
+          const s = scoreAnswer(userAnswer.label, official, q.answerType);
+          if (s === null) { disqualified = true; break; }
+          totalScore += s;
+          questionScores.push({ questionId: qId, prompt: q.prompt, answer: userAnswer.label, score: s });
+        }
+
+        if (disqualified) { totalDisqualified++; continue; }
+        candidates.push({
+          userId: u.userId, username: u.username, phone: u.phone,
+          score: totalScore, matchType: totalScore === 0 ? "exact" : "closest",
+          submittedAt: u.firstAt.toISOString(),
+          prediction: u.answers.map((a) => a.label).join(" | "),
+          rank: 0,
+          questionScores,
+        });
+      }
+
+      candidates.sort((a, b) => a.score !== b.score ? a.score - b.score : new Date(a.submittedAt).getTime() - new Date(b.submittedAt).getTime());
+      candidates.forEach((c, i) => { c.rank = i + 1; });
+      res.json({ candidates, totalEligible: candidates.length, totalDisqualified });
+    } else {
+      const result = (req.body.result as string | undefined)?.trim();
+      if (!result) { res.status(400).json({ error: "result is required" }); return; }
+
+      const answerType = hunchRow.answerType ?? "integer";
+      const scored: Array<{ id: number; userId: number | null; username: string | null; phone: string | null; label: string; score: number; submittedAt: Date }> = [];
+      let totalDisqualified = 0;
+
+      for (const p of preds) {
+        const label = p.optionLabel ?? "";
+        const s = scoreAnswer(label, result, answerType);
+        if (s === null) { totalDisqualified++; continue; }
+        scored.push({ id: p.id, userId: p.userId, username: p.username ?? null, phone: p.phone ?? null, label, score: s, submittedAt: p.createdAt });
+      }
+
+      scored.sort((a, b) => a.score !== b.score ? a.score - b.score : a.submittedAt.getTime() - b.submittedAt.getTime());
+
+      const seen = new Set<number>();
+      const candidates = scored
+        .filter((p) => { if (p.userId === null) return true; if (seen.has(p.userId)) return false; seen.add(p.userId); return true; })
+        .map((c, i) => ({ userId: c.userId, username: c.username, phone: c.phone, score: c.score, matchType: c.score === 0 ? "exact" : "closest", submittedAt: c.submittedAt.toISOString(), prediction: c.label, rank: i + 1 }));
+
+      res.json({ candidates, totalEligible: candidates.length, totalDisqualified });
+    }
+  },
+);
+
 // ─── Metrics ─────────────────────────────────────────────────────────────────
 
 type MetricsPeriod =
