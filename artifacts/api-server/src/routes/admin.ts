@@ -1799,16 +1799,24 @@ router.post(
           const q = questions.find((q) => q.id === newQId);
           if (q) effectiveByOldQId.set(newQId, { officialAnswer: answer, answerType: q.answerType, prompt: q.prompt });
         }
-      } else if (distinctOldQIds.length > 0 && distinctOldQIds.length === questions.length) {
-        // Positional fallback: questions were recreated, match sorted old IDs → sorted new questions
+      } else if (distinctOldQIds.length > 0) {
+        // Positional fallback: questions may have been recreated — sort old IDs and match to new questions by sortOrder.
+        // Match as many as possible (min of the two counts). Extra questions without predictions are skipped.
         const sortedNewQuestions = [...questions].sort((a, b) => a.sortOrder - b.sortOrder);
-        distinctOldQIds.forEach((oldId, i) => {
+        const matchCount = Math.min(distinctOldQIds.length, sortedNewQuestions.length);
+        for (let i = 0; i < matchCount; i++) {
+          const oldId = distinctOldQIds[i];
           const newQ = sortedNewQuestions[i];
           const official = officialByNewQId.get(newQ.id);
           if (official !== undefined) {
             effectiveByOldQId.set(oldId, { officialAnswer: official, answerType: newQ.answerType, prompt: newQ.prompt });
           }
-        });
+        }
+      }
+
+      if (effectiveByOldQId.size === 0) {
+        res.status(422).json({ error: "No se pudo emparejar las predicciones con las preguntas. Es posible que los datos sean incompatibles." });
+        return;
       }
 
       const userMap = new Map<number, {
