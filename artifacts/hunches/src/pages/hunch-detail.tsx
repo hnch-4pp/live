@@ -545,7 +545,7 @@ export default function HunchDetail() {
 
   // All-predictions table state
   const [showAllPreds, setShowAllPreds] = useState(false);
-  const [allPreds, setAllPreds] = useState<{ username: string; question: string | null; answer: string; submittedAt: string }[] | null>(null);
+  const [allPreds, setAllPreds] = useState<{ username: string; answer: string; submittedAt: string }[] | null>(null);
   const [allPredsLoading, setAllPredsLoading] = useState(false);
   const [allPredsSortCol, setAllPredsSortCol] = useState<"username" | "answer" | "date">("date");
   const [allPredsSortDir, setAllPredsSortDir] = useState<"asc" | "desc">("asc");
@@ -555,7 +555,7 @@ export default function HunchDetail() {
     setAllPredsLoading(true);
     try {
       const r = await fetch(`/api/hunches/${id}/all-predictions`);
-      const data = await r.json() as { predictions: { username: string; question: string | null; answer: string; submittedAt: string }[] };
+      const data = await r.json() as { predictions: { username: string; answer: string; submittedAt: string }[] };
       setAllPreds(data.predictions ?? []);
     } catch {
       setAllPreds([]);
@@ -877,75 +877,65 @@ export default function HunchDetail() {
                             </div>
                           ) : !allPreds || allPreds.length === 0 ? (
                             <p className="text-xs text-muted-foreground">No hay predicciones registradas.</p>
-                          ) : (() => {
-                            const hasQuestions = allPreds.some((p) => p.question !== null);
-                            const sorted = [...allPreds].sort((a, b) => {
-                              const dir = allPredsSortDir === "asc" ? 1 : -1;
-                              if (allPredsSortCol === "username") return a.username.localeCompare(b.username) * dir;
-                              if (allPredsSortCol === "answer") return a.answer.localeCompare(b.answer) * dir;
-                              return (new Date(a.submittedAt).getTime() - new Date(b.submittedAt).getTime()) * dir;
-                            });
-                            const cols: { col: "username" | "answer" | "date"; label: string }[] = [
-                              { col: "username", label: "Usuario" },
-                              ...(hasQuestions ? [{ col: "answer" as const, label: "Pregunta / Predicción" }] : [{ col: "answer" as const, label: "Predicción" }]),
-                              { col: "date", label: "Fecha" },
-                            ];
-                            return (
-                              <div className="overflow-x-auto rounded-xl border border-border">
-                                <table className="w-full text-sm min-w-[420px]">
-                                  <thead className="bg-muted/40">
-                                    <tr>
-                                      {cols.map(({ col, label }) => (
-                                        <th key={col} className="text-left px-3 py-2.5 text-xs font-semibold text-muted-foreground border-b border-border">
-                                          <button
-                                            type="button"
-                                            onClick={() => {
-                                              if (allPredsSortCol === col) {
-                                                setAllPredsSortDir((d) => (d === "asc" ? "desc" : "asc"));
-                                              } else {
-                                                setAllPredsSortCol(col);
-                                                setAllPredsSortDir("asc");
-                                              }
-                                            }}
-                                            className="flex items-center gap-1 hover:text-foreground transition-colors"
-                                          >
-                                            {label}
-                                            {allPredsSortCol === col ? (
-                                              allPredsSortDir === "asc"
-                                                ? <ChevronUp className="w-3 h-3" />
-                                                : <ChevronDown className="w-3 h-3" />
-                                            ) : (
-                                              <span className="w-3 h-3 opacity-0"><ChevronUp className="w-3 h-3" /></span>
-                                            )}
-                                          </button>
-                                        </th>
-                                      ))}
-                                    </tr>
-                                  </thead>
-                                  <tbody className="divide-y divide-border">
-                                    {sorted.map((p, i) => (
+                          ) : (
+                            <div className="overflow-x-auto rounded-xl border border-border">
+                              <table className="w-full text-sm min-w-[420px]">
+                                <thead className="bg-muted/40">
+                                  <tr>
+                                    {(
+                                      [
+                                        { col: "username" as const, label: "Usuario" },
+                                        { col: "answer" as const, label: "Predicción" },
+                                        { col: "date" as const, label: "Fecha" },
+                                      ] as const
+                                    ).map(({ col, label }) => (
+                                      <th key={col} className="text-left px-3 py-2.5 text-xs font-semibold text-muted-foreground border-b border-border">
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            if (allPredsSortCol === col) {
+                                              setAllPredsSortDir((d) => (d === "asc" ? "desc" : "asc"));
+                                            } else {
+                                              setAllPredsSortCol(col);
+                                              setAllPredsSortDir("asc");
+                                            }
+                                          }}
+                                          className="flex items-center gap-1 hover:text-foreground transition-colors"
+                                        >
+                                          {label}
+                                          {allPredsSortCol === col ? (
+                                            allPredsSortDir === "asc"
+                                              ? <ChevronUp className="w-3 h-3" />
+                                              : <ChevronDown className="w-3 h-3" />
+                                          ) : (
+                                            <span className="w-3 h-3 opacity-0"><ChevronUp className="w-3 h-3" /></span>
+                                          )}
+                                        </button>
+                                      </th>
+                                    ))}
+                                  </tr>
+                                </thead>
+                                <tbody className="divide-y divide-border">
+                                  {[...allPreds]
+                                    .sort((a, b) => {
+                                      const dir = allPredsSortDir === "asc" ? 1 : -1;
+                                      if (allPredsSortCol === "username") return a.username.localeCompare(b.username) * dir;
+                                      if (allPredsSortCol === "answer") return a.answer.localeCompare(b.answer) * dir;
+                                      return (new Date(a.submittedAt).getTime() - new Date(b.submittedAt).getTime()) * dir;
+                                    })
+                                    .map((p, i) => (
                                       <tr key={i} className="hover:bg-muted/20 transition-colors">
                                         <td className="px-3 py-2 text-xs font-semibold text-primary">@{p.username}</td>
-                                        {hasQuestions ? (
-                                          <td className="px-3 py-2 text-xs text-foreground">
-                                            {p.question && (
-                                              <span className="block text-muted-foreground mb-0.5">{p.question}</span>
-                                            )}
-                                            {p.answer}
-                                          </td>
-                                        ) : (
-                                          <td className="px-3 py-2 text-xs text-foreground">{p.answer}</td>
-                                        )}
+                                        <td className="px-3 py-2 text-xs text-foreground">{p.answer}</td>
                                         <td className="px-3 py-2 text-xs text-muted-foreground whitespace-nowrap">
                                           {format(new Date(p.submittedAt), "dd/MM/yy HH:mm", { locale: dateFnsLocale })}
                                         </td>
                                       </tr>
                                     ))}
-                                  </tbody>
-                                </table>
-                              </div>
-                            );
-                          })()}
+                                </tbody>
+                              </table>
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>

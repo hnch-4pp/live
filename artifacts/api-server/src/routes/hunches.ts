@@ -771,26 +771,35 @@ router.get("/hunches/:id/all-predictions", async (req, res): Promise<void> => {
     .select({
       userId: predictionsTable.userId,
       username: usersTable.username,
-      questionPrompt: hunchQuestionsTable.prompt,
+      questionId: predictionsTable.questionId,
       optionLabel: optionsTable.label,
       createdAt: predictionsTable.createdAt,
     })
     .from(predictionsTable)
     .leftJoin(optionsTable, eq(predictionsTable.optionId, optionsTable.id))
     .leftJoin(usersTable, eq(predictionsTable.userId, usersTable.id))
-    .leftJoin(hunchQuestionsTable, eq(predictionsTable.questionId, hunchQuestionsTable.id))
     .where(and(eq(predictionsTable.hunchId, hunch.id), isNotNull(predictionsTable.userId)))
     .orderBy(asc(predictionsTable.userId), asc(predictionsTable.createdAt));
 
-  // One row per prediction — no grouping
-  const predictions = rows
-    .filter((row) => row.userId !== null)
-    .map((row) => ({
-      username: row.username ?? "Anónimo",
-      question: row.questionPrompt ?? null,
-      answer: row.optionLabel ?? "—",
-      submittedAt: row.createdAt.toISOString(),
-    }));
+  // Group by userId — one entry per participant
+  const userMap = new Map<number, { username: string; answers: (string | null)[]; submittedAt: string }>();
+  for (const row of rows) {
+    if (row.userId === null) continue;
+    if (!userMap.has(row.userId)) {
+      userMap.set(row.userId, {
+        username: row.username ?? "Anónimo",
+        answers: [],
+        submittedAt: row.createdAt.toISOString(),
+      });
+    }
+    userMap.get(row.userId)!.answers.push(row.optionLabel);
+  }
+
+  const predictions = Array.from(userMap.values()).map(({ username, answers, submittedAt }) => ({
+    username,
+    answer: answers.length > 1 ? answers.map((a) => a ?? "—").join(" / ") : (answers[0] ?? "—"),
+    submittedAt,
+  }));
 
   res.json({ predictions });
 });
