@@ -1778,8 +1778,38 @@ router.post(
         .where(eq(hunchQuestionsTable.hunchId, id))
         .orderBy(hunchQuestionsTable.sortOrder);
 
-      const officialByQ = new Map(results.map((r) => [r.questionId, r.answer]));
-      const questionById = new Map(questions.map((q) => [q.id, q]));
+      // Build effective scoring map: old questionId (from predictions) → { officialAnswer, answerType, prompt }
+      // predictions may reference stale questionIds (if questions were recreated during an admin edit).
+      // Strategy: try exact ID match first; if none, fall back to positional match (sorted old IDs ↔ sorted new questions by sortOrder).
+      interface EffQ { officialAnswer: string; answerType: string; prompt: string; }
+      const effectiveByOldQId = new Map<number, EffQ>();
+
+      const officialByNewQId = new Map(results.map((r) => [r.questionId, r.answer]));
+
+      // Collect distinct questionIds that actually appear in predictions for this hunch
+      const distinctOldQIds = [...new Set(
+        preds.map((p) => p.questionId).filter((qId): qId is number => qId !== null)
+      )].sort((a, b) => a - b);
+
+      const exactMatch = distinctOldQIds.some((id) => officialByNewQId.has(id));
+
+      if (exactMatch) {
+        // IDs are still in sync — no recreation happened
+        for (const [newQId, answer] of officialByNewQId) {
+          const q = questions.find((q) => q.id === newQId);
+          if (q) effectiveByOldQId.set(newQId, { officialAnswer: answer, answerType: q.answerType, prompt: q.prompt });
+        }
+      } else if (distinctOldQIds.length > 0 && distinctOldQIds.length === questions.length) {
+        // Positional fallback: questions were recreated, match sorted old IDs → sorted new questions
+        const sortedNewQuestions = [...questions].sort((a, b) => a.sortOrder - b.sortOrder);
+        distinctOldQIds.forEach((oldId, i) => {
+          const newQ = sortedNewQuestions[i];
+          const official = officialByNewQId.get(newQ.id);
+          if (official !== undefined) {
+            effectiveByOldQId.set(oldId, { officialAnswer: official, answerType: newQ.answerType, prompt: newQ.prompt });
+          }
+        });
+      }
 
       const userMap = new Map<number, {
         userId: number; username: string | null; phone: string | null;
@@ -1792,8 +1822,11 @@ router.post(
         if (!userMap.has(p.userId)) {
           userMap.set(p.userId, { userId: p.userId, username: p.username ?? null, phone: p.phone ?? null, answers: [], firstAt: p.createdAt });
         }
-        if (p.questionId) {
-          userMap.get(p.userId)!.answers.push({ questionId: p.questionId, label: p.optionLabel ?? "" });
+        if (p.questionId && effectiveByOldQId.has(p.questionId)) {
+          // Only keep one answer per question per user (earliest wins — preds already sorted by createdAt)
+          if (!userMap.get(p.userId)!.answers.some((a) => a.questionId === p.questionId)) {
+            userMap.get(p.userId)!.answers.push({ questionId: p.questionId, label: p.optionLabel ?? "" });
+          }
         }
       }
 
@@ -1809,15 +1842,13 @@ router.post(
         let disqualified = false;
         const questionScores: Array<{ questionId: number; prompt: string; answer: string; score: number }> = [];
 
-        for (const [qId, official] of officialByQ) {
-          const q = questionById.get(qId);
-          if (!q) continue;
+        for (const [qId, eff] of effectiveByOldQId) {
           const userAnswer = u.answers.find((a) => a.questionId === qId);
           if (!userAnswer) { disqualified = true; break; }
-          const s = scoreAnswer(userAnswer.label, official, q.answerType);
+          const s = scoreAnswer(userAnswer.label, eff.officialAnswer, eff.answerType);
           if (s === null) { disqualified = true; break; }
           totalScore += s;
-          questionScores.push({ questionId: qId, prompt: q.prompt, answer: userAnswer.label, score: s });
+          questionScores.push({ questionId: qId, prompt: eff.prompt, answer: userAnswer.label, score: s });
         }
 
         if (disqualified) { totalDisqualified++; continue; }
