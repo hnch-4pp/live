@@ -781,25 +781,36 @@ router.get("/hunches/:id/all-predictions", async (req, res): Promise<void> => {
     .where(and(eq(predictionsTable.hunchId, hunch.id), isNotNull(predictionsTable.userId)))
     .orderBy(asc(predictionsTable.userId), asc(predictionsTable.createdAt));
 
-  // Group by userId — one entry per participant
-  const userMap = new Map<number, { username: string; answers: (string | null)[]; submittedAt: string }>();
+  // Group by userId, then by participation.
+  // A new participation starts when a questionId is seen again in the current group.
+  // For single-question hunches questionId is null on every row, so each row = its own participation.
+  type PredRow = { questionId: number | null; label: string | null; createdAt: Date };
+  const userMap = new Map<number, { username: string; participations: PredRow[][] }>();
+
   for (const row of rows) {
     if (row.userId === null) continue;
     if (!userMap.has(row.userId)) {
-      userMap.set(row.userId, {
-        username: row.username ?? "Anónimo",
-        answers: [],
-        submittedAt: row.createdAt.toISOString(),
-      });
+      userMap.set(row.userId, { username: row.username ?? "Anónimo", participations: [] });
     }
-    userMap.get(row.userId)!.answers.push(row.optionLabel);
+    const user = userMap.get(row.userId)!;
+    const currentPart = user.participations[user.participations.length - 1];
+    const seenQIds = new Set(currentPart?.map((p) => p.questionId));
+    const needsNewGroup = !currentPart || seenQIds.has(row.questionId);
+
+    if (needsNewGroup) {
+      user.participations.push([{ questionId: row.questionId, label: row.optionLabel, createdAt: row.createdAt }]);
+    } else {
+      currentPart.push({ questionId: row.questionId, label: row.optionLabel, createdAt: row.createdAt });
+    }
   }
 
-  const predictions = Array.from(userMap.values()).map(({ username, answers, submittedAt }) => ({
-    username,
-    answer: answers.length > 1 ? answers.map((a) => a ?? "—").join(" / ") : (answers[0] ?? "—"),
-    submittedAt,
-  }));
+  const predictions: { username: string; answer: string; submittedAt: string }[] = [];
+  for (const [, { username, participations }] of userMap) {
+    for (const part of participations) {
+      const answer = part.length > 1 ? part.map((p) => p.label ?? "—").join(" / ") : (part[0]?.label ?? "—");
+      predictions.push({ username, answer, submittedAt: part[0]?.createdAt.toISOString() ?? "" });
+    }
+  }
 
   res.json({ predictions });
 });
