@@ -752,6 +752,58 @@ router.get("/hunches/:id/winners", async (req, res): Promise<void> => {
   res.json({ winners });
 });
 
+// ─── All predictions (public — visible only after hunch resolves) ─────────────
+
+router.get("/hunches/:id/all-predictions", async (req, res): Promise<void> => {
+  const rawId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  const isNumeric = /^\d+$/.test(rawId);
+  const [hunch] = await db
+    .select({ id: hunchesTable.id, isMulti: hunchesTable.isMulti })
+    .from(hunchesTable)
+    .where(isNumeric ? eq(hunchesTable.id, parseInt(rawId, 10)) : eq(hunchesTable.slug, rawId));
+
+  if (!hunch) {
+    res.status(404).json({ error: "Hunch not found" });
+    return;
+  }
+
+  const rows = await db
+    .select({
+      userId: predictionsTable.userId,
+      username: usersTable.username,
+      questionId: predictionsTable.questionId,
+      optionLabel: optionsTable.label,
+      createdAt: predictionsTable.createdAt,
+    })
+    .from(predictionsTable)
+    .leftJoin(optionsTable, eq(predictionsTable.optionId, optionsTable.id))
+    .leftJoin(usersTable, eq(predictionsTable.userId, usersTable.id))
+    .where(and(eq(predictionsTable.hunchId, hunch.id), isNotNull(predictionsTable.userId)))
+    .orderBy(asc(predictionsTable.userId), asc(predictionsTable.createdAt));
+
+  // Group by userId — one entry per participant
+  const userMap = new Map<number, { username: string; answers: (string | null)[]; submittedAt: string }>();
+  for (const row of rows) {
+    if (row.userId === null) continue;
+    if (!userMap.has(row.userId)) {
+      userMap.set(row.userId, {
+        username: row.username ?? "Anónimo",
+        answers: [],
+        submittedAt: row.createdAt.toISOString(),
+      });
+    }
+    userMap.get(row.userId)!.answers.push(row.optionLabel);
+  }
+
+  const predictions = Array.from(userMap.values()).map(({ username, answers, submittedAt }) => ({
+    username,
+    answer: answers.length > 1 ? answers.map((a) => a ?? "—").join(" / ") : (answers[0] ?? "—"),
+    submittedAt,
+  }));
+
+  res.json({ predictions });
+});
+
 // ─── Prediction submission (single & multi) ──────────────────────────────────
 
 router.post("/hunches/:id/predict", async (req, res): Promise<void> => {
