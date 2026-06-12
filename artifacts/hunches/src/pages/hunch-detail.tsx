@@ -717,147 +717,8 @@ export default function HunchDetail() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Main */}
           <div className="lg:col-span-2 space-y-7">
-            {/* Distribution: single-question */}
-            {!isMulti && hunch.options.length > 0 && (
-              <DistributionChart
-                options={hunch.options}
-                participantCount={hunch.participantCount}
-                answerType={(hunch as any).answerType}
-                title="Predictions distribution"
-              />
-            )}
 
-            {/* Distribution: multi-question (one chart per question) */}
-            {isMulti && questions.length > 0 && questions.some((q) => q.options.length > 0) && (
-              <div className="bg-card border border-border rounded-2xl p-6 card-shadow space-y-6">
-                <div>
-                  <h3 className="text-base font-display font-bold text-foreground mb-1">Predictions distribution</h3>
-                  <p className="text-xs text-muted-foreground">
-                    {hunch.participantCount.toLocaleString()} prediction{hunch.participantCount !== 1 ? "s" : ""} so far
-                  </p>
-                </div>
-                {questions.map((q, idx) => q.options.length > 0 && (
-                  <div key={q.id} className="space-y-2">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-bold text-primary bg-primary/10 rounded-lg px-2 py-0.5">{idx + 1}</span>
-                      <span className="text-sm font-medium text-foreground">{q.prompt}</span>
-                    </div>
-                    <DistributionChart
-                      options={q.options}
-                      participantCount={hunch.participantCount}
-                      answerType={q.answerType}
-                      compact
-                    />
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* Prize Pool — main content */}
-            {(() => {
-              const tiers = hunch.prizeTiers && hunch.prizeTiers.length > 0
-                ? hunch.prizeTiers
-                : [{ rank: 1, prize: hunch.prize }];
-              return (
-                <div className="bg-card border border-border rounded-2xl p-6 card-shadow">
-                  {/* Header */}
-                  <div className="flex items-center justify-between gap-2 mb-5">
-                    <div className="flex items-center gap-2">
-                      {getPrizeIcon(hunch.prize.type)}
-                      <h3 className="text-base font-display font-bold text-foreground">{tiers.length > 1 ? t("prize_pool_multiple") : t("prize_pool")}</h3>
-                    </div>
-                    {hunch.prizePoolTotal && tiers.length > 1 && (
-                      <span className="text-2xl font-display font-bold text-foreground">{hunch.prizePoolTotal}</span>
-                    )}
-                  </div>
-
-                  {/* One row per prize */}
-                  <div className="divide-y divide-border">
-                    {tiers.map((tier) => (
-                      <div key={tier.rank} className="flex items-center gap-4 py-3 first:pt-0 last:pb-0">
-                        {/* Square image */}
-                        <div className="shrink-0">
-                          {tier.prize.imageUrl ? (
-                            <button
-                              type="button"
-                              onClick={() => setLightboxUrl(tier.prize.imageUrl!)}
-                              className="w-12 h-12 rounded-xl overflow-hidden border border-border hover:ring-2 hover:ring-primary/40 transition-all block"
-                            >
-                              <img src={tier.prize.imageUrl} alt={tier.prize.label} className="w-full h-full object-cover" />
-                            </button>
-                          ) : (
-                            <div className="w-12 h-12 rounded-xl bg-primary/10 border border-border flex items-center justify-center">
-                              {getPrizeIcon(tier.prize.type)}
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Name + rank */}
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-semibold text-foreground leading-snug truncate">{tier.prize.label}</p>
-                          {tiers.length > 1 && (
-                            <p className="text-xs text-muted-foreground mt-0.5">{ordinal(tier.rank)} place</p>
-                          )}
-                        </div>
-
-                        {/* Value — prominent */}
-                        <div className="shrink-0 text-right">
-                          <span className="text-lg font-display font-bold text-primary">{tier.prize.value}</span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Multi-prize note */}
-                  {tiers.length > 1 && (
-                    <div className="flex items-start gap-2 mt-4 pt-4 border-t border-border">
-                      <Info className="w-3.5 h-3.5 text-muted-foreground shrink-0 mt-0.5" />
-                      <p className="text-xs text-muted-foreground leading-snug">
-                        The prize pool is divided among the top finishers — one prize per place.
-                      </p>
-                    </div>
-                  )}
-
-                  {/* Prize conditions — collapsible */}
-                  {hunch.prizeConditions && (
-                    <div className="mt-4 pt-4 border-t border-border">
-                      <button
-                        type="button"
-                        onClick={() => setConditionsOpen((o) => !o)}
-                        className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground font-medium w-full text-left transition-colors"
-                      >
-                        {conditionsOpen ? <ChevronUp className="w-3.5 h-3.5 shrink-0" /> : <ChevronDown className="w-3.5 h-3.5 shrink-0" />}
-                        Prize conditions
-                      </button>
-                      {conditionsOpen && (
-                        <p className="mt-2 text-xs text-muted-foreground leading-relaxed whitespace-pre-line">
-                          {hunch.prizeConditions}
-                        </p>
-                      )}
-                    </div>
-                  )}
-                </div>
-              );
-            })()}
-
-            {/* Context */}
-            <div className="bg-card border border-border rounded-2xl p-6 card-shadow">
-              <h3 className="text-base font-display font-bold text-foreground mb-3">{t("the_context")}</h3>
-              <p className="text-muted-foreground leading-relaxed">{hunch.description}</p>
-            </div>
-
-            {/* Rules */}
-            {hunch.rules && (
-              <div className="flex items-start gap-3 bg-primary/5 border border-primary/15 rounded-2xl p-5">
-                <Info className="w-4 h-4 text-primary shrink-0 mt-0.5" />
-                <div className="text-sm">
-                  <strong className="text-foreground block mb-1">{t("how_resolution")}</strong>
-                  <span className="text-muted-foreground whitespace-pre-line">{hunch.rules}</span>
-                </div>
-              </div>
-            )}
-
-            {/* Results & Winners — combined module */}
+            {/* ── RESOLVED ORDER: Resultado → Premio → Contexto → Cómo se resuelve → Distribución ── */}
             {isResolved && (() => {
               let sources: { type: "link" | "image" | "video"; url: string; label: string }[] = [];
               try { if (hunch.resultSources) sources = JSON.parse(hunch.resultSources); } catch { /* ignore */ }
@@ -973,6 +834,179 @@ export default function HunchDetail() {
                 </div>
               );
             })()}
+
+            {/* Prize Pool — main content */}
+            {(() => {
+              const tiers = hunch.prizeTiers && hunch.prizeTiers.length > 0
+                ? hunch.prizeTiers
+                : [{ rank: 1, prize: hunch.prize }];
+              return (
+                <div className="bg-card border border-border rounded-2xl p-6 card-shadow">
+                  {/* Header */}
+                  <div className="flex items-center justify-between gap-2 mb-5">
+                    <div className="flex items-center gap-2">
+                      {getPrizeIcon(hunch.prize.type)}
+                      <h3 className="text-base font-display font-bold text-foreground">{tiers.length > 1 ? t("prize_pool_multiple") : t("prize_pool")}</h3>
+                    </div>
+                    {hunch.prizePoolTotal && tiers.length > 1 && (
+                      <span className="text-2xl font-display font-bold text-foreground">{hunch.prizePoolTotal}</span>
+                    )}
+                  </div>
+
+                  {/* One row per prize */}
+                  <div className="divide-y divide-border">
+                    {tiers.map((tier) => (
+                      <div key={tier.rank} className="flex items-center gap-4 py-3 first:pt-0 last:pb-0">
+                        {/* Square image */}
+                        <div className="shrink-0">
+                          {tier.prize.imageUrl ? (
+                            <button
+                              type="button"
+                              onClick={() => setLightboxUrl(tier.prize.imageUrl!)}
+                              className="w-12 h-12 rounded-xl overflow-hidden border border-border hover:ring-2 hover:ring-primary/40 transition-all block"
+                            >
+                              <img src={tier.prize.imageUrl} alt={tier.prize.label} className="w-full h-full object-cover" />
+                            </button>
+                          ) : (
+                            <div className="w-12 h-12 rounded-xl bg-primary/10 border border-border flex items-center justify-center">
+                              {getPrizeIcon(tier.prize.type)}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Name + rank */}
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold text-foreground leading-snug truncate">{tier.prize.label}</p>
+                          {tiers.length > 1 && (
+                            <p className="text-xs text-muted-foreground mt-0.5">{ordinal(tier.rank)} place</p>
+                          )}
+                        </div>
+
+                        {/* Value — prominent */}
+                        <div className="shrink-0 text-right">
+                          <span className="text-lg font-display font-bold text-primary">{tier.prize.value}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Multi-prize note */}
+                  {tiers.length > 1 && (
+                    <div className="flex items-start gap-2 mt-4 pt-4 border-t border-border">
+                      <Info className="w-3.5 h-3.5 text-muted-foreground shrink-0 mt-0.5" />
+                      <p className="text-xs text-muted-foreground leading-snug">
+                        The prize pool is divided among the top finishers — one prize per place.
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Prize conditions — collapsible */}
+                  {hunch.prizeConditions && (
+                    <div className="mt-4 pt-4 border-t border-border">
+                      <button
+                        type="button"
+                        onClick={() => setConditionsOpen((o) => !o)}
+                        className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground font-medium w-full text-left transition-colors"
+                      >
+                        {conditionsOpen ? <ChevronUp className="w-3.5 h-3.5 shrink-0" /> : <ChevronDown className="w-3.5 h-3.5 shrink-0" />}
+                        Prize conditions
+                      </button>
+                      {conditionsOpen && (
+                        <p className="mt-2 text-xs text-muted-foreground leading-relaxed whitespace-pre-line">
+                          {hunch.prizeConditions}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+
+            {/* Context */}
+            <div className="bg-card border border-border rounded-2xl p-6 card-shadow">
+              <h3 className="text-base font-display font-bold text-foreground mb-3">{t("the_context")}</h3>
+              <p className="text-muted-foreground leading-relaxed">{hunch.description}</p>
+            </div>
+
+            {/* Rules */}
+            {hunch.rules && (
+              <div className="flex items-start gap-3 bg-primary/5 border border-primary/15 rounded-2xl p-5">
+                <Info className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                <div className="text-sm">
+                  <strong className="text-foreground block mb-1">{t("how_resolution")}</strong>
+                  <span className="text-muted-foreground whitespace-pre-line">{hunch.rules}</span>
+                </div>
+              </div>
+            )}
+
+            {/* ── Distribution charts — always last for resolved, first for open ── */}
+            {!isResolved && !isMulti && hunch.options.length > 0 && (
+              <DistributionChart
+                options={hunch.options}
+                participantCount={hunch.participantCount}
+                answerType={(hunch as any).answerType}
+                title="Predictions distribution"
+              />
+            )}
+
+            {!isResolved && isMulti && questions.length > 0 && questions.some((q) => q.options.length > 0) && (
+              <div className="bg-card border border-border rounded-2xl p-6 card-shadow space-y-6">
+                <div>
+                  <h3 className="text-base font-display font-bold text-foreground mb-1">Predictions distribution</h3>
+                  <p className="text-xs text-muted-foreground">
+                    {hunch.participantCount.toLocaleString()} prediction{hunch.participantCount !== 1 ? "s" : ""} so far
+                  </p>
+                </div>
+                {questions.map((q, idx) => q.options.length > 0 && (
+                  <div key={q.id} className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold text-primary bg-primary/10 rounded-lg px-2 py-0.5">{idx + 1}</span>
+                      <span className="text-sm font-medium text-foreground">{q.prompt}</span>
+                    </div>
+                    <DistributionChart
+                      options={q.options}
+                      participantCount={hunch.participantCount}
+                      answerType={q.answerType}
+                      compact
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {isResolved && !isMulti && hunch.options.length > 0 && (
+              <DistributionChart
+                options={hunch.options}
+                participantCount={hunch.participantCount}
+                answerType={(hunch as any).answerType}
+                title="Predictions distribution"
+              />
+            )}
+
+            {isResolved && isMulti && questions.length > 0 && questions.some((q) => q.options.length > 0) && (
+              <div className="bg-card border border-border rounded-2xl p-6 card-shadow space-y-6">
+                <div>
+                  <h3 className="text-base font-display font-bold text-foreground mb-1">Predictions distribution</h3>
+                  <p className="text-xs text-muted-foreground">
+                    {hunch.participantCount.toLocaleString()} prediction{hunch.participantCount !== 1 ? "s" : ""} so far
+                  </p>
+                </div>
+                {questions.map((q, idx) => q.options.length > 0 && (
+                  <div key={q.id} className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold text-primary bg-primary/10 rounded-lg px-2 py-0.5">{idx + 1}</span>
+                      <span className="text-sm font-medium text-foreground">{q.prompt}</span>
+                    </div>
+                    <DistributionChart
+                      options={q.options}
+                      participantCount={hunch.participantCount}
+                      answerType={q.answerType}
+                      compact
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
 
           </div>
 
