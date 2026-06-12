@@ -674,25 +674,69 @@ router.patch(
       }
     }
 
-    // Questions (full replace when provided — only for multi-prediction hunches)
+    // Questions (upsert by ID — only for multi-prediction hunches)
+    // We upsert instead of full delete+recreate to preserve user-generated options
+    // (prediction options linked via questionId). Only predefined option-type choices
+    // are replaced; time/integer/text options created from user predictions are kept.
     const isMultiReq = req.body.isMulti === true || req.body.isMulti === "true";
     if (isMultiReq && Array.isArray(req.body.questions)) {
-      await db.delete(hunchQuestionsTable).where(eq(hunchQuestionsTable.hunchId, id));
-      await db.delete(optionsTable).where(and(eq(optionsTable.hunchId, id), isNotNull(optionsTable.questionId)));
-      const qs = req.body.questions as Array<{ prompt: string; answerType: string; placeholder?: string; sortOrder?: number; options?: string[] }>;
+      const qs = req.body.questions as Array<{ id?: number; prompt: string; answerType: string; placeholder?: string; sortOrder?: number; options?: string[] }>;
       const validQs = qs.filter((q) => q.prompt?.trim());
-      if (validQs.length > 0) {
+
+      // Fetch current questions to know which IDs already exist
+      const existingQs = await db
+        .select()
+        .from(hunchQuestionsTable)
+        .where(eq(hunchQuestionsTable.hunchId, id));
+      const existingIds = new Set(existingQs.map((q) => q.id));
+
+      // Separate incoming questions into updates vs inserts
+      const toUpdate = validQs.filter((q) => q.id != null && existingIds.has(q.id as number));
+      const toInsert = validQs.filter((q) => q.id == null || !existingIds.has(q.id as number));
+      const incomingIds = new Set(toUpdate.map((q) => q.id as number));
+
+      // Delete questions that were removed (and their prediction-generated options)
+      const toDelete = existingQs.filter((q) => !incomingIds.has(q.id));
+      for (const q of toDelete) {
+        await db.delete(optionsTable).where(and(eq(optionsTable.hunchId, id), eq(optionsTable.questionId, q.id)));
+        await db.delete(hunchQuestionsTable).where(eq(hunchQuestionsTable.id, q.id));
+      }
+
+      // Update existing questions (preserve their IDs so option links stay intact)
+      for (const q of toUpdate) {
+        await db.update(hunchQuestionsTable)
+          .set({
+            sortOrder: q.sortOrder ?? validQs.indexOf(q),
+            prompt: q.prompt.trim(),
+            answerType: q.answerType ?? "integer",
+            placeholder: q.placeholder?.trim() || null,
+          })
+          .where(eq(hunchQuestionsTable.id, q.id as number));
+
+        // For option-type questions: replace predefined choices only
+        if (q.answerType === "option" && Array.isArray(q.options)) {
+          await db.delete(optionsTable).where(and(eq(optionsTable.hunchId, id), eq(optionsTable.questionId, q.id as number)));
+          const opts = q.options.map((o) => String(o).trim()).filter(Boolean);
+          if (opts.length > 0) {
+            await db.insert(optionsTable).values(opts.map((label) => ({ hunchId: id, label, percentage: 0, questionId: q.id as number })));
+          }
+        }
+        // For non-option types: user-generated options are preserved (no delete)
+      }
+
+      // Insert new questions
+      if (toInsert.length > 0) {
         const insertedQs = await db.insert(hunchQuestionsTable).values(
-          validQs.map((q, i) => ({
+          toInsert.map((q, i) => ({
             hunchId: id,
-            sortOrder: q.sortOrder ?? i,
+            sortOrder: q.sortOrder ?? (toUpdate.length + i),
             prompt: q.prompt.trim(),
             answerType: q.answerType ?? "integer",
             placeholder: q.placeholder?.trim() || null,
           }))
         ).returning();
-        for (let i = 0; i < validQs.length; i++) {
-          const q = validQs[i];
+        for (let i = 0; i < toInsert.length; i++) {
+          const q = toInsert[i];
           const inserted = insertedQs[i];
           if (q.answerType === "option" && Array.isArray(q.options) && inserted) {
             const opts = q.options.map((o) => String(o).trim()).filter(Boolean);
@@ -702,6 +746,7 @@ router.patch(
           }
         }
       }
+
       // isMulti flag follows question count when questions are provided
       if (!("isMulti" in req.body)) {
         updates["isMulti"] = validQs.length >= 2;

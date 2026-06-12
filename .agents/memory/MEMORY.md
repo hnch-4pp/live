@@ -1,1 +1,1 @@
-- [Hunch /hunch routing](hunch-routing.md) — /hunch/* must NOT be in the API server paths; serve from static SPA to avoid blank-page on API restart windows.
+- [Multi-hunch option preservation](multi-hunch-options.md) — admin PATCH must upsert questions by ID, not delete+recreate, to preserve user prediction options.
