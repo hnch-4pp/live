@@ -4,27 +4,17 @@ import { AdminLayout } from "@/components/admin-layout";
 import { useAdminAuth, adminFetch } from "./dashboard";
 import {
   ChevronLeft, Users, Trophy, X, Loader2, ArrowUpDown,
-  CheckCircle2, SlidersHorizontal, AlertTriangle, Calculator,
-  ChevronDown, ChevronUp,
+  CheckCircle2, SlidersHorizontal, AlertTriangle,
 } from "lucide-react";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
 interface PrizeTier { rank: number; prizeLabel: string; }
-interface HunchQuestion { id: number; sortOrder: number; prompt: string; answerType: string; placeholder: string | null; }
 interface HunchDetail {
-  id: number; title: string; isMulti: boolean; answerType: string;
+  id: number; title: string; isMulti: boolean;
   winnerOption: string | null; winnerUserId: number | null;
   winnerRanks: string | null;
   prizeTiers: PrizeTier[];
-  questions: HunchQuestion[];
-}
-
-interface CalcCandidate {
-  userId: number | null; username: string | null; phone: string | null;
-  score: number; matchType: "exact" | "closest"; submittedAt: string;
-  prediction: string; rank: number;
-  questionScores?: Array<{ questionId: number; prompt: string; answer: string; score: number }>;
 }
 
 interface UserAnswer { questionId: number; questionPrompt: string; answerLabel: string; }
@@ -124,15 +114,6 @@ export default function HunchParticipants() {
   const [winnerUserId, setWinnerUserId] = useState<number | null>(null);
   const [winnerRanks, setWinnerRanks] = useState<Array<{ rank: number; userId: number; predId?: number }>>([]);
 
-  // Official result calculator state
-  const [officialResult, setOfficialResult] = useState<string>("");
-  const [officialResults, setOfficialResults] = useState<Record<number, string>>({});
-  const [calculating, setCalculating] = useState(false);
-  const [calcCandidates, setCalcCandidates] = useState<CalcCandidate[] | null>(null);
-  const [calcStats, setCalcStats] = useState<{ totalEligible: number; totalDisqualified: number } | null>(null);
-  const [calcError, setCalcError] = useState<string | null>(null);
-  const [calcOpen, setCalcOpen] = useState(true);
-
   useEffect(() => {
     if (!params.id) return;
     setLoading(true);
@@ -147,6 +128,7 @@ export default function HunchParticipants() {
       if (h.winnerRanks) {
         try {
           const raw = JSON.parse(h.winnerRanks) as Array<{ rank: number; userId: number }>;
+          // Re-attach predId by finding the first matching prediction for each userId
           const allPreds: Array<{ id: number; userId: number | null }> =
             (preds as PredData).byOption?.flatMap((g) => g.participants) ?? [];
           const withPredId = raw.map((entry) => {
@@ -159,49 +141,6 @@ export default function HunchParticipants() {
       }
     }).finally(() => setLoading(false));
   }, [params.id]);
-
-  async function calculateWinners() {
-    if (!hunch) return;
-    setCalculating(true);
-    setCalcError(null);
-    setCalcCandidates(null);
-    setCalcStats(null);
-    try {
-      const body = hunch.isMulti
-        ? { results: hunch.questions.map((q) => ({ questionId: q.id, answer: officialResults[q.id] ?? "" })) }
-        : { result: officialResult };
-      const r = await adminFetch(`/admin/hunches/${hunch.id}/calculate-winners`, {
-        method: "POST",
-        body: JSON.stringify(body),
-      });
-      const data = await r.json();
-      if (!r.ok) { setCalcError(data.error ?? "Error al calcular"); return; }
-      setCalcCandidates(data.candidates ?? []);
-      setCalcStats({ totalEligible: data.totalEligible, totalDisqualified: data.totalDisqualified });
-    } catch {
-      setCalcError("Error de red al calcular");
-    } finally {
-      setCalculating(false);
-    }
-  }
-
-  function applyCalculated() {
-    if (!hunch || !calcCandidates || calcCandidates.length === 0) return;
-    const isMultiPrize = hunch.prizeTiers.length > 1;
-    if (isMultiPrize) {
-      const newRanks = calcCandidates
-        .slice(0, hunch.prizeTiers.length)
-        .filter((c) => c.userId != null)
-        .map((c) => ({ rank: c.rank, userId: c.userId as number }));
-      setWinnerRanks(newRanks);
-    } else if (hunch.isMulti) {
-      const top = calcCandidates[0];
-      if (top?.userId != null) setWinnerUserId(top.userId);
-    } else {
-      const top = calcCandidates[0];
-      if (top) setWinnerOption(top.prediction);
-    }
-  }
 
   // ── Sorted multi-prediction users ──────────────────────────────────────────
 
@@ -390,150 +329,6 @@ export default function HunchParticipants() {
         {sortOpen && (
           <div className="fixed inset-0 z-40" onClick={() => setSortOpen(false)} />
         )}
-
-        {/* ── Resultado oficial ─────────────────────────────────────────────── */}
-        <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
-          <button
-            type="button"
-            onClick={() => setCalcOpen((o) => !o)}
-            className="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-gray-50 transition-colors"
-          >
-            <div className="flex items-center gap-2.5">
-              <Calculator className="w-4 h-4 text-violet-500 shrink-0" />
-              <span className="text-sm font-bold text-gray-900">Resultado oficial</span>
-              <span className="text-xs text-gray-400 font-normal">Calcula los ganadores automaticamente</span>
-            </div>
-            {calcOpen ? <ChevronUp className="w-4 h-4 text-gray-400 shrink-0" /> : <ChevronDown className="w-4 h-4 text-gray-400 shrink-0" />}
-          </button>
-
-          {calcOpen && (
-            <div className="px-5 pb-5 space-y-4 border-t border-gray-100">
-              <div className="pt-4 space-y-3">
-                {hunch.isMulti ? (
-                  hunch.questions.map((q) => (
-                    <div key={q.id}>
-                      <label className="text-xs font-semibold text-gray-600 mb-1 block">{q.prompt}</label>
-                      <input
-                        type="text"
-                        value={officialResults[q.id] ?? ""}
-                        onChange={(e) => setOfficialResults((prev) => ({ ...prev, [q.id]: e.target.value }))}
-                        placeholder={q.placeholder ?? (q.answerType === "time" ? "hh:mm:ss" : q.answerType === "option" ? "Nombre exacto de la opcion" : "Resultado")}
-                        className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-violet-300 placeholder:text-gray-300"
-                      />
-                    </div>
-                  ))
-                ) : (
-                  <div>
-                    <label className="text-xs font-semibold text-gray-600 mb-1 block">Resultado oficial</label>
-                    <input
-                      type="text"
-                      value={officialResult}
-                      onChange={(e) => setOfficialResult(e.target.value)}
-                      placeholder={hunch.answerType === "time" ? "hh:mm:ss" : hunch.answerType === "option" ? "Nombre exacto de la opcion" : "Ej: 42"}
-                      className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-violet-300 placeholder:text-gray-300"
-                    />
-                  </div>
-                )}
-
-                <div className="text-xs text-gray-400 bg-gray-50 rounded-xl px-3 py-2.5 leading-relaxed">
-                  Criterios: resultado exacto gana. Sin exacto: prediccion mas cercana al resultado (se prefiere por debajo en caso de empate). Desempate final por fecha de registro.
-                </div>
-
-                <button
-                  type="button"
-                  onClick={calculateWinners}
-                  disabled={calculating || (hunch.isMulti ? hunch.questions.some((q) => !(officialResults[q.id] ?? "").trim()) : !officialResult.trim())}
-                  className="flex items-center gap-2 text-sm font-semibold text-white bg-violet-600 px-4 py-2 rounded-xl hover:bg-violet-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {calculating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Calculator className="w-3.5 h-3.5" />}
-                  {calculating ? "Calculando..." : "Calcular ganadores"}
-                </button>
-
-                {calcError && (
-                  <p className="text-xs text-red-500 font-medium">{calcError}</p>
-                )}
-              </div>
-
-              {calcCandidates !== null && (
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <p className="text-xs font-semibold text-gray-700">
-                      Candidatos ({calcStats?.totalEligible ?? 0} elegibles, {calcStats?.totalDisqualified ?? 0} descalificados)
-                    </p>
-                    {calcCandidates.length > 0 && (
-                      <button
-                        type="button"
-                        onClick={applyCalculated}
-                        className="flex items-center gap-1.5 text-xs font-semibold text-violet-600 border border-violet-200 bg-white px-3 py-1.5 rounded-xl hover:bg-violet-50 transition-colors"
-                      >
-                        <CheckCircle2 className="w-3 h-3" />
-                        Aplicar como ganador{hunch.prizeTiers.length > 1 ? "es" : ""}
-                      </button>
-                    )}
-                  </div>
-
-                  {calcCandidates.length === 0 ? (
-                    <div className="text-center py-6 text-sm text-gray-400">
-                      No hay predicciones que cumplan los criterios.
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      {calcCandidates.slice(0, 10).map((c) => {
-                        const displayName = c.username ? `@${c.username}` : (c.phone ?? (c.userId != null ? `User ${c.userId}` : "Anonimo"));
-                        const isPrizeWinner = c.rank <= (hunch.prizeTiers.length > 1 ? hunch.prizeTiers.length : 1);
-                        return (
-                          <div
-                            key={c.userId ?? c.submittedAt}
-                            className={`flex items-start gap-3 px-4 py-3 rounded-xl border ${
-                              isPrizeWinner ? "bg-amber-50 border-amber-200" : "bg-gray-50 border-gray-100"
-                            }`}
-                          >
-                            <span className={`text-xs font-bold w-6 h-6 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${
-                              isPrizeWinner ? "bg-amber-200 text-amber-800" : "bg-gray-200 text-gray-500"
-                            }`}>
-                              {c.rank}
-                            </span>
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <span className="text-sm font-semibold text-gray-900">{displayName}</span>
-                                <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
-                                  c.matchType === "exact" ? "bg-emerald-100 text-emerald-700" : "bg-blue-100 text-blue-700"
-                                }`}>
-                                  {c.matchType === "exact" ? "Exacto" : `Diferencia: ${c.score.toFixed(2).replace(/\.00$/, "")}`}
-                                </span>
-                              </div>
-                              {c.questionScores ? (
-                                <div className="mt-1 space-y-0.5">
-                                  {c.questionScores.map((qs) => (
-                                    <p key={qs.questionId} className="text-xs text-gray-500">
-                                      <span className="text-gray-400">{qs.prompt}:</span>{" "}
-                                      <span className="font-semibold text-gray-700">{qs.answer}</span>
-                                      {qs.score > 0 && <span className="text-blue-500 ml-1">(dif: {qs.score.toFixed(2).replace(/\.00$/, "")})</span>}
-                                    </p>
-                                  ))}
-                                </div>
-                              ) : (
-                                <p className="text-xs text-gray-500 mt-0.5">Prediccion: <span className="font-semibold text-gray-700">{c.prediction}</span></p>
-                              )}
-                            </div>
-                            <span className="text-xs text-gray-400 shrink-0 tabular-nums hidden sm:block">
-                              {formatTs(c.submittedAt)}
-                            </span>
-                          </div>
-                        );
-                      })}
-                      {calcCandidates.length > 10 && (
-                        <p className="text-xs text-gray-400 text-center pt-1">
-                          ...y {calcCandidates.length - 10} mas
-                        </p>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
 
         {totalCount === 0 && (
           <div className="bg-white border border-gray-200 rounded-2xl p-10 text-center">

@@ -519,15 +519,6 @@ components:
         metadata:
           $ref: '#/components/schemas/UploadUrlRequest'
 
-    HunchWinnerPrediction:
-      type: object
-      required: [prompt, answer]
-      properties:
-        prompt:
-          type: string
-        answer:
-          type: string
-
     HunchWinner:
       type: object
       required: [username, prizeLabel, prizeValue]
@@ -542,10 +533,6 @@ components:
           type: ["integer", "null"]
         prediction:
           type: ["string", "null"]
-        multiPredictions:
-          type: array
-          items:
-            $ref: "#/components/schemas/HunchWinnerPrediction"
 
     HunchWinnerList:
       type: object

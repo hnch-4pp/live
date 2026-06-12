@@ -585,21 +585,14 @@ router.get("/hunches/:id/winners", async (req, res): Promise<void> => {
           prizeLabel = tierPrize?.label ?? prizeLabel;
           prizeValue = tierPrize?.value ?? prizeValue;
         }
-        const preds = await db
-          .select({ label: optionsTable.label, prompt: hunchQuestionsTable.prompt, sortOrder: hunchQuestionsTable.sortOrder })
+        const [pred] = await db
+          .select({ label: optionsTable.label })
           .from(predictionsTable)
           .leftJoin(optionsTable, eq(predictionsTable.optionId, optionsTable.id))
-          .leftJoin(hunchQuestionsTable, eq(predictionsTable.questionId, hunchQuestionsTable.id))
           .where(and(eq(predictionsTable.hunchId, hunch.id), eq(predictionsTable.userId, userId)))
-          .orderBy(asc(hunchQuestionsTable.sortOrder), asc(predictionsTable.createdAt));
-        const validPreds = preds.filter((p) => p.label);
-        const multiPredictions = isMulti && validPreds.length > 0
-          ? validPreds.map((p) => ({ prompt: p.prompt ?? "Predicción", answer: p.label! }))
-          : undefined;
-        const prediction = validPreds.length > 0
-          ? (isMulti ? validPreds.map((p) => p.label!).join(" | ") : validPreds[0]?.label ?? null)
-          : null;
-        return { username: user?.username ?? "Anonymous", prizeLabel, prizeValue, rank, prediction, multiPredictions };
+          .orderBy(asc(predictionsTable.createdAt))
+          .limit(1);
+        return { username: user?.username ?? "Anonymous", prizeLabel, prizeValue, rank, prediction: pred?.label ?? null };
       }),
     );
     res.json({ winners });
@@ -632,21 +625,14 @@ router.get("/hunches/:id/winners", async (req, res): Promise<void> => {
       prizeLabel = firstTierPrize?.label ?? prizeLabel;
       prizeValue = firstTierPrize?.value ?? prizeValue;
     }
-    const winnerPreds = await db
-      .select({ label: optionsTable.label, prompt: hunchQuestionsTable.prompt, sortOrder: hunchQuestionsTable.sortOrder })
+    const [winnerPred] = await db
+      .select({ label: optionsTable.label })
       .from(predictionsTable)
       .leftJoin(optionsTable, eq(predictionsTable.optionId, optionsTable.id))
-      .leftJoin(hunchQuestionsTable, eq(predictionsTable.questionId, hunchQuestionsTable.id))
       .where(and(eq(predictionsTable.hunchId, hunch.id), eq(predictionsTable.userId, hunch.winnerUserId!)))
-      .orderBy(asc(hunchQuestionsTable.sortOrder), asc(predictionsTable.createdAt));
-    const validWinnerPreds = winnerPreds.filter((p) => p.label);
-    const winnerMultiPredictions = isMulti && validWinnerPreds.length > 0
-      ? validWinnerPreds.map((p) => ({ prompt: p.prompt ?? "Predicción", answer: p.label! }))
-      : undefined;
-    const winnerPrediction = validWinnerPreds.length > 0
-      ? (isMulti ? validWinnerPreds.map((p) => p.label!).join(" | ") : validWinnerPreds[0]?.label ?? null)
-      : null;
-    res.json({ winners: [{ username: winnerUser?.username ?? "Anonymous", prizeLabel, prizeValue, rank: null, prediction: winnerPrediction, multiPredictions: winnerMultiPredictions }] });
+      .orderBy(asc(predictionsTable.createdAt))
+      .limit(1);
+    res.json({ winners: [{ username: winnerUser?.username ?? "Anonymous", prizeLabel, prizeValue, rank: null, prediction: winnerPred?.label ?? null }] });
     return;
   } else if (hunch.winnerAnswers) {
     let answers: Array<{ questionId: number; answer: string }>;
@@ -731,17 +717,6 @@ router.get("/hunches/:id/winners", async (req, res): Promise<void> => {
     for (const o of optRows) optionLabelsMap.set(o.id, o.label);
   }
 
-  // Fetch question prompts for multi-prediction context
-  const questionPromptMap = new Map<number, { prompt: string; sortOrder: number }>();
-  if (isMulti) {
-    const qRows = await db
-      .select({ id: hunchQuestionsTable.id, prompt: hunchQuestionsTable.prompt, sortOrder: hunchQuestionsTable.sortOrder })
-      .from(hunchQuestionsTable)
-      .where(eq(hunchQuestionsTable.hunchId, hunch.id))
-      .orderBy(asc(hunchQuestionsTable.sortOrder));
-    for (const q of qRows) questionPromptMap.set(q.id, { prompt: q.prompt, sortOrder: q.sortOrder });
-  }
-
   const winners = await Promise.all(
     winnerEntries.map(async ({ userId }, idx) => {
       const [user] = await db.select({ username: usersTable.username }).from(usersTable).where(eq(usersTable.id, userId));
@@ -757,19 +732,11 @@ router.get("/hunches/:id/winners", async (req, res): Promise<void> => {
 
       const answers = userAnswers.get(userId);
       let prediction: string | null = null;
-      let multiPredictions: Array<{ prompt: string; answer: string }> | undefined;
       if (answers) {
-        const entries = [...answers.entries()]
-          .map(([qId, oid]) => {
-            const qInfo = qId !== null ? questionPromptMap.get(qId) : undefined;
-            return { prompt: qInfo?.prompt ?? "Predicción", answer: optionLabelsMap.get(oid) ?? "", sortOrder: qInfo?.sortOrder ?? 0 };
-          })
-          .filter((e) => e.answer)
-          .sort((a, b) => a.sortOrder - b.sortOrder);
-        if (entries.length > 0) {
-          prediction = entries.map((e) => e.answer).join(" | ");
-          if (isMulti) multiPredictions = entries.map((e) => ({ prompt: e.prompt, answer: e.answer }));
-        }
+        const labels = [...answers.values()]
+          .map((oid) => optionLabelsMap.get(oid))
+          .filter((l): l is string => l !== undefined);
+        if (labels.length > 0) prediction = labels.join(" | ");
       }
 
       return {
@@ -778,7 +745,6 @@ router.get("/hunches/:id/winners", async (req, res): Promise<void> => {
         prizeValue,
         rank: tiers.length > 1 ? idx + 1 : null,
         prediction,
-        multiPredictions,
       };
     }),
   );

@@ -674,69 +674,25 @@ router.patch(
       }
     }
 
-    // Questions (upsert by ID — only for multi-prediction hunches)
-    // We upsert instead of full delete+recreate to preserve user-generated options
-    // (prediction options linked via questionId). Only predefined option-type choices
-    // are replaced; time/integer/text options created from user predictions are kept.
+    // Questions (full replace when provided — only for multi-prediction hunches)
     const isMultiReq = req.body.isMulti === true || req.body.isMulti === "true";
     if (isMultiReq && Array.isArray(req.body.questions)) {
-      const qs = req.body.questions as Array<{ id?: number; prompt: string; answerType: string; placeholder?: string; sortOrder?: number; options?: string[] }>;
+      await db.delete(hunchQuestionsTable).where(eq(hunchQuestionsTable.hunchId, id));
+      await db.delete(optionsTable).where(and(eq(optionsTable.hunchId, id), isNotNull(optionsTable.questionId)));
+      const qs = req.body.questions as Array<{ prompt: string; answerType: string; placeholder?: string; sortOrder?: number; options?: string[] }>;
       const validQs = qs.filter((q) => q.prompt?.trim());
-
-      // Fetch current questions to know which IDs already exist
-      const existingQs = await db
-        .select()
-        .from(hunchQuestionsTable)
-        .where(eq(hunchQuestionsTable.hunchId, id));
-      const existingIds = new Set(existingQs.map((q) => q.id));
-
-      // Separate incoming questions into updates vs inserts
-      const toUpdate = validQs.filter((q) => q.id != null && existingIds.has(q.id as number));
-      const toInsert = validQs.filter((q) => q.id == null || !existingIds.has(q.id as number));
-      const incomingIds = new Set(toUpdate.map((q) => q.id as number));
-
-      // Delete questions that were removed (and their prediction-generated options)
-      const toDelete = existingQs.filter((q) => !incomingIds.has(q.id));
-      for (const q of toDelete) {
-        await db.delete(optionsTable).where(and(eq(optionsTable.hunchId, id), eq(optionsTable.questionId, q.id)));
-        await db.delete(hunchQuestionsTable).where(eq(hunchQuestionsTable.id, q.id));
-      }
-
-      // Update existing questions (preserve their IDs so option links stay intact)
-      for (const q of toUpdate) {
-        await db.update(hunchQuestionsTable)
-          .set({
-            sortOrder: q.sortOrder ?? validQs.indexOf(q),
-            prompt: q.prompt.trim(),
-            answerType: q.answerType ?? "integer",
-            placeholder: q.placeholder?.trim() || null,
-          })
-          .where(eq(hunchQuestionsTable.id, q.id as number));
-
-        // For option-type questions: replace predefined choices only
-        if (q.answerType === "option" && Array.isArray(q.options)) {
-          await db.delete(optionsTable).where(and(eq(optionsTable.hunchId, id), eq(optionsTable.questionId, q.id as number)));
-          const opts = q.options.map((o) => String(o).trim()).filter(Boolean);
-          if (opts.length > 0) {
-            await db.insert(optionsTable).values(opts.map((label) => ({ hunchId: id, label, percentage: 0, questionId: q.id as number })));
-          }
-        }
-        // For non-option types: user-generated options are preserved (no delete)
-      }
-
-      // Insert new questions
-      if (toInsert.length > 0) {
+      if (validQs.length > 0) {
         const insertedQs = await db.insert(hunchQuestionsTable).values(
-          toInsert.map((q, i) => ({
+          validQs.map((q, i) => ({
             hunchId: id,
-            sortOrder: q.sortOrder ?? (toUpdate.length + i),
+            sortOrder: q.sortOrder ?? i,
             prompt: q.prompt.trim(),
             answerType: q.answerType ?? "integer",
             placeholder: q.placeholder?.trim() || null,
           }))
         ).returning();
-        for (let i = 0; i < toInsert.length; i++) {
-          const q = toInsert[i];
+        for (let i = 0; i < validQs.length; i++) {
+          const q = validQs[i];
           const inserted = insertedQs[i];
           if (q.answerType === "option" && Array.isArray(q.options) && inserted) {
             const opts = q.options.map((o) => String(o).trim()).filter(Boolean);
@@ -746,7 +702,6 @@ router.patch(
           }
         }
       }
-
       // isMulti flag follows question count when questions are provided
       if (!("isMulti" in req.body)) {
         updates["isMulti"] = validQs.length >= 2;
@@ -1705,210 +1660,6 @@ router.get(
     }
 
     res.json({ total, byOption, byUser });
-  },
-);
-
-// ─── Auto-calculate winners ───────────────────────────────────────────────────
-
-function parseNumericLabel(label: string): number | null {
-  const trimmed = label.trim();
-  const timeMatch = trimmed.match(/^(\d+):(\d+)(?::(\d+))?$/);
-  if (timeMatch) {
-    if (timeMatch[3] !== undefined) {
-      return parseInt(timeMatch[1]) * 3600 + parseInt(timeMatch[2]) * 60 + parseInt(timeMatch[3]);
-    }
-    return parseInt(timeMatch[1]) * 60 + parseInt(timeMatch[2]);
-  }
-  const n = parseFloat(trimmed.replace(/,/g, "."));
-  return isNaN(n) ? null : n;
-}
-
-function scoreAnswer(predLabel: string, officialAnswer: string, answerType: string): number | null {
-  if (answerType === "option") {
-    return predLabel.trim().toLowerCase() === officialAnswer.trim().toLowerCase() ? 0 : null;
-  }
-  const predVal = parseNumericLabel(predLabel);
-  const officialVal = parseNumericLabel(officialAnswer);
-  if (predVal === null || officialVal === null) return null;
-  const diff = Math.abs(predVal - officialVal);
-  if (diff === 0) return 0;
-  // Tiny epsilon so that if two predictions have the same absolute distance,
-  // the one that undershoots (pred <= official) ranks above the one that overshoots.
-  return predVal > officialVal ? diff + 1e-9 : diff;
-}
-
-router.post(
-  "/admin/hunches/:id/calculate-winners",
-  requireAdmin,
-  requireAdminHeader,
-  async (req, res): Promise<void> => {
-    const id = parseInt(String(req.params["id"] ?? "0"), 10);
-    if (!id) { res.status(400).json({ error: "Invalid ID" }); return; }
-
-    const [hunchRow] = await db
-      .select({ isMulti: hunchesTable.isMulti, answerType: hunchesTable.answerType })
-      .from(hunchesTable)
-      .where(eq(hunchesTable.id, id));
-    if (!hunchRow) { res.status(404).json({ error: "Hunch not found" }); return; }
-
-    const preds = await db
-      .select({
-        id: predictionsTable.id,
-        userId: predictionsTable.userId,
-        questionId: predictionsTable.questionId,
-        optionLabel: optionsTable.label,
-        createdAt: predictionsTable.createdAt,
-        username: usersTable.username,
-        phone: usersTable.phone,
-      })
-      .from(predictionsTable)
-      .leftJoin(optionsTable, eq(predictionsTable.optionId, optionsTable.id))
-      .leftJoin(usersTable, eq(predictionsTable.userId, usersTable.id))
-      .where(eq(predictionsTable.hunchId, id))
-      .orderBy(asc(predictionsTable.createdAt));
-
-    if (hunchRow.isMulti) {
-      const results = req.body.results as Array<{ questionId: number; answer: string }> | undefined;
-      if (!results || results.length === 0) {
-        res.status(400).json({ error: "results is required for multi-prediction hunches" });
-        return;
-      }
-
-      const questions = await db
-        .select()
-        .from(hunchQuestionsTable)
-        .where(eq(hunchQuestionsTable.hunchId, id))
-        .orderBy(hunchQuestionsTable.sortOrder);
-
-      // Build effective scoring map: old questionId (from predictions) → { officialAnswer, answerType, prompt }
-      // predictions may reference stale questionIds (if questions were recreated during an admin edit).
-      // Strategy: try exact ID match first; if none, fall back to positional match (sorted old IDs ↔ sorted new questions by sortOrder).
-      interface EffQ { officialAnswer: string; answerType: string; prompt: string; }
-      const effectiveByOldQId = new Map<number, EffQ>();
-
-      const officialByNewQId = new Map(results.map((r) => [r.questionId, r.answer]));
-
-      // Collect distinct questionIds that actually appear in predictions for this hunch
-      const distinctOldQIds = [...new Set(
-        preds.map((p) => p.questionId).filter((qId): qId is number => qId !== null)
-      )].sort((a, b) => a - b);
-
-      const sortedNewQuestions = [...questions].sort((a, b) => a.sortOrder - b.sortOrder);
-      const exactMatch = distinctOldQIds.some((id) => officialByNewQId.has(id));
-
-      if (exactMatch) {
-        // IDs are still in sync — no recreation happened
-        for (const [newQId, answer] of officialByNewQId) {
-          const q = questions.find((q) => q.id === newQId);
-          if (q) effectiveByOldQId.set(newQId, { officialAnswer: answer, answerType: q.answerType, prompt: q.prompt });
-        }
-      } else if (distinctOldQIds.length > 0) {
-        // Positional fallback: questions were recreated — sort old IDs and match to new questions by sortOrder.
-        const matchCount = Math.min(distinctOldQIds.length, sortedNewQuestions.length);
-        for (let i = 0; i < matchCount; i++) {
-          const oldId = distinctOldQIds[i];
-          const newQ = sortedNewQuestions[i];
-          const official = officialByNewQId.get(newQ.id);
-          if (official !== undefined) {
-            effectiveByOldQId.set(oldId, { officialAnswer: official, answerType: newQ.answerType, prompt: newQ.prompt });
-          }
-        }
-      } else {
-        // All predictions have questionId = null — hunch was single-prediction before being converted to multi.
-        // Score each user's earliest prediction against the first question's official result.
-        // Use a sentinel key of 0 (null predictions) mapped to the first question.
-        const firstQ = sortedNewQuestions[0];
-        const official = firstQ ? officialByNewQId.get(firstQ.id) : undefined;
-        if (firstQ && official !== undefined) {
-          effectiveByOldQId.set(0, { officialAnswer: official, answerType: firstQ.answerType, prompt: firstQ.prompt });
-        }
-      }
-
-      if (effectiveByOldQId.size === 0) {
-        res.status(422).json({ error: "No se pudo emparejar las predicciones con las preguntas. Es posible que los datos sean incompatibles." });
-        return;
-      }
-
-      const userMap = new Map<number, {
-        userId: number; username: string | null; phone: string | null;
-        answers: Array<{ questionId: number; label: string }>;
-        firstAt: Date;
-      }>();
-
-      for (const p of preds) {
-        if (!p.userId) continue;
-        if (!userMap.has(p.userId)) {
-          userMap.set(p.userId, { userId: p.userId, username: p.username ?? null, phone: p.phone ?? null, answers: [], firstAt: p.createdAt });
-        }
-        // effectiveKey: the key we use in effectiveByOldQId — real questionId, or 0 for null questionIds
-        const effectiveKey = p.questionId ?? 0;
-        if (effectiveByOldQId.has(effectiveKey)) {
-          // Only keep one answer per question per user (earliest wins — preds already sorted by createdAt)
-          if (!userMap.get(p.userId)!.answers.some((a) => a.questionId === effectiveKey)) {
-            userMap.get(p.userId)!.answers.push({ questionId: effectiveKey, label: p.optionLabel ?? "" });
-          }
-        }
-      }
-
-      const candidates: Array<{
-        userId: number; username: string | null; phone: string | null;
-        score: number; matchType: string; submittedAt: string; prediction: string; rank: number;
-        questionScores: Array<{ questionId: number; prompt: string; answer: string; score: number }>;
-      }> = [];
-      let totalDisqualified = 0;
-
-      for (const [, u] of userMap) {
-        let totalScore = 0;
-        let disqualified = false;
-        const questionScores: Array<{ questionId: number; prompt: string; answer: string; score: number }> = [];
-
-        for (const [qId, eff] of effectiveByOldQId) {
-          const userAnswer = u.answers.find((a) => a.questionId === qId);
-          if (!userAnswer) { disqualified = true; break; }
-          const s = scoreAnswer(userAnswer.label, eff.officialAnswer, eff.answerType);
-          if (s === null) { disqualified = true; break; }
-          totalScore += s;
-          questionScores.push({ questionId: qId, prompt: eff.prompt, answer: userAnswer.label, score: s });
-        }
-
-        if (disqualified) { totalDisqualified++; continue; }
-        candidates.push({
-          userId: u.userId, username: u.username, phone: u.phone,
-          score: totalScore, matchType: totalScore === 0 ? "exact" : "closest",
-          submittedAt: u.firstAt.toISOString(),
-          prediction: u.answers.map((a) => a.label).join(" | "),
-          rank: 0,
-          questionScores,
-        });
-      }
-
-      candidates.sort((a, b) => a.score !== b.score ? a.score - b.score : new Date(a.submittedAt).getTime() - new Date(b.submittedAt).getTime());
-      candidates.forEach((c, i) => { c.rank = i + 1; });
-      res.json({ candidates, totalEligible: candidates.length, totalDisqualified });
-    } else {
-      const result = (req.body.result as string | undefined)?.trim();
-      if (!result) { res.status(400).json({ error: "result is required" }); return; }
-
-      const answerType = hunchRow.answerType ?? "integer";
-      const scored: Array<{ id: number; userId: number | null; username: string | null; phone: string | null; label: string; score: number; submittedAt: Date }> = [];
-      let totalDisqualified = 0;
-
-      for (const p of preds) {
-        const label = p.optionLabel ?? "";
-        const s = scoreAnswer(label, result, answerType);
-        if (s === null) { totalDisqualified++; continue; }
-        scored.push({ id: p.id, userId: p.userId, username: p.username ?? null, phone: p.phone ?? null, label, score: s, submittedAt: p.createdAt });
-      }
-
-      scored.sort((a, b) => a.score !== b.score ? a.score - b.score : a.submittedAt.getTime() - b.submittedAt.getTime());
-
-      const seen = new Set<number>();
-      const candidates = scored
-        .filter((p) => { if (p.userId === null) return true; if (seen.has(p.userId)) return false; seen.add(p.userId); return true; })
-        .map((c, i) => ({ userId: c.userId, username: c.username, phone: c.phone, score: c.score, matchType: c.score === 0 ? "exact" : "closest", submittedAt: c.submittedAt.toISOString(), prediction: c.label, rank: i + 1 }));
-
-      res.json({ candidates, totalEligible: candidates.length, totalDisqualified });
-    }
   },
 );
 

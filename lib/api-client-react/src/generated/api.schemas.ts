@@ -180,11 +180,6 @@ export interface UploadUrlResponse {
   metadata?: UploadUrlRequest;
 }
 
-export interface HunchWinnerPrediction {
-  prompt: string;
-  answer: string;
-}
-
 export interface HunchWinner {
   username: string;
   prizeLabel: string;
@@ -193,7 +188,6 @@ export interface HunchWinner {
   rank?: number | null;
   /** @nullable */
   prediction?: string | null;
-  multiPredictions?: HunchWinnerPrediction[];
 }
 
 export interface HunchWinnerList {

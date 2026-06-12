@@ -283,11 +283,7 @@ export const GetHunchWinnersResponse = zod.object({
   "prizeLabel": zod.string(),
   "prizeValue": zod.string(),
   "rank": zod.number().nullish(),
-  "prediction": zod.string().nullish(),
-  "multiPredictions": zod.array(zod.object({
-  "prompt": zod.string(),
-  "answer": zod.string()
-})).optional()
+  "prediction": zod.string().nullish()
 }))
 })
 

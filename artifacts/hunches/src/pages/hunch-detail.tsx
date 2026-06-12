@@ -958,17 +958,9 @@ export default function HunchDetail() {
                               >
                                 @{w.username}
                               </Link>
-                              {w.multiPredictions && w.multiPredictions.length > 0 ? (
-                                <div className="space-y-0.5">
-                                  {w.multiPredictions.map((mp, i) => (
-                                    <span key={i} className="text-xs text-muted-foreground block">
-                                      <span className="font-medium text-foreground/70">{mp.prompt}:</span> {mp.answer}
-                                    </span>
-                                  ))}
-                                </div>
-                              ) : w.prediction ? (
+                              {w.prediction && (
                                 <span className="text-xs text-muted-foreground">Predicción: {w.prediction}</span>
-                              ) : null}
+                              )}
                               <span className="text-xs text-muted-foreground">
                                 {w.prizeLabel}{w.prizeValue ? ` · ${w.prizeValue}` : ""}
                               </span>
