@@ -1,11 +1,11 @@
-import { Router } from "express";
+import { Router, type Request, type Response } from "express";
 import { logger } from "../lib/logger";
 
 const BUG_REPORT_RECIPIENT = "g@hunch.me";
 
 const router = Router();
 
-router.post("/api/bug-reports", async (req, res): Promise<void> => {
+async function handleBugReport(req: Request, res: Response): Promise<void> {
   const { description, email, username, pageUrl } = req.body as {
     description?: string;
     email?: string;
@@ -26,8 +26,6 @@ router.post("/api/bug-reports", async (req, res): Promise<void> => {
   }
 
   try {
-    const adminEmail = BUG_REPORT_RECIPIENT;
-
     const fromLabel = username ? `${username}${email ? ` (${email})` : ""}` : email ?? "Visitante anónimo";
     const pageLine = pageUrl ? `<tr><td style="padding:4px 0;color:#555;font-size:13px"><strong>Página:</strong> ${pageUrl}</td></tr>` : "";
 
@@ -53,7 +51,7 @@ router.post("/api/bug-reports", async (req, res): Promise<void> => {
       headers: { Authorization: `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json" },
       body: JSON.stringify({
         from: "Hunch <no-reply@hunch.fan>",
-        to: [adminEmail],
+        to: [BUG_REPORT_RECIPIENT],
         subject: `Reporte de error - hunch.fan`,
         html,
       }),
@@ -68,6 +66,12 @@ router.post("/api/bug-reports", async (req, res): Promise<void> => {
   }
 
   res.json({ ok: true });
-});
+}
+
+// Current route
+router.post("/api/bug-reports", handleBugReport);
+
+// Legacy alias — production frontend may still call /api/log-reports
+router.post("/api/log-reports", handleBugReport);
 
 export default router;
