@@ -1730,9 +1730,11 @@ function scoreAnswer(predLabel: string, officialAnswer: string, answerType: stri
   const predVal = parseNumericLabel(predLabel);
   const officialVal = parseNumericLabel(officialAnswer);
   if (predVal === null || officialVal === null) return null;
-  if (predVal === officialVal) return 0;
-  if (predVal < officialVal) return officialVal - predVal;
-  return null;
+  const diff = Math.abs(predVal - officialVal);
+  if (diff === 0) return 0;
+  // Tiny epsilon so that if two predictions have the same absolute distance,
+  // the one that undershoots (pred <= official) ranks above the one that overshoots.
+  return predVal > officialVal ? diff + 1e-9 : diff;
 }
 
 router.post(

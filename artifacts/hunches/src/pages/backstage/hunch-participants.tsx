@@ -436,7 +436,7 @@ export default function HunchParticipants() {
                 )}
 
                 <div className="text-xs text-gray-400 bg-gray-50 rounded-xl px-3 py-2.5 leading-relaxed">
-                  Criterios: resultado exacto gana. Sin exacto: prediccion mas cercana sin rebasar el resultado. Desempate por fecha de registro.
+                  Criterios: resultado exacto gana. Sin exacto: prediccion mas cercana al resultado (se prefiere por debajo en caso de empate). Desempate final por fecha de registro.
                 </div>
 
                 <button
