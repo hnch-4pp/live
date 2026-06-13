@@ -204,10 +204,11 @@ function InfoRow({ icon: Icon, label, value, muted }: {
   );
 }
 
-function EditableInfoRow({ icon: Icon, label, value, muted, onSave, type = "text" }: {
+function EditableInfoRow({ icon: Icon, label, value, displayValue, muted, onSave, type = "text" }: {
   icon: React.ElementType;
   label: string;
   value: string;
+  displayValue?: string;
   muted?: boolean;
   onSave: (v: string) => Promise<void>;
   type?: "text" | "date" | "email" | "tel";
@@ -263,7 +264,7 @@ function EditableInfoRow({ icon: Icon, label, value, muted, onSave, type = "text
             </div>
           ) : (
             <p className={`text-sm mt-0.5 ${muted ? "text-gray-400 italic" : "text-gray-900"}`}>
-              {muted ? "Not provided" : (value || "—")}
+              {muted ? "Not provided" : (displayValue ?? (value || "—"))}
             </p>
           )}
           {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
@@ -483,6 +484,11 @@ export default function AdminUserDetail() {
               className="flex items-center gap-1.5 text-xs font-semibold border border-red-200 text-red-600 hover:bg-red-50 px-3 py-2 rounded-lg transition-colors">
               <Trash2 className="w-3.5 h-3.5" />Delete
             </button>
+            <button onClick={() => void load()}
+              className="flex items-center gap-1.5 text-xs font-semibold border border-gray-200 text-gray-500 hover:bg-gray-50 px-3 py-2 rounded-lg transition-colors"
+              title="Refresh user data">
+              <RefreshCw className="w-3.5 h-3.5" />Refresh
+            </button>
           </div>
         </div>
 
@@ -614,7 +620,7 @@ export default function AdminUserDetail() {
                 <EditableInfoRow icon={User}    label="Last name"     value={detail.lastName ?? ""}   muted={!detail.lastName}   onSave={(v) => saveField({ lastName: v })} />
                 <EditableInfoRow icon={MapPin}  label="Address"       value={detail.address ?? ""}    muted={!detail.address}  onSave={(v) => saveField({ address: v })} />
                 <InfoRow        icon={Globe2}   label="Country"       value={detail.country ?? "Unknown"} muted={!detail.country} />
-                <EditableInfoRow icon={Calendar} label="Date of birth" value={detail.dateOfBirth ?? ""} muted={!detail.dateOfBirth} onSave={(v) => saveField({ dateOfBirth: v })} type="date" />
+                <EditableInfoRow icon={Calendar} label="Date of birth" value={detail.dateOfBirth ?? ""} displayValue={detail.dateOfBirth ? fmtDate(detail.dateOfBirth + "T00:00:00", { year: "numeric", month: "long", day: "numeric" }) : undefined} muted={!detail.dateOfBirth} onSave={(v) => saveField({ dateOfBirth: v })} type="date" />
                 <InfoRow        icon={Calendar} label="Joined"        value={fmtDate(detail.createdAt, { year: "numeric", month: "long", day: "numeric" })} />
                 <InfoRow        icon={Clock}    label="Last access"   value={fmtDateTime(detail.lastAccessAt)} muted={!detail.lastAccessAt} />
               </div>
