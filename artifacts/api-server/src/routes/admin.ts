@@ -1098,6 +1098,8 @@ router.get(
       email: user.email,
       phone: user.phone,
       username: user.username,
+      firstName: user.firstName,
+      lastName: user.lastName,
       address: user.address,
       dateOfBirth: user.dateOfBirth,
       avatarUrl: user.avatarUrl,
