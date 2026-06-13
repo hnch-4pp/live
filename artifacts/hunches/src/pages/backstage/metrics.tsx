@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { AdminLayout } from "@/components/admin-layout";
 import { useAdminAuth, adminFetch } from "./dashboard";
-import { Users, TrendingUp, TrendingDown, Minus, Activity, UsersRound, CreditCard, UserCheck, Target } from "lucide-react";
+import { Users, TrendingUp, TrendingDown, Minus, Activity, UsersRound, CreditCard, UserCheck, Target, XCircle } from "lucide-react";
 import {
   AreaChart,
   Area,
@@ -49,6 +49,13 @@ interface ActiveUsersData {
 }
 
 type AuView = "dau" | "wau" | "mau";
+
+interface CancellationsData {
+  period: Period;
+  total: number;
+  previousTotal: number;
+  data: { label: string; count: number }[];
+}
 
 interface PredictionsMetricsData {
   stats: {
@@ -152,6 +159,18 @@ const AuTooltip = ({ active, payload, label }: { active?: boolean; payload?: { v
   );
 };
 
+const CancelTooltip = ({ active, payload, label }: { active?: boolean; payload?: { value?: number }[]; label?: string }) => {
+  if (!active || !payload?.length) return null;
+  return (
+    <div className="bg-white border border-gray-200 rounded-xl shadow-lg px-4 py-3">
+      <p className="text-xs font-semibold text-gray-500 mb-1">{label}</p>
+      <p className="text-lg font-bold text-rose-600">
+        {payload[0].value} <span className="text-sm font-normal text-gray-500">cancellations</span>
+      </p>
+    </div>
+  );
+};
+
 const PredTooltip = ({ active, payload, label }: { active?: boolean; payload?: { value?: number }[]; label?: string }) => {
   if (!active || !payload?.length) return null;
   return (
@@ -187,6 +206,10 @@ export default function AdminMetrics() {
   const [auData, setAuData] = useState<ActiveUsersData | null>(null);
   const [auLoading, setAuLoading] = useState(true);
 
+  // Cancellations state
+  const [cancelData, setCancelData] = useState<CancellationsData | null>(null);
+  const [cancelLoading, setCancelLoading] = useState(true);
+
   // Daily predictions state
   const [predView, setPredView] = useState<PredView>("daily");
   const [predData, setPredData] = useState<PredictionsMetricsData | null>(null);
@@ -207,6 +230,15 @@ export default function AdminMetrics() {
       .then(async (r) => { if (!r.ok) throw new Error(`${r.status}`); return r.json() as Promise<MetricsData>; })
       .then((d) => { if (Array.isArray(d?.data)) { setRegData(d); } setRegLoading(false); })
       .catch(() => setRegLoading(false));
+  }, [period]);
+
+  useEffect(() => {
+    setCancelLoading(true);
+    setCancelData(null);
+    adminFetch(`/admin/metrics/cancellations?period=${period}`)
+      .then(async (r) => { if (!r.ok) throw new Error(`${r.status}`); return r.json() as Promise<CancellationsData>; })
+      .then((d) => { if (Array.isArray(d?.data)) { setCancelData(d); } setCancelLoading(false); })
+      .catch(() => setCancelLoading(false));
   }, [period]);
 
   useEffect(() => {
@@ -501,6 +533,95 @@ export default function AdminMetrics() {
                       fill="url(#regGradient)"
                       dot={regData.data.length <= 14 ? { r: 4, fill: "#7c3aed", strokeWidth: 0 } : false}
                       activeDot={{ r: 5, fill: "#7c3aed", strokeWidth: 0 }}
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </>
+            )}
+          </div>
+        </section>
+
+        {/* ── Subscription cancellations ── */}
+        <section>
+          <div className="flex items-center gap-2 mb-5">
+            <div className="w-7 h-7 bg-rose-100 rounded-lg flex items-center justify-center">
+              <XCircle className="w-4 h-4 text-rose-600" />
+            </div>
+            <h2 className="text-base font-bold text-gray-800">Subscription cancellations</h2>
+          </div>
+
+          {/* Stat cards */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-6">
+            <div className="bg-white border border-gray-200 rounded-2xl p-5">
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Total in period</p>
+              {cancelLoading ? <StatSkeleton /> : (
+                <div className="flex items-end gap-3">
+                  <span className="text-3xl font-bold text-gray-900">{cancelData?.total ?? 0}</span>
+                  {cancelData && <TrendBadge current={cancelData.total} previous={cancelData.previousTotal} />}
+                </div>
+              )}
+              <p className="text-xs text-gray-400 mt-1">vs. previous period</p>
+            </div>
+            <div className="bg-white border border-gray-200 rounded-2xl p-5">
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Previous period</p>
+              {cancelLoading ? <StatSkeleton /> : (
+                <span className="text-3xl font-bold text-gray-900">{cancelData?.previousTotal ?? 0}</span>
+              )}
+            </div>
+            <div className="bg-white border border-gray-200 rounded-2xl p-5">
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Peak bucket</p>
+              {cancelLoading ? <StatSkeleton /> : (() => {
+                const peak = cancelData?.data.reduce((a, b) => b.count > a.count ? b : a, { label: "—", count: 0 });
+                return (
+                  <div>
+                    <span className="text-3xl font-bold text-gray-900">{peak?.count ?? 0}</span>
+                    {peak && peak.count > 0 && (
+                      <p className="text-xs text-gray-400 mt-1 truncate">{peak.label}</p>
+                    )}
+                  </div>
+                );
+              })()}
+            </div>
+          </div>
+
+          {/* Chart */}
+          <div className="bg-white border border-gray-200 rounded-2xl p-6">
+            {cancelLoading ? (
+              <div className="h-72 flex items-center justify-center">
+                <div className="text-sm text-gray-400">Loading chart...</div>
+              </div>
+            ) : !cancelData || cancelData.data.length === 0 ? (
+              <div className="h-72 flex items-center justify-center">
+                <div className="text-sm text-gray-400">No data for this period</div>
+              </div>
+            ) : (
+              <>
+                <div className="flex items-center justify-between mb-5">
+                  <p className="text-sm font-semibold text-gray-700">
+                    {PERIODS.find((p) => p.value === period)?.label} — cancellations
+                  </p>
+                  <p className="text-xs text-gray-400">{cancelData.total} total</p>
+                </div>
+                <ResponsiveContainer width="100%" height={280}>
+                  <AreaChart data={cancelData.data} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="cancelGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%"  stopColor="#f43f5e" stopOpacity={0.18} />
+                        <stop offset="95%" stopColor="#f43f5e" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
+                    <XAxis dataKey="label" tick={{ fontSize: 11, fill: "#9ca3af" }} tickLine={false} axisLine={false} interval="preserveStartEnd" />
+                    <YAxis tick={{ fontSize: 11, fill: "#9ca3af" }} tickLine={false} axisLine={false} allowDecimals={false} width={36} />
+                    <Tooltip content={<CancelTooltip />} cursor={{ stroke: "#f43f5e", strokeWidth: 1, strokeDasharray: "4 2" }} />
+                    <Area
+                      type="monotone"
+                      dataKey="count"
+                      stroke="#f43f5e"
+                      strokeWidth={2.5}
+                      fill="url(#cancelGradient)"
+                      dot={cancelData.data.length <= 14 ? { r: 4, fill: "#f43f5e", strokeWidth: 0 } : false}
+                      activeDot={{ r: 5, fill: "#f43f5e", strokeWidth: 0 }}
                     />
                   </AreaChart>
                 </ResponsiveContainer>

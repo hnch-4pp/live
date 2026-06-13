@@ -2098,6 +2098,112 @@ router.get("/admin/metrics/subscriptions", requireAdmin, requireAdminHeader, asy
   }
 });
 
+// ─── Metrics: Subscription Cancellations ─────────────────────────────────────
+
+router.get("/admin/metrics/cancellations", requireAdmin, requireAdminHeader, async (req, res): Promise<void> => {
+  const period = (req.query.period as MetricsPeriod) ?? "last_7_days";
+
+  let seriesQuery: string;
+  let labelExpr: string;
+  let joinExpr: string;
+  let prevStart: string;
+  let prevEnd: string;
+
+  switch (period) {
+    case "today":
+      seriesQuery = `generate_series(date_trunc('day', now() AT TIME ZONE 'America/Mexico_City'), date_trunc('day', now() AT TIME ZONE 'America/Mexico_City') + interval '23 hours', interval '1 hour')`;
+      labelExpr = `to_char(gs, 'HH12 AM')`;
+      joinExpr = `date_trunc('hour', s.updated_at AT TIME ZONE 'America/Mexico_City') = gs`;
+      prevStart = `date_trunc('day', now() AT TIME ZONE 'America/Mexico_City') - interval '1 day'`;
+      prevEnd = `date_trunc('day', now() AT TIME ZONE 'America/Mexico_City') - interval '1 second'`;
+      break;
+    case "yesterday":
+      seriesQuery = `generate_series(date_trunc('day', now() AT TIME ZONE 'America/Mexico_City') - interval '1 day', date_trunc('day', now() AT TIME ZONE 'America/Mexico_City') - interval '1 hour', interval '1 hour')`;
+      labelExpr = `to_char(gs, 'HH12 AM')`;
+      joinExpr = `date_trunc('hour', s.updated_at AT TIME ZONE 'America/Mexico_City') = gs`;
+      prevStart = `date_trunc('day', now() AT TIME ZONE 'America/Mexico_City') - interval '2 days'`;
+      prevEnd = `date_trunc('day', now() AT TIME ZONE 'America/Mexico_City') - interval '1 day' - interval '1 second'`;
+      break;
+    case "this_week":
+      seriesQuery = `generate_series(date_trunc('week', now() AT TIME ZONE 'America/Mexico_City'), date_trunc('day', now() AT TIME ZONE 'America/Mexico_City'), interval '1 day')`;
+      labelExpr = `to_char(gs, 'Dy DD')`;
+      joinExpr = `date_trunc('day', s.updated_at AT TIME ZONE 'America/Mexico_City') = gs`;
+      prevStart = `date_trunc('week', now() AT TIME ZONE 'America/Mexico_City') - interval '7 days'`;
+      prevEnd = `date_trunc('week', now() AT TIME ZONE 'America/Mexico_City') - interval '1 second'`;
+      break;
+    case "last_7_days":
+      seriesQuery = `generate_series(date_trunc('day', now() AT TIME ZONE 'America/Mexico_City') - interval '6 days', date_trunc('day', now() AT TIME ZONE 'America/Mexico_City'), interval '1 day')`;
+      labelExpr = `to_char(gs, 'Mon DD')`;
+      joinExpr = `date_trunc('day', s.updated_at AT TIME ZONE 'America/Mexico_City') = gs`;
+      prevStart = `date_trunc('day', now() AT TIME ZONE 'America/Mexico_City') - interval '13 days'`;
+      prevEnd = `date_trunc('day', now() AT TIME ZONE 'America/Mexico_City') - interval '7 days' - interval '1 second'`;
+      break;
+    case "this_month":
+      seriesQuery = `generate_series(date_trunc('month', now() AT TIME ZONE 'America/Mexico_City'), date_trunc('day', now() AT TIME ZONE 'America/Mexico_City'), interval '1 day')`;
+      labelExpr = `to_char(gs, 'Mon DD')`;
+      joinExpr = `date_trunc('day', s.updated_at AT TIME ZONE 'America/Mexico_City') = gs`;
+      prevStart = `date_trunc('month', now() AT TIME ZONE 'America/Mexico_City') - interval '1 month'`;
+      prevEnd = `date_trunc('month', now() AT TIME ZONE 'America/Mexico_City') - interval '1 second'`;
+      break;
+    case "last_30_days":
+      seriesQuery = `generate_series(date_trunc('day', now() AT TIME ZONE 'America/Mexico_City') - interval '29 days', date_trunc('day', now() AT TIME ZONE 'America/Mexico_City'), interval '1 day')`;
+      labelExpr = `to_char(gs, 'Mon DD')`;
+      joinExpr = `date_trunc('day', s.updated_at AT TIME ZONE 'America/Mexico_City') = gs`;
+      prevStart = `date_trunc('day', now() AT TIME ZONE 'America/Mexico_City') - interval '59 days'`;
+      prevEnd = `date_trunc('day', now() AT TIME ZONE 'America/Mexico_City') - interval '30 days' - interval '1 second'`;
+      break;
+    case "this_year":
+      seriesQuery = `generate_series(date_trunc('year', now() AT TIME ZONE 'America/Mexico_City'), date_trunc('month', now() AT TIME ZONE 'America/Mexico_City'), interval '1 month')`;
+      labelExpr = `to_char(gs, 'Mon')`;
+      joinExpr = `date_trunc('month', s.updated_at AT TIME ZONE 'America/Mexico_City') = gs`;
+      prevStart = `date_trunc('year', now() AT TIME ZONE 'America/Mexico_City') - interval '1 year'`;
+      prevEnd = `date_trunc('year', now() AT TIME ZONE 'America/Mexico_City') - interval '1 second'`;
+      break;
+    case "last_12_months":
+    default:
+      seriesQuery = `generate_series(date_trunc('month', now() AT TIME ZONE 'America/Mexico_City') - interval '11 months', date_trunc('month', now() AT TIME ZONE 'America/Mexico_City'), interval '1 month')`;
+      labelExpr = `to_char(gs, 'Mon YY')`;
+      joinExpr = `date_trunc('month', s.updated_at AT TIME ZONE 'America/Mexico_City') = gs`;
+      prevStart = `date_trunc('month', now() AT TIME ZONE 'America/Mexico_City') - interval '23 months'`;
+      prevEnd = `date_trunc('month', now() AT TIME ZONE 'America/Mexico_City') - interval '12 months' - interval '1 second'`;
+      break;
+  }
+
+  try {
+    const [dataRows, prevRows] = await Promise.all([
+      db.execute(sql.raw(`
+        SELECT
+          ${labelExpr} AS label,
+          COUNT(s.id)::int AS count
+        FROM ${seriesQuery} AS gs
+        LEFT JOIN subscriptions s ON ${joinExpr} AND s.status = 'canceled'
+        GROUP BY gs, label
+        ORDER BY gs
+      `)),
+      db.execute(sql.raw(`
+        SELECT COUNT(*)::int AS total
+        FROM subscriptions
+        WHERE status = 'canceled'
+          AND updated_at >= ${prevStart}
+          AND updated_at <= ${prevEnd}
+      `)),
+    ]);
+
+    const data = (dataRows.rows as { label: string; count: number }[]).map((r) => ({
+      label: r.label,
+      count: Number(r.count),
+    }));
+
+    const total = data.reduce((s, r) => s + r.count, 0);
+    const previousTotal = Number((prevRows.rows as { total: number }[])[0]?.total ?? 0);
+
+    res.json({ period, total, previousTotal, data });
+  } catch (err) {
+    req.log.warn({ err }, "metrics/cancellations query failed");
+    res.json({ period, total: 0, previousTotal: 0, data: [] });
+  }
+});
+
 // ─── Metrics: Active Users (DAU / WAU / MAU) ─────────────────────────────────
 
 router.get("/admin/metrics/active-users", requireAdmin, requireAdminHeader, async (_req, res): Promise<void> => {
