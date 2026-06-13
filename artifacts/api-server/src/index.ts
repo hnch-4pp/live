@@ -139,6 +139,14 @@ async function runAppMigrations(): Promise<void> {
     CREATE INDEX IF NOT EXISTS "IDX_session_expire" ON "session" ("expire")
   `);
 
+  // User name fields
+  await db.execute(sql`
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS first_name TEXT
+  `);
+  await db.execute(sql`
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS last_name TEXT
+  `);
+
   // Trending topics
   await db.execute(sql`
     ALTER TABLE hunches ADD COLUMN IF NOT EXISTS tags TEXT
