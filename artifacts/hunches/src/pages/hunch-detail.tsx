@@ -1486,7 +1486,7 @@ export default function HunchDetail() {
                     <p className="text-xs font-semibold text-foreground line-clamp-2">{fmtNumericLabel(shareSummary)}</p>
                   </div>
 
-                  <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
+                  <div className="flex items-center gap-3 text-[11px] text-muted-foreground flex-wrap">
                     {timeLeft && (
                       <span className="flex items-center gap-1">
                         <Clock className="w-3 h-3" />
@@ -1498,6 +1498,13 @@ export default function HunchDetail() {
                       {(hunch.participantCount + 1).toLocaleString()} participantes
                     </span>
                   </div>
+                  {hunch.prize && (
+                    <div className="flex items-center gap-1.5 mt-2">
+                      <Gift className="w-3 h-3 text-amber-500 shrink-0" />
+                      <span className="text-[11px] font-semibold text-amber-600">{hunch.prize.value}</span>
+                      <span className="text-[11px] text-muted-foreground">{hunch.prize.label}</span>
+                    </div>
+                  )}
                 </div>
               </div>
 
