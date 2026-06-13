@@ -1,6 +1,4 @@
 import { Router, type Request, type Response } from "express";
-import { db } from "@workspace/db";
-import { bugReportsTable } from "@workspace/db";
 import { logger } from "../lib/logger";
 
 const NOTIFICATION_RECIPIENT = "g@hunch.fan";
@@ -20,22 +18,6 @@ async function handleBugReport(req: Request, res: Response): Promise<void> {
     return;
   }
 
-  // Save to database
-  let reportId: number | undefined;
-  try {
-    const [inserted] = await db.insert(bugReportsTable).values({
-      description: String(description).trim(),
-      email: email?.trim() || null,
-      username: username?.trim() || null,
-      pageUrl: pageUrl?.trim() || null,
-      status: "new",
-    }).returning({ id: bugReportsTable.id });
-    reportId = inserted?.id;
-  } catch (err) {
-    logger.error({ err }, "Failed to save bug report to DB");
-  }
-
-  // Send notification email
   const RESEND_API_KEY = process.env.RESEND_API_KEY;
   if (!RESEND_API_KEY) {
     logger.warn("RESEND_API_KEY not configured — bug report email not sent");
@@ -46,7 +28,6 @@ async function handleBugReport(req: Request, res: Response): Promise<void> {
   try {
     const fromLabel = username ? `${username}${email ? ` (${email})` : ""}` : email ?? "Visitante anónimo";
     const pageLine = pageUrl ? `<tr><td style="padding:4px 0;color:#555;font-size:13px"><strong>Página:</strong> ${pageUrl}</td></tr>` : "";
-    const adminLink = reportId ? `<p style="margin-top:16px"><a href="https://hunch.fan/backstage/bug-reports" style="color:#7c3aed;font-size:13px">Ver en admin →</a></p>` : "";
 
     const html = `
 <!DOCTYPE html>
@@ -60,7 +41,6 @@ async function handleBugReport(req: Request, res: Response): Promise<void> {
     ${pageLine}
   </table>
   <div style="background:#fafafa;border:1px solid #eee;border-radius:8px;padding:16px;margin:16px 0;white-space:pre-wrap;font-size:14px;line-height:1.6">${String(description).trim()}</div>
-  ${adminLink}
   <hr style="border:none;border-top:1px solid #eee;margin:24px 0"/>
   <p style="font-size:12px;color:#aaa">Hunch — <a href="https://hunch.fan" style="color:#7c3aed">hunch.fan</a></p>
 </body>

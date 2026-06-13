@@ -40,7 +40,6 @@ import AdminAffiliateDetail from "@/pages/backstage/affiliate-detail";
 import AdminAffiliateTiers from "@/pages/backstage/affiliate-tiers";
 import AdminTrending from "@/pages/backstage/trending";
 import AdminComments from "@/pages/backstage/comments";
-import AdminBugReports from "@/pages/backstage/bug-reports";
 import Referral from "@/pages/referral";
 import UserProfile from "@/pages/user-profile";
 import Ranking from "@/pages/ranking";
@@ -100,7 +99,6 @@ function Router() {
       <Route path="/backstage/affiliates/:id" component={AdminAffiliateDetail} />
       <Route path="/backstage/affiliate-tiers" component={AdminAffiliateTiers} />
       <Route path="/backstage/comments" component={AdminComments} />
-      <Route path="/backstage/bug-reports" component={AdminBugReports} />
       <Route path="/referral" component={Referral} />
       <Route path="/affiliate" component={AffiliateLanding} />
       <Route path="/affiliate/dashboard" component={AffiliateDashboard} />
