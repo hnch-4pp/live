@@ -683,7 +683,7 @@ interface AccountStatus {
 }
 
 function formatPeriodEnd(iso: string | null): string {
-  if (!iso) return "al final de tu periodo de suscripcion";
+  if (!iso) return "al final de tu periodo de suscripción";
   return new Date(iso).toLocaleDateString("es-MX", { year: "numeric", month: "long", day: "numeric" });
 }
 
@@ -752,9 +752,9 @@ function DeleteDialog({
             <div>
               <h3 className="text-base font-semibold text-foreground">Cuenta programada para cierre</h3>
               <p className="text-sm text-muted-foreground mt-1">
-                Tu suscripcion ha sido cancelada. Perdera tu acceso el{" "}
+                Tu suscripción ha sido cancelada. Perderás tu acceso el{" "}
                 <span className="font-semibold text-foreground">{formatPeriodEnd(scheduledDate)}</span>,
-                cuando tu cuenta y todos tus datos seran eliminados definitivamente.
+                cuando tu cuenta y todos tus datos serán eliminados definitivamente.
               </p>
             </div>
           </div>
@@ -777,8 +777,8 @@ function DeleteDialog({
             <h3 className="text-base font-semibold text-foreground">Eliminar cuenta</h3>
             <p className="text-sm text-muted-foreground mt-1">
               {hasSub
-                ? "Tu suscripcion sera cancelada y perdera tu acceso al terminar el periodo actual."
-                : "Esta accion es permanente e irreversible. Todos tus datos y predicciones seran eliminados."}
+                ? "Tu suscripción será cancelada y perderás tu acceso al terminar el periodo actual."
+                : "Esta acción es permanente e irreversible. Todos tus datos y predicciones serán eliminados."}
             </p>
           </div>
         </div>
@@ -795,7 +795,7 @@ function DeleteDialog({
                 <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-xl px-4 py-3 flex gap-3">
                   <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
                   <p className="text-sm text-amber-800 dark:text-amber-200">
-                    Tienes <span className="font-semibold">{ticketCount} {ticketCount === 1 ? "ticket" : "tickets"}</span> disponibles que perderacc al eliminar tu cuenta.
+                    Tienes <span className="font-semibold">{ticketCount} {ticketCount === 1 ? "ticket" : "tickets"}</span> disponibles que perderás al eliminar tu cuenta.
                   </p>
                 </div>
               )}
@@ -803,8 +803,8 @@ function DeleteDialog({
                 <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-xl px-4 py-3 flex gap-3">
                   <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
                   <p className="text-sm text-amber-800 dark:text-amber-200">
-                    Tienes <span className="font-semibold">{ticketCount} {ticketCount === 1 ? "ticket" : "tickets"}</span> disponibles que perderacc.
-                    Tu acceso terminara el <span className="font-semibold">{formatPeriodEnd(periodEnd)}</span>.
+                    Tienes <span className="font-semibold">{ticketCount} {ticketCount === 1 ? "ticket" : "tickets"}</span> disponibles que perderás.
+                    Tu acceso terminará el <span className="font-semibold">{formatPeriodEnd(periodEnd)}</span>.
                   </p>
                 </div>
               )}
@@ -812,7 +812,7 @@ function DeleteDialog({
                 <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-xl px-4 py-3 flex gap-3">
                   <AlertTriangle className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
                   <p className="text-sm text-blue-800 dark:text-blue-200">
-                    Tu acceso terminara el <span className="font-semibold">{formatPeriodEnd(periodEnd)}</span>, al vencer tu periodo de suscripcion.
+                    Tu acceso terminará el <span className="font-semibold">{formatPeriodEnd(periodEnd)}</span>, al vencer tu periodo de suscripción.
                   </p>
                 </div>
               )}
