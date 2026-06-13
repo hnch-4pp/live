@@ -1688,69 +1688,69 @@ router.get("/admin/metrics/users", requireAdmin, requireAdminHeader, async (req,
 
   switch (period) {
     case "today":
-      seriesQuery = `generate_series(date_trunc('day', now() AT TIME ZONE 'UTC'), date_trunc('day', now() AT TIME ZONE 'UTC') + interval '23 hours', interval '1 hour')`;
+      seriesQuery = `generate_series(date_trunc('day', now() AT TIME ZONE 'America/Mexico_City'), date_trunc('day', now() AT TIME ZONE 'America/Mexico_City') + interval '23 hours', interval '1 hour')`;
       labelExpr = `to_char(gs, 'HH12 AM')`;
-      joinExpr = `date_trunc('hour', created_at AT TIME ZONE 'UTC') = gs`;
-      prevStart = `date_trunc('day', now() AT TIME ZONE 'UTC') - interval '1 day'`;
-      prevEnd = `date_trunc('day', now() AT TIME ZONE 'UTC') - interval '1 second'`;
-      periodStart = `date_trunc('day', now() AT TIME ZONE 'UTC')`;
+      joinExpr = `date_trunc('hour', created_at AT TIME ZONE 'America/Mexico_City') = gs`;
+      prevStart = `date_trunc('day', now() AT TIME ZONE 'America/Mexico_City') - interval '1 day'`;
+      prevEnd = `date_trunc('day', now() AT TIME ZONE 'America/Mexico_City') - interval '1 second'`;
+      periodStart = `date_trunc('day', now() AT TIME ZONE 'America/Mexico_City')`;
       break;
     case "yesterday":
-      seriesQuery = `generate_series(date_trunc('day', now() AT TIME ZONE 'UTC') - interval '1 day', date_trunc('day', now() AT TIME ZONE 'UTC') - interval '1 hour', interval '1 hour')`;
+      seriesQuery = `generate_series(date_trunc('day', now() AT TIME ZONE 'America/Mexico_City') - interval '1 day', date_trunc('day', now() AT TIME ZONE 'America/Mexico_City') - interval '1 hour', interval '1 hour')`;
       labelExpr = `to_char(gs, 'HH12 AM')`;
-      joinExpr = `date_trunc('hour', created_at AT TIME ZONE 'UTC') = gs`;
-      prevStart = `date_trunc('day', now() AT TIME ZONE 'UTC') - interval '2 days'`;
-      prevEnd = `date_trunc('day', now() AT TIME ZONE 'UTC') - interval '1 day' - interval '1 second'`;
-      periodStart = `date_trunc('day', now() AT TIME ZONE 'UTC') - interval '1 day'`;
+      joinExpr = `date_trunc('hour', created_at AT TIME ZONE 'America/Mexico_City') = gs`;
+      prevStart = `date_trunc('day', now() AT TIME ZONE 'America/Mexico_City') - interval '2 days'`;
+      prevEnd = `date_trunc('day', now() AT TIME ZONE 'America/Mexico_City') - interval '1 day' - interval '1 second'`;
+      periodStart = `date_trunc('day', now() AT TIME ZONE 'America/Mexico_City') - interval '1 day'`;
       break;
     case "this_week":
-      seriesQuery = `generate_series(date_trunc('week', now() AT TIME ZONE 'UTC'), date_trunc('day', now() AT TIME ZONE 'UTC'), interval '1 day')`;
+      seriesQuery = `generate_series(date_trunc('week', now() AT TIME ZONE 'America/Mexico_City'), date_trunc('day', now() AT TIME ZONE 'America/Mexico_City'), interval '1 day')`;
       labelExpr = `to_char(gs, 'Dy DD')`;
-      joinExpr = `date_trunc('day', created_at AT TIME ZONE 'UTC') = gs`;
-      prevStart = `date_trunc('week', now() AT TIME ZONE 'UTC') - interval '7 days'`;
-      prevEnd = `date_trunc('week', now() AT TIME ZONE 'UTC') - interval '1 second'`;
-      periodStart = `date_trunc('week', now() AT TIME ZONE 'UTC')`;
+      joinExpr = `date_trunc('day', created_at AT TIME ZONE 'America/Mexico_City') = gs`;
+      prevStart = `date_trunc('week', now() AT TIME ZONE 'America/Mexico_City') - interval '7 days'`;
+      prevEnd = `date_trunc('week', now() AT TIME ZONE 'America/Mexico_City') - interval '1 second'`;
+      periodStart = `date_trunc('week', now() AT TIME ZONE 'America/Mexico_City')`;
       break;
     case "last_7_days":
-      seriesQuery = `generate_series(date_trunc('day', now() AT TIME ZONE 'UTC') - interval '6 days', date_trunc('day', now() AT TIME ZONE 'UTC'), interval '1 day')`;
+      seriesQuery = `generate_series(date_trunc('day', now() AT TIME ZONE 'America/Mexico_City') - interval '6 days', date_trunc('day', now() AT TIME ZONE 'America/Mexico_City'), interval '1 day')`;
       labelExpr = `to_char(gs, 'Mon DD')`;
-      joinExpr = `date_trunc('day', created_at AT TIME ZONE 'UTC') = gs`;
-      prevStart = `date_trunc('day', now() AT TIME ZONE 'UTC') - interval '13 days'`;
-      prevEnd = `date_trunc('day', now() AT TIME ZONE 'UTC') - interval '7 days' - interval '1 second'`;
-      periodStart = `date_trunc('day', now() AT TIME ZONE 'UTC') - interval '6 days'`;
+      joinExpr = `date_trunc('day', created_at AT TIME ZONE 'America/Mexico_City') = gs`;
+      prevStart = `date_trunc('day', now() AT TIME ZONE 'America/Mexico_City') - interval '13 days'`;
+      prevEnd = `date_trunc('day', now() AT TIME ZONE 'America/Mexico_City') - interval '7 days' - interval '1 second'`;
+      periodStart = `date_trunc('day', now() AT TIME ZONE 'America/Mexico_City') - interval '6 days'`;
       break;
     case "this_month":
-      seriesQuery = `generate_series(date_trunc('month', now() AT TIME ZONE 'UTC'), date_trunc('day', now() AT TIME ZONE 'UTC'), interval '1 day')`;
+      seriesQuery = `generate_series(date_trunc('month', now() AT TIME ZONE 'America/Mexico_City'), date_trunc('day', now() AT TIME ZONE 'America/Mexico_City'), interval '1 day')`;
       labelExpr = `to_char(gs, 'Mon DD')`;
-      joinExpr = `date_trunc('day', created_at AT TIME ZONE 'UTC') = gs`;
-      prevStart = `date_trunc('month', now() AT TIME ZONE 'UTC') - interval '1 month'`;
-      prevEnd = `date_trunc('month', now() AT TIME ZONE 'UTC') - interval '1 second'`;
-      periodStart = `date_trunc('month', now() AT TIME ZONE 'UTC')`;
+      joinExpr = `date_trunc('day', created_at AT TIME ZONE 'America/Mexico_City') = gs`;
+      prevStart = `date_trunc('month', now() AT TIME ZONE 'America/Mexico_City') - interval '1 month'`;
+      prevEnd = `date_trunc('month', now() AT TIME ZONE 'America/Mexico_City') - interval '1 second'`;
+      periodStart = `date_trunc('month', now() AT TIME ZONE 'America/Mexico_City')`;
       break;
     case "last_30_days":
-      seriesQuery = `generate_series(date_trunc('day', now() AT TIME ZONE 'UTC') - interval '29 days', date_trunc('day', now() AT TIME ZONE 'UTC'), interval '1 day')`;
+      seriesQuery = `generate_series(date_trunc('day', now() AT TIME ZONE 'America/Mexico_City') - interval '29 days', date_trunc('day', now() AT TIME ZONE 'America/Mexico_City'), interval '1 day')`;
       labelExpr = `to_char(gs, 'Mon DD')`;
-      joinExpr = `date_trunc('day', created_at AT TIME ZONE 'UTC') = gs`;
-      prevStart = `date_trunc('day', now() AT TIME ZONE 'UTC') - interval '59 days'`;
-      prevEnd = `date_trunc('day', now() AT TIME ZONE 'UTC') - interval '30 days' - interval '1 second'`;
-      periodStart = `date_trunc('day', now() AT TIME ZONE 'UTC') - interval '29 days'`;
+      joinExpr = `date_trunc('day', created_at AT TIME ZONE 'America/Mexico_City') = gs`;
+      prevStart = `date_trunc('day', now() AT TIME ZONE 'America/Mexico_City') - interval '59 days'`;
+      prevEnd = `date_trunc('day', now() AT TIME ZONE 'America/Mexico_City') - interval '30 days' - interval '1 second'`;
+      periodStart = `date_trunc('day', now() AT TIME ZONE 'America/Mexico_City') - interval '29 days'`;
       break;
     case "this_year":
-      seriesQuery = `generate_series(date_trunc('year', now() AT TIME ZONE 'UTC'), date_trunc('month', now() AT TIME ZONE 'UTC'), interval '1 month')`;
+      seriesQuery = `generate_series(date_trunc('year', now() AT TIME ZONE 'America/Mexico_City'), date_trunc('month', now() AT TIME ZONE 'America/Mexico_City'), interval '1 month')`;
       labelExpr = `to_char(gs, 'Mon')`;
-      joinExpr = `date_trunc('month', created_at AT TIME ZONE 'UTC') = gs`;
-      prevStart = `date_trunc('year', now() AT TIME ZONE 'UTC') - interval '1 year'`;
-      prevEnd = `date_trunc('year', now() AT TIME ZONE 'UTC') - interval '1 second'`;
-      periodStart = `date_trunc('year', now() AT TIME ZONE 'UTC')`;
+      joinExpr = `date_trunc('month', created_at AT TIME ZONE 'America/Mexico_City') = gs`;
+      prevStart = `date_trunc('year', now() AT TIME ZONE 'America/Mexico_City') - interval '1 year'`;
+      prevEnd = `date_trunc('year', now() AT TIME ZONE 'America/Mexico_City') - interval '1 second'`;
+      periodStart = `date_trunc('year', now() AT TIME ZONE 'America/Mexico_City')`;
       break;
     case "last_12_months":
     default:
-      seriesQuery = `generate_series(date_trunc('month', now() AT TIME ZONE 'UTC') - interval '11 months', date_trunc('month', now() AT TIME ZONE 'UTC'), interval '1 month')`;
+      seriesQuery = `generate_series(date_trunc('month', now() AT TIME ZONE 'America/Mexico_City') - interval '11 months', date_trunc('month', now() AT TIME ZONE 'America/Mexico_City'), interval '1 month')`;
       labelExpr = `to_char(gs, 'Mon YY')`;
-      joinExpr = `date_trunc('month', created_at AT TIME ZONE 'UTC') = gs`;
-      prevStart = `date_trunc('month', now() AT TIME ZONE 'UTC') - interval '23 months'`;
-      prevEnd = `date_trunc('month', now() AT TIME ZONE 'UTC') - interval '12 months' - interval '1 second'`;
-      periodStart = `date_trunc('month', now() AT TIME ZONE 'UTC') - interval '11 months'`;
+      joinExpr = `date_trunc('month', created_at AT TIME ZONE 'America/Mexico_City') = gs`;
+      prevStart = `date_trunc('month', now() AT TIME ZONE 'America/Mexico_City') - interval '23 months'`;
+      prevEnd = `date_trunc('month', now() AT TIME ZONE 'America/Mexico_City') - interval '12 months' - interval '1 second'`;
+      periodStart = `date_trunc('month', now() AT TIME ZONE 'America/Mexico_City') - interval '11 months'`;
       break;
   }
 
@@ -1840,61 +1840,61 @@ router.get("/admin/metrics/revenue", requireAdmin, requireAdminHeader, async (re
 
   switch (period) {
     case "today":
-      seriesQuery = `generate_series(date_trunc('day', now() AT TIME ZONE 'UTC'), date_trunc('day', now() AT TIME ZONE 'UTC') + interval '23 hours', interval '1 hour')`;
+      seriesQuery = `generate_series(date_trunc('day', now() AT TIME ZONE 'America/Mexico_City'), date_trunc('day', now() AT TIME ZONE 'America/Mexico_City') + interval '23 hours', interval '1 hour')`;
       labelExpr = `to_char(gs, 'HH12 AM')`;
-      joinExpr = `date_trunc('hour', tt.created_at AT TIME ZONE 'UTC') = gs`;
-      prevStart = `date_trunc('day', now() AT TIME ZONE 'UTC') - interval '1 day'`;
-      prevEnd = `date_trunc('day', now() AT TIME ZONE 'UTC') - interval '1 second'`;
+      joinExpr = `date_trunc('hour', tt.created_at AT TIME ZONE 'America/Mexico_City') = gs`;
+      prevStart = `date_trunc('day', now() AT TIME ZONE 'America/Mexico_City') - interval '1 day'`;
+      prevEnd = `date_trunc('day', now() AT TIME ZONE 'America/Mexico_City') - interval '1 second'`;
       break;
     case "yesterday":
-      seriesQuery = `generate_series(date_trunc('day', now() AT TIME ZONE 'UTC') - interval '1 day', date_trunc('day', now() AT TIME ZONE 'UTC') - interval '1 hour', interval '1 hour')`;
+      seriesQuery = `generate_series(date_trunc('day', now() AT TIME ZONE 'America/Mexico_City') - interval '1 day', date_trunc('day', now() AT TIME ZONE 'America/Mexico_City') - interval '1 hour', interval '1 hour')`;
       labelExpr = `to_char(gs, 'HH12 AM')`;
-      joinExpr = `date_trunc('hour', tt.created_at AT TIME ZONE 'UTC') = gs`;
-      prevStart = `date_trunc('day', now() AT TIME ZONE 'UTC') - interval '2 days'`;
-      prevEnd = `date_trunc('day', now() AT TIME ZONE 'UTC') - interval '1 day' - interval '1 second'`;
+      joinExpr = `date_trunc('hour', tt.created_at AT TIME ZONE 'America/Mexico_City') = gs`;
+      prevStart = `date_trunc('day', now() AT TIME ZONE 'America/Mexico_City') - interval '2 days'`;
+      prevEnd = `date_trunc('day', now() AT TIME ZONE 'America/Mexico_City') - interval '1 day' - interval '1 second'`;
       break;
     case "this_week":
-      seriesQuery = `generate_series(date_trunc('week', now() AT TIME ZONE 'UTC'), date_trunc('day', now() AT TIME ZONE 'UTC'), interval '1 day')`;
+      seriesQuery = `generate_series(date_trunc('week', now() AT TIME ZONE 'America/Mexico_City'), date_trunc('day', now() AT TIME ZONE 'America/Mexico_City'), interval '1 day')`;
       labelExpr = `to_char(gs, 'Dy DD')`;
-      joinExpr = `date_trunc('day', tt.created_at AT TIME ZONE 'UTC') = gs`;
-      prevStart = `date_trunc('week', now() AT TIME ZONE 'UTC') - interval '7 days'`;
-      prevEnd = `date_trunc('week', now() AT TIME ZONE 'UTC') - interval '1 second'`;
+      joinExpr = `date_trunc('day', tt.created_at AT TIME ZONE 'America/Mexico_City') = gs`;
+      prevStart = `date_trunc('week', now() AT TIME ZONE 'America/Mexico_City') - interval '7 days'`;
+      prevEnd = `date_trunc('week', now() AT TIME ZONE 'America/Mexico_City') - interval '1 second'`;
       break;
     case "last_7_days":
-      seriesQuery = `generate_series(date_trunc('day', now() AT TIME ZONE 'UTC') - interval '6 days', date_trunc('day', now() AT TIME ZONE 'UTC'), interval '1 day')`;
+      seriesQuery = `generate_series(date_trunc('day', now() AT TIME ZONE 'America/Mexico_City') - interval '6 days', date_trunc('day', now() AT TIME ZONE 'America/Mexico_City'), interval '1 day')`;
       labelExpr = `to_char(gs, 'Mon DD')`;
-      joinExpr = `date_trunc('day', tt.created_at AT TIME ZONE 'UTC') = gs`;
-      prevStart = `date_trunc('day', now() AT TIME ZONE 'UTC') - interval '13 days'`;
-      prevEnd = `date_trunc('day', now() AT TIME ZONE 'UTC') - interval '7 days' - interval '1 second'`;
+      joinExpr = `date_trunc('day', tt.created_at AT TIME ZONE 'America/Mexico_City') = gs`;
+      prevStart = `date_trunc('day', now() AT TIME ZONE 'America/Mexico_City') - interval '13 days'`;
+      prevEnd = `date_trunc('day', now() AT TIME ZONE 'America/Mexico_City') - interval '7 days' - interval '1 second'`;
       break;
     case "this_month":
-      seriesQuery = `generate_series(date_trunc('month', now() AT TIME ZONE 'UTC'), date_trunc('day', now() AT TIME ZONE 'UTC'), interval '1 day')`;
+      seriesQuery = `generate_series(date_trunc('month', now() AT TIME ZONE 'America/Mexico_City'), date_trunc('day', now() AT TIME ZONE 'America/Mexico_City'), interval '1 day')`;
       labelExpr = `to_char(gs, 'Mon DD')`;
-      joinExpr = `date_trunc('day', tt.created_at AT TIME ZONE 'UTC') = gs`;
-      prevStart = `date_trunc('month', now() AT TIME ZONE 'UTC') - interval '1 month'`;
-      prevEnd = `date_trunc('month', now() AT TIME ZONE 'UTC') - interval '1 second'`;
+      joinExpr = `date_trunc('day', tt.created_at AT TIME ZONE 'America/Mexico_City') = gs`;
+      prevStart = `date_trunc('month', now() AT TIME ZONE 'America/Mexico_City') - interval '1 month'`;
+      prevEnd = `date_trunc('month', now() AT TIME ZONE 'America/Mexico_City') - interval '1 second'`;
       break;
     case "last_30_days":
-      seriesQuery = `generate_series(date_trunc('day', now() AT TIME ZONE 'UTC') - interval '29 days', date_trunc('day', now() AT TIME ZONE 'UTC'), interval '1 day')`;
+      seriesQuery = `generate_series(date_trunc('day', now() AT TIME ZONE 'America/Mexico_City') - interval '29 days', date_trunc('day', now() AT TIME ZONE 'America/Mexico_City'), interval '1 day')`;
       labelExpr = `to_char(gs, 'Mon DD')`;
-      joinExpr = `date_trunc('day', tt.created_at AT TIME ZONE 'UTC') = gs`;
-      prevStart = `date_trunc('day', now() AT TIME ZONE 'UTC') - interval '59 days'`;
-      prevEnd = `date_trunc('day', now() AT TIME ZONE 'UTC') - interval '30 days' - interval '1 second'`;
+      joinExpr = `date_trunc('day', tt.created_at AT TIME ZONE 'America/Mexico_City') = gs`;
+      prevStart = `date_trunc('day', now() AT TIME ZONE 'America/Mexico_City') - interval '59 days'`;
+      prevEnd = `date_trunc('day', now() AT TIME ZONE 'America/Mexico_City') - interval '30 days' - interval '1 second'`;
       break;
     case "this_year":
-      seriesQuery = `generate_series(date_trunc('year', now() AT TIME ZONE 'UTC'), date_trunc('month', now() AT TIME ZONE 'UTC'), interval '1 month')`;
+      seriesQuery = `generate_series(date_trunc('year', now() AT TIME ZONE 'America/Mexico_City'), date_trunc('month', now() AT TIME ZONE 'America/Mexico_City'), interval '1 month')`;
       labelExpr = `to_char(gs, 'Mon')`;
-      joinExpr = `date_trunc('month', tt.created_at AT TIME ZONE 'UTC') = gs`;
-      prevStart = `date_trunc('year', now() AT TIME ZONE 'UTC') - interval '1 year'`;
-      prevEnd = `date_trunc('year', now() AT TIME ZONE 'UTC') - interval '1 second'`;
+      joinExpr = `date_trunc('month', tt.created_at AT TIME ZONE 'America/Mexico_City') = gs`;
+      prevStart = `date_trunc('year', now() AT TIME ZONE 'America/Mexico_City') - interval '1 year'`;
+      prevEnd = `date_trunc('year', now() AT TIME ZONE 'America/Mexico_City') - interval '1 second'`;
       break;
     case "last_12_months":
     default:
-      seriesQuery = `generate_series(date_trunc('month', now() AT TIME ZONE 'UTC') - interval '11 months', date_trunc('month', now() AT TIME ZONE 'UTC'), interval '1 month')`;
+      seriesQuery = `generate_series(date_trunc('month', now() AT TIME ZONE 'America/Mexico_City') - interval '11 months', date_trunc('month', now() AT TIME ZONE 'America/Mexico_City'), interval '1 month')`;
       labelExpr = `to_char(gs, 'Mon YY')`;
-      joinExpr = `date_trunc('month', tt.created_at AT TIME ZONE 'UTC') = gs`;
-      prevStart = `date_trunc('month', now() AT TIME ZONE 'UTC') - interval '23 months'`;
-      prevEnd = `date_trunc('month', now() AT TIME ZONE 'UTC') - interval '12 months' - interval '1 second'`;
+      joinExpr = `date_trunc('month', tt.created_at AT TIME ZONE 'America/Mexico_City') = gs`;
+      prevStart = `date_trunc('month', now() AT TIME ZONE 'America/Mexico_City') - interval '23 months'`;
+      prevEnd = `date_trunc('month', now() AT TIME ZONE 'America/Mexico_City') - interval '12 months' - interval '1 second'`;
       break;
   }
 
@@ -1954,61 +1954,61 @@ router.get("/admin/metrics/subscriptions", requireAdmin, requireAdminHeader, asy
 
   switch (period) {
     case "today":
-      seriesQuery = `generate_series(date_trunc('day', now() AT TIME ZONE 'UTC'), date_trunc('day', now() AT TIME ZONE 'UTC') + interval '23 hours', interval '1 hour')`;
+      seriesQuery = `generate_series(date_trunc('day', now() AT TIME ZONE 'America/Mexico_City'), date_trunc('day', now() AT TIME ZONE 'America/Mexico_City') + interval '23 hours', interval '1 hour')`;
       labelExpr = `to_char(gs, 'HH12 AM')`;
-      joinExpr = `date_trunc('hour', s.created_at AT TIME ZONE 'UTC') = gs`;
-      prevStart = `date_trunc('day', now() AT TIME ZONE 'UTC') - interval '1 day'`;
-      prevEnd = `date_trunc('day', now() AT TIME ZONE 'UTC') - interval '1 second'`;
+      joinExpr = `date_trunc('hour', s.created_at AT TIME ZONE 'America/Mexico_City') = gs`;
+      prevStart = `date_trunc('day', now() AT TIME ZONE 'America/Mexico_City') - interval '1 day'`;
+      prevEnd = `date_trunc('day', now() AT TIME ZONE 'America/Mexico_City') - interval '1 second'`;
       break;
     case "yesterday":
-      seriesQuery = `generate_series(date_trunc('day', now() AT TIME ZONE 'UTC') - interval '1 day', date_trunc('day', now() AT TIME ZONE 'UTC') - interval '1 hour', interval '1 hour')`;
+      seriesQuery = `generate_series(date_trunc('day', now() AT TIME ZONE 'America/Mexico_City') - interval '1 day', date_trunc('day', now() AT TIME ZONE 'America/Mexico_City') - interval '1 hour', interval '1 hour')`;
       labelExpr = `to_char(gs, 'HH12 AM')`;
-      joinExpr = `date_trunc('hour', s.created_at AT TIME ZONE 'UTC') = gs`;
-      prevStart = `date_trunc('day', now() AT TIME ZONE 'UTC') - interval '2 days'`;
-      prevEnd = `date_trunc('day', now() AT TIME ZONE 'UTC') - interval '1 day' - interval '1 second'`;
+      joinExpr = `date_trunc('hour', s.created_at AT TIME ZONE 'America/Mexico_City') = gs`;
+      prevStart = `date_trunc('day', now() AT TIME ZONE 'America/Mexico_City') - interval '2 days'`;
+      prevEnd = `date_trunc('day', now() AT TIME ZONE 'America/Mexico_City') - interval '1 day' - interval '1 second'`;
       break;
     case "this_week":
-      seriesQuery = `generate_series(date_trunc('week', now() AT TIME ZONE 'UTC'), date_trunc('day', now() AT TIME ZONE 'UTC'), interval '1 day')`;
+      seriesQuery = `generate_series(date_trunc('week', now() AT TIME ZONE 'America/Mexico_City'), date_trunc('day', now() AT TIME ZONE 'America/Mexico_City'), interval '1 day')`;
       labelExpr = `to_char(gs, 'Dy DD')`;
-      joinExpr = `date_trunc('day', s.created_at AT TIME ZONE 'UTC') = gs`;
-      prevStart = `date_trunc('week', now() AT TIME ZONE 'UTC') - interval '7 days'`;
-      prevEnd = `date_trunc('week', now() AT TIME ZONE 'UTC') - interval '1 second'`;
+      joinExpr = `date_trunc('day', s.created_at AT TIME ZONE 'America/Mexico_City') = gs`;
+      prevStart = `date_trunc('week', now() AT TIME ZONE 'America/Mexico_City') - interval '7 days'`;
+      prevEnd = `date_trunc('week', now() AT TIME ZONE 'America/Mexico_City') - interval '1 second'`;
       break;
     case "last_7_days":
-      seriesQuery = `generate_series(date_trunc('day', now() AT TIME ZONE 'UTC') - interval '6 days', date_trunc('day', now() AT TIME ZONE 'UTC'), interval '1 day')`;
+      seriesQuery = `generate_series(date_trunc('day', now() AT TIME ZONE 'America/Mexico_City') - interval '6 days', date_trunc('day', now() AT TIME ZONE 'America/Mexico_City'), interval '1 day')`;
       labelExpr = `to_char(gs, 'Mon DD')`;
-      joinExpr = `date_trunc('day', s.created_at AT TIME ZONE 'UTC') = gs`;
-      prevStart = `date_trunc('day', now() AT TIME ZONE 'UTC') - interval '13 days'`;
-      prevEnd = `date_trunc('day', now() AT TIME ZONE 'UTC') - interval '7 days' - interval '1 second'`;
+      joinExpr = `date_trunc('day', s.created_at AT TIME ZONE 'America/Mexico_City') = gs`;
+      prevStart = `date_trunc('day', now() AT TIME ZONE 'America/Mexico_City') - interval '13 days'`;
+      prevEnd = `date_trunc('day', now() AT TIME ZONE 'America/Mexico_City') - interval '7 days' - interval '1 second'`;
       break;
     case "this_month":
-      seriesQuery = `generate_series(date_trunc('month', now() AT TIME ZONE 'UTC'), date_trunc('day', now() AT TIME ZONE 'UTC'), interval '1 day')`;
+      seriesQuery = `generate_series(date_trunc('month', now() AT TIME ZONE 'America/Mexico_City'), date_trunc('day', now() AT TIME ZONE 'America/Mexico_City'), interval '1 day')`;
       labelExpr = `to_char(gs, 'Mon DD')`;
-      joinExpr = `date_trunc('day', s.created_at AT TIME ZONE 'UTC') = gs`;
-      prevStart = `date_trunc('month', now() AT TIME ZONE 'UTC') - interval '1 month'`;
-      prevEnd = `date_trunc('month', now() AT TIME ZONE 'UTC') - interval '1 second'`;
+      joinExpr = `date_trunc('day', s.created_at AT TIME ZONE 'America/Mexico_City') = gs`;
+      prevStart = `date_trunc('month', now() AT TIME ZONE 'America/Mexico_City') - interval '1 month'`;
+      prevEnd = `date_trunc('month', now() AT TIME ZONE 'America/Mexico_City') - interval '1 second'`;
       break;
     case "last_30_days":
-      seriesQuery = `generate_series(date_trunc('day', now() AT TIME ZONE 'UTC') - interval '29 days', date_trunc('day', now() AT TIME ZONE 'UTC'), interval '1 day')`;
+      seriesQuery = `generate_series(date_trunc('day', now() AT TIME ZONE 'America/Mexico_City') - interval '29 days', date_trunc('day', now() AT TIME ZONE 'America/Mexico_City'), interval '1 day')`;
       labelExpr = `to_char(gs, 'Mon DD')`;
-      joinExpr = `date_trunc('day', s.created_at AT TIME ZONE 'UTC') = gs`;
-      prevStart = `date_trunc('day', now() AT TIME ZONE 'UTC') - interval '59 days'`;
-      prevEnd = `date_trunc('day', now() AT TIME ZONE 'UTC') - interval '30 days' - interval '1 second'`;
+      joinExpr = `date_trunc('day', s.created_at AT TIME ZONE 'America/Mexico_City') = gs`;
+      prevStart = `date_trunc('day', now() AT TIME ZONE 'America/Mexico_City') - interval '59 days'`;
+      prevEnd = `date_trunc('day', now() AT TIME ZONE 'America/Mexico_City') - interval '30 days' - interval '1 second'`;
       break;
     case "this_year":
-      seriesQuery = `generate_series(date_trunc('year', now() AT TIME ZONE 'UTC'), date_trunc('month', now() AT TIME ZONE 'UTC'), interval '1 month')`;
+      seriesQuery = `generate_series(date_trunc('year', now() AT TIME ZONE 'America/Mexico_City'), date_trunc('month', now() AT TIME ZONE 'America/Mexico_City'), interval '1 month')`;
       labelExpr = `to_char(gs, 'Mon')`;
-      joinExpr = `date_trunc('month', s.created_at AT TIME ZONE 'UTC') = gs`;
-      prevStart = `date_trunc('year', now() AT TIME ZONE 'UTC') - interval '1 year'`;
-      prevEnd = `date_trunc('year', now() AT TIME ZONE 'UTC') - interval '1 second'`;
+      joinExpr = `date_trunc('month', s.created_at AT TIME ZONE 'America/Mexico_City') = gs`;
+      prevStart = `date_trunc('year', now() AT TIME ZONE 'America/Mexico_City') - interval '1 year'`;
+      prevEnd = `date_trunc('year', now() AT TIME ZONE 'America/Mexico_City') - interval '1 second'`;
       break;
     case "last_12_months":
     default:
-      seriesQuery = `generate_series(date_trunc('month', now() AT TIME ZONE 'UTC') - interval '11 months', date_trunc('month', now() AT TIME ZONE 'UTC'), interval '1 month')`;
+      seriesQuery = `generate_series(date_trunc('month', now() AT TIME ZONE 'America/Mexico_City') - interval '11 months', date_trunc('month', now() AT TIME ZONE 'America/Mexico_City'), interval '1 month')`;
       labelExpr = `to_char(gs, 'Mon YY')`;
-      joinExpr = `date_trunc('month', s.created_at AT TIME ZONE 'UTC') = gs`;
-      prevStart = `date_trunc('month', now() AT TIME ZONE 'UTC') - interval '23 months'`;
-      prevEnd = `date_trunc('month', now() AT TIME ZONE 'UTC') - interval '12 months' - interval '1 second'`;
+      joinExpr = `date_trunc('month', s.created_at AT TIME ZONE 'America/Mexico_City') = gs`;
+      prevStart = `date_trunc('month', now() AT TIME ZONE 'America/Mexico_City') - interval '23 months'`;
+      prevEnd = `date_trunc('month', now() AT TIME ZONE 'America/Mexico_City') - interval '12 months' - interval '1 second'`;
       break;
   }
 
@@ -2057,12 +2057,12 @@ router.get("/admin/metrics/active-users", requireAdmin, requireAdminHeader, asyn
         to_char(gs, 'Mon DD') AS label,
         COUNT(DISTINCT p.user_id)::int AS count
       FROM generate_series(
-        date_trunc('day', now() AT TIME ZONE 'UTC') - interval '29 days',
-        date_trunc('day', now() AT TIME ZONE 'UTC'),
+        date_trunc('day', now() AT TIME ZONE 'America/Mexico_City') - interval '29 days',
+        date_trunc('day', now() AT TIME ZONE 'America/Mexico_City'),
         interval '1 day'
       ) AS gs
       LEFT JOIN predictions p
-        ON date_trunc('day', p.created_at AT TIME ZONE 'UTC') = gs
+        ON date_trunc('day', p.created_at AT TIME ZONE 'America/Mexico_City') = gs
         AND p.user_id IS NOT NULL
       GROUP BY gs, label
       ORDER BY gs
@@ -2073,12 +2073,12 @@ router.get("/admin/metrics/active-users", requireAdmin, requireAdminHeader, asyn
         to_char(gs, 'Mon DD') AS label,
         COUNT(DISTINCT p.user_id)::int AS count
       FROM generate_series(
-        date_trunc('week', now() AT TIME ZONE 'UTC') - interval '11 weeks',
-        date_trunc('week', now() AT TIME ZONE 'UTC'),
+        date_trunc('week', now() AT TIME ZONE 'America/Mexico_City') - interval '11 weeks',
+        date_trunc('week', now() AT TIME ZONE 'America/Mexico_City'),
         interval '1 week'
       ) AS gs
       LEFT JOIN predictions p
-        ON date_trunc('week', p.created_at AT TIME ZONE 'UTC') = gs
+        ON date_trunc('week', p.created_at AT TIME ZONE 'America/Mexico_City') = gs
         AND p.user_id IS NOT NULL
       GROUP BY gs, label
       ORDER BY gs
@@ -2089,12 +2089,12 @@ router.get("/admin/metrics/active-users", requireAdmin, requireAdminHeader, asyn
         to_char(gs, 'Mon YY') AS label,
         COUNT(DISTINCT p.user_id)::int AS count
       FROM generate_series(
-        date_trunc('month', now() AT TIME ZONE 'UTC') - interval '11 months',
-        date_trunc('month', now() AT TIME ZONE 'UTC'),
+        date_trunc('month', now() AT TIME ZONE 'America/Mexico_City') - interval '11 months',
+        date_trunc('month', now() AT TIME ZONE 'America/Mexico_City'),
         interval '1 month'
       ) AS gs
       LEFT JOIN predictions p
-        ON date_trunc('month', p.created_at AT TIME ZONE 'UTC') = gs
+        ON date_trunc('month', p.created_at AT TIME ZONE 'America/Mexico_City') = gs
         AND p.user_id IS NOT NULL
       GROUP BY gs, label
       ORDER BY gs
@@ -2103,13 +2103,13 @@ router.get("/admin/metrics/active-users", requireAdmin, requireAdminHeader, asyn
     db.execute(sql.raw(`
       SELECT
         (SELECT COUNT(DISTINCT user_id)::int FROM predictions
-          WHERE created_at >= date_trunc('day', now() AT TIME ZONE 'UTC')
+          WHERE created_at >= date_trunc('day', now() AT TIME ZONE 'America/Mexico_City')
             AND user_id IS NOT NULL) AS dau,
         (SELECT COUNT(DISTINCT user_id)::int FROM predictions
-          WHERE created_at >= date_trunc('week', now() AT TIME ZONE 'UTC')
+          WHERE created_at >= date_trunc('week', now() AT TIME ZONE 'America/Mexico_City')
             AND user_id IS NOT NULL) AS wau,
         (SELECT COUNT(DISTINCT user_id)::int FROM predictions
-          WHERE created_at >= date_trunc('month', now() AT TIME ZONE 'UTC')
+          WHERE created_at >= date_trunc('month', now() AT TIME ZONE 'America/Mexico_City')
             AND user_id IS NOT NULL) AS mau
     `)),
   ]);
@@ -2144,14 +2144,14 @@ router.get("/admin/metrics/predictions", requireAdmin, requireAdminHeader, async
           COUNT(p.id)::int AS count
         FROM generate_series(
           COALESCE(
-            (SELECT date_trunc('day', MIN(created_at) AT TIME ZONE 'UTC') FROM predictions),
-            date_trunc('day', now() AT TIME ZONE 'UTC')
+            (SELECT date_trunc('day', MIN(created_at) AT TIME ZONE 'America/Mexico_City') FROM predictions),
+            date_trunc('day', now() AT TIME ZONE 'America/Mexico_City')
           ),
-          date_trunc('day', now() AT TIME ZONE 'UTC'),
+          date_trunc('day', now() AT TIME ZONE 'America/Mexico_City'),
           interval '1 day'
         ) AS gs
         LEFT JOIN predictions p
-          ON date_trunc('day', p.created_at AT TIME ZONE 'UTC') = gs
+          ON date_trunc('day', p.created_at AT TIME ZONE 'America/Mexico_City') = gs
         GROUP BY gs, label, iso
         ORDER BY gs
       `)),
@@ -2162,14 +2162,14 @@ router.get("/admin/metrics/predictions", requireAdmin, requireAdminHeader, async
           COUNT(p.id)::int AS count
         FROM generate_series(
           COALESCE(
-            (SELECT date_trunc('week', MIN(created_at) AT TIME ZONE 'UTC') FROM predictions),
-            date_trunc('week', now() AT TIME ZONE 'UTC')
+            (SELECT date_trunc('week', MIN(created_at) AT TIME ZONE 'America/Mexico_City') FROM predictions),
+            date_trunc('week', now() AT TIME ZONE 'America/Mexico_City')
           ),
-          date_trunc('week', now() AT TIME ZONE 'UTC'),
+          date_trunc('week', now() AT TIME ZONE 'America/Mexico_City'),
           interval '1 week'
         ) AS gs
         LEFT JOIN predictions p
-          ON date_trunc('week', p.created_at AT TIME ZONE 'UTC') = gs
+          ON date_trunc('week', p.created_at AT TIME ZONE 'America/Mexico_City') = gs
         GROUP BY gs, label
         ORDER BY gs
       `)),
@@ -2180,14 +2180,14 @@ router.get("/admin/metrics/predictions", requireAdmin, requireAdminHeader, async
           COUNT(p.id)::int AS count
         FROM generate_series(
           COALESCE(
-            (SELECT date_trunc('month', MIN(created_at) AT TIME ZONE 'UTC') FROM predictions),
-            date_trunc('month', now() AT TIME ZONE 'UTC')
+            (SELECT date_trunc('month', MIN(created_at) AT TIME ZONE 'America/Mexico_City') FROM predictions),
+            date_trunc('month', now() AT TIME ZONE 'America/Mexico_City')
           ),
-          date_trunc('month', now() AT TIME ZONE 'UTC'),
+          date_trunc('month', now() AT TIME ZONE 'America/Mexico_City'),
           interval '1 month'
         ) AS gs
         LEFT JOIN predictions p
-          ON date_trunc('month', p.created_at AT TIME ZONE 'UTC') = gs
+          ON date_trunc('month', p.created_at AT TIME ZONE 'America/Mexico_City') = gs
         GROUP BY gs, label
         ORDER BY gs
       `)),
@@ -2196,11 +2196,11 @@ router.get("/admin/metrics/predictions", requireAdmin, requireAdminHeader, async
         SELECT
           (SELECT COUNT(*)::int FROM predictions) AS total,
           (SELECT COUNT(*)::int FROM predictions
-            WHERE created_at >= date_trunc('day', now() AT TIME ZONE 'UTC')) AS today,
+            WHERE created_at >= date_trunc('day', now() AT TIME ZONE 'America/Mexico_City')) AS today,
           (SELECT COUNT(*)::int FROM predictions
-            WHERE created_at >= date_trunc('week', now() AT TIME ZONE 'UTC')) AS this_week,
+            WHERE created_at >= date_trunc('week', now() AT TIME ZONE 'America/Mexico_City')) AS this_week,
           (SELECT COUNT(*)::int FROM predictions
-            WHERE created_at >= date_trunc('month', now() AT TIME ZONE 'UTC')) AS this_month
+            WHERE created_at >= date_trunc('month', now() AT TIME ZONE 'America/Mexico_City')) AS this_month
       `)),
     ]);
 

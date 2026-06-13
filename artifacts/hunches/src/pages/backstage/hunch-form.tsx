@@ -52,6 +52,14 @@ interface ResultSource {
   label: string;
 }
 
+// Convert a UTC ISO string (or Date) to the "YYYY-MM-DDTHH:mm" format that
+// datetime-local inputs require, using the BROWSER's local timezone.
+function toLocalInputValue(isoOrDate: string | Date): string {
+  const d = typeof isoOrDate === "string" ? new Date(isoOrDate) : isoOrDate;
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 const EMPTY = {
   title: "",
   slug: "",
@@ -62,7 +70,7 @@ const EMPTY = {
   tags: "",
   status: "open",
   featured: false,
-  endsAt: new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 16),
+  endsAt: toLocalInputValue(new Date(Date.now() + 7 * 86400000)),
   categoryId: 0,
   prizeId: 0,
   winnerOption: "",
@@ -293,7 +301,7 @@ export default function HunchForm() {
           imageFocalPoint: h.imageFocalPoint ?? "50% 50%",
           status: h.status ?? "open",
           featured: h.featured ?? false,
-          endsAt: new Date(h.endsAt).toISOString().slice(0, 16),
+          endsAt: toLocalInputValue(h.endsAt),
           categoryId: h.categoryId ?? 0,
           prizeId: h.prizeId ?? 0,
           winnerOption: h.winnerOption ?? "",
