@@ -1477,13 +1477,13 @@ export default function HunchDetail() {
                   </div>
                 )}
                 <div className="p-4">
-                  <p className="text-[10px] font-semibold uppercase tracking-widest text-primary mb-1">Hunches</p>
+                  <p className="text-[10px] font-semibold uppercase tracking-widest text-primary mb-1">www.hunch.fan</p>
                   <p className="text-sm font-bold text-foreground leading-snug mb-2 line-clamp-2">{hunch.title}</p>
 
                   {/* User's prediction */}
                   <div className="bg-primary/8 border border-primary/20 rounded-xl px-3 py-2 mb-3">
                     <p className="text-[10px] font-semibold text-primary uppercase tracking-wide mb-0.5">Mi prediccion</p>
-                    <p className="text-xs font-semibold text-foreground line-clamp-2">{shareSummary}</p>
+                    <p className="text-xs font-semibold text-foreground line-clamp-2">{fmtNumericLabel(shareSummary)}</p>
                   </div>
 
                   <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
