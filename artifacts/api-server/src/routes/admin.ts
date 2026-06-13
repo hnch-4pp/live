@@ -19,6 +19,7 @@ import {
   hunchQuestionsTable,
   topNotificationsTable,
   trendingTopicsTable,
+  bugReportsTable,
 } from "@workspace/db";
 import { eq, or, ilike, sql, desc, and, asc, isNull, isNotNull } from "drizzle-orm";
 import { getUncachableStripeClient } from "../stripeClient";
@@ -2660,6 +2661,74 @@ router.delete("/admin/trending-topics/:id", requireAdmin, requireAdminHeader, as
   const id = parseInt(String(req.params["id"] ?? "0"), 10);
   if (!id) { res.status(400).json({ error: "Invalid ID" }); return; }
   await db.delete(trendingTopicsTable).where(eq(trendingTopicsTable.id, id));
+  res.json({ ok: true });
+});
+
+// ─── Bug Reports ──────────────────────────────────────────────────────────────
+
+router.get("/admin/bug-reports", requireAdmin, requireAdminHeader, async (req, res): Promise<void> => {
+  const status = String(req.query["status"] ?? "all");
+  const search = String(req.query["search"] ?? "").trim();
+  const page = Math.max(1, parseInt(String(req.query["page"] ?? "1"), 10));
+  const limit = 20;
+  const offset = (page - 1) * limit;
+
+  const conditions = [];
+  if (status !== "all") conditions.push(eq(bugReportsTable.status, status));
+  if (search) {
+    conditions.push(
+      or(
+        ilike(bugReportsTable.description, `%${search}%`),
+        ilike(bugReportsTable.username, `%${search}%`),
+        ilike(bugReportsTable.email, `%${search}%`),
+      )
+    );
+  }
+
+  const where = conditions.length > 0 ? and(...conditions) : undefined;
+
+  const [{ total }] = await db
+    .select({ total: sql<number>`count(*)::int` })
+    .from(bugReportsTable)
+    .where(where);
+
+  const reports = await db
+    .select()
+    .from(bugReportsTable)
+    .where(where)
+    .orderBy(desc(bugReportsTable.createdAt))
+    .limit(limit)
+    .offset(offset);
+
+  res.json({ reports, total });
+});
+
+router.patch("/admin/bug-reports/:id", requireAdmin, requireAdminHeader, async (req, res): Promise<void> => {
+  const id = parseInt(String(req.params["id"] ?? "0"), 10);
+  if (!id) { res.status(400).json({ error: "Invalid ID" }); return; }
+
+  const { status, adminNote } = req.body as { status?: string; adminNote?: string };
+  const updates: Record<string, unknown> = {};
+
+  if (status !== undefined) {
+    const valid = ["new", "in_progress", "resolved", "dismissed"];
+    if (!valid.includes(status)) { res.status(400).json({ error: "Invalid status" }); return; }
+    updates["status"] = status;
+    if (status === "resolved") updates["resolvedAt"] = new Date();
+    else updates["resolvedAt"] = null;
+  }
+  if (adminNote !== undefined) updates["adminNote"] = adminNote || null;
+
+  if (Object.keys(updates).length === 0) { res.status(400).json({ error: "Nothing to update" }); return; }
+
+  await db.update(bugReportsTable).set(updates).where(eq(bugReportsTable.id, id));
+  res.json({ ok: true });
+});
+
+router.delete("/admin/bug-reports/:id", requireAdmin, requireAdminHeader, async (req, res): Promise<void> => {
+  const id = parseInt(String(req.params["id"] ?? "0"), 10);
+  if (!id) { res.status(400).json({ error: "Invalid ID" }); return; }
+  await db.delete(bugReportsTable).where(eq(bugReportsTable.id, id));
   res.json({ ok: true });
 });
 
