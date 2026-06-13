@@ -7,6 +7,7 @@ import {
   Ticket, TrendingUp, DollarSign, CreditCard, Trophy,
   ShieldAlert, Ban, Trash2, CheckCircle2, Clock,
   Target, Zap, RefreshCw, AlertCircle, Users, Gift,
+  Pencil, Check, X, Loader2, AtSign,
 } from "lucide-react";
 
 type UserStatus = "active" | "suspended" | "banned";
@@ -203,6 +204,84 @@ function InfoRow({ icon: Icon, label, value, muted }: {
   );
 }
 
+function EditableInfoRow({ icon: Icon, label, value, muted, onSave, type = "text" }: {
+  icon: React.ElementType;
+  label: string;
+  value: string;
+  muted?: boolean;
+  onSave: (v: string) => Promise<void>;
+  type?: "text" | "date" | "email" | "tel";
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  const startEdit = () => { setDraft(value); setError(""); setEditing(true); };
+  const cancel = () => { setEditing(false); setError(""); };
+  const save = async () => {
+    setSaving(true);
+    setError("");
+    try {
+      await onSave(draft.trim());
+      setEditing(false);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Failed to save");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="py-2.5 border-b border-gray-50 last:border-0">
+      <div className="flex items-start gap-3">
+        <div className="w-7 h-7 rounded-lg bg-gray-50 flex items-center justify-center shrink-0 mt-0.5">
+          <Icon className="w-3.5 h-3.5 text-gray-400" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-xs text-gray-400 font-medium">{label}</p>
+          {editing ? (
+            <div className="mt-1 flex items-center gap-2">
+              <input
+                type={type}
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") void save(); if (e.key === "Escape") cancel(); }}
+                autoFocus
+                className="flex-1 min-w-0 text-sm bg-white border border-violet-300 rounded-lg px-2.5 py-1 focus:outline-none focus:ring-2 focus:ring-violet-200"
+              />
+              <button
+                onClick={() => void save()}
+                disabled={saving}
+                className="p-1 rounded-lg text-green-600 hover:bg-green-50 disabled:opacity-50 shrink-0 transition-colors"
+              >
+                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+              </button>
+              <button onClick={cancel} className="p-1 rounded-lg text-gray-400 hover:bg-gray-100 shrink-0 transition-colors">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          ) : (
+            <p className={`text-sm mt-0.5 ${muted ? "text-gray-400 italic" : "text-gray-900"}`}>
+              {muted ? "Not provided" : (value || "—")}
+            </p>
+          )}
+          {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
+        </div>
+        {!editing && (
+          <button
+            onClick={startEdit}
+            className="p-1 rounded-lg text-gray-300 hover:text-violet-500 hover:bg-violet-50 transition-colors shrink-0 mt-0.5"
+            title={`Edit ${label}`}
+          >
+            <Pencil className="w-3.5 h-3.5" />
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 const modLabels: Record<ModAction, { title: string; desc: string; confirmLabel: string; confirmCls: string }> = {
   suspend:    { title: "Suspend this user?",         desc: "The user won't be able to log in until reactivated.",                      confirmLabel: "Suspend",    confirmCls: "bg-yellow-500 hover:bg-yellow-600 text-white" },
   ban:        { title: "Permanently ban this user?", desc: "The user will be blocked indefinitely. Account and data are preserved.",  confirmLabel: "Ban",        confirmCls: "bg-red-600 hover:bg-red-700 text-white" },
@@ -255,6 +334,28 @@ export default function AdminUserDetail() {
     if (r.ok) { const updated = await r.json() as UserDetail; setDetail((d) => d ? { ...d, status: updated.status } : d); }
     setModding(false);
     setModAction(null);
+  };
+
+  const saveField = async (patch: Record<string, string | null | undefined>) => {
+    const r = await adminFetch(`/admin/users/${userId}/profile`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(patch),
+    });
+    if (!r.ok) {
+      const body = await r.json().catch(() => ({})) as { error?: string };
+      throw new Error(body.error ?? "Failed to save");
+    }
+    const updated = await r.json() as Partial<UserDetail>;
+    setDetail((d) => {
+      if (!d) return d;
+      const next = { ...d, ...updated };
+      if ("address" in patch) {
+        const parts = (next.address ?? "").split(",").map((p) => p.trim()).filter(Boolean);
+        next.country = parts[parts.length - 1] ?? null;
+      }
+      return next;
+    });
   };
 
   const handleDelete = async () => {
@@ -506,14 +607,16 @@ export default function AdminUserDetail() {
             <div className="bg-white border border-gray-200 rounded-xl p-5">
               <SectionTitle>Profile</SectionTitle>
               <div className="-my-1">
-                <InfoRow icon={Mail}     label="Email"         value={detail.email} />
-                <InfoRow icon={Phone}    label="Phone"         value={detail.phone ?? "Not provided"} muted={!detail.phone} />
-                <InfoRow icon={User}     label="Name"          value={(detail.firstName || detail.lastName) ? [detail.firstName, detail.lastName].filter(Boolean).join(" ") : "Not provided"} muted={!detail.firstName && !detail.lastName} />
-                <InfoRow icon={MapPin}   label="Address"       value={detail.address ?? "Not provided"} muted={!detail.address} />
-                <InfoRow icon={Globe2}   label="Country"       value={detail.country ?? "Unknown"} muted={!detail.country} />
-                <InfoRow icon={Calendar} label="Date of birth" value={detail.dateOfBirth ? fmtDate(detail.dateOfBirth + "T00:00:00", { year: "numeric", month: "long", day: "numeric" }) : "Not provided"} muted={!detail.dateOfBirth} />
-                <InfoRow icon={Calendar} label="Joined"        value={fmtDate(detail.createdAt, { year: "numeric", month: "long", day: "numeric" })} />
-                <InfoRow icon={Clock}    label="Last access"   value={fmtDateTime(detail.lastAccessAt)} muted={!detail.lastAccessAt} />
+                <EditableInfoRow icon={Mail}    label="Email"         value={detail.email}            onSave={(v) => saveField({ email: v })}     type="email" />
+                <EditableInfoRow icon={Phone}   label="Phone"         value={detail.phone ?? ""}      muted={!detail.phone}    onSave={(v) => saveField({ phone: v })}     type="tel" />
+                <EditableInfoRow icon={AtSign}  label="Username"      value={detail.username ?? ""}   muted={!detail.username} onSave={(v) => saveField({ username: v })} />
+                <EditableInfoRow icon={User}    label="First name"    value={detail.firstName ?? ""}  muted={!detail.firstName}  onSave={(v) => saveField({ firstName: v })} />
+                <EditableInfoRow icon={User}    label="Last name"     value={detail.lastName ?? ""}   muted={!detail.lastName}   onSave={(v) => saveField({ lastName: v })} />
+                <EditableInfoRow icon={MapPin}  label="Address"       value={detail.address ?? ""}    muted={!detail.address}  onSave={(v) => saveField({ address: v })} />
+                <InfoRow        icon={Globe2}   label="Country"       value={detail.country ?? "Unknown"} muted={!detail.country} />
+                <EditableInfoRow icon={Calendar} label="Date of birth" value={detail.dateOfBirth ?? ""} muted={!detail.dateOfBirth} onSave={(v) => saveField({ dateOfBirth: v })} type="date" />
+                <InfoRow        icon={Calendar} label="Joined"        value={fmtDate(detail.createdAt, { year: "numeric", month: "long", day: "numeric" })} />
+                <InfoRow        icon={Clock}    label="Last access"   value={fmtDateTime(detail.lastAccessAt)} muted={!detail.lastAccessAt} />
               </div>
             </div>
 

@@ -1142,6 +1142,56 @@ router.get(
 );
 
 router.patch(
+  "/admin/users/:id/profile",
+  requireAdmin,
+  requireAdminHeader,
+  async (req, res): Promise<void> => {
+    const id = parseInt(String(req.params["id"] ?? "0"), 10);
+    if (!id) { res.status(400).json({ error: "Invalid ID" }); return; }
+
+    const { firstName, lastName, email, phone, address, dateOfBirth, username } = req.body as {
+      firstName?: string; lastName?: string; email?: string; phone?: string;
+      address?: string; dateOfBirth?: string; username?: string;
+    };
+
+    const updates: Partial<typeof usersTable.$inferInsert> = {};
+    if (firstName !== undefined) updates.firstName = firstName.trim() || null;
+    if (lastName  !== undefined) updates.lastName  = lastName.trim()  || null;
+    if (email !== undefined) {
+      const e = email.trim().toLowerCase();
+      if (!e || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)) {
+        res.status(400).json({ error: "Invalid email address." }); return;
+      }
+      updates.email = e;
+    }
+    if (phone    !== undefined) updates.phone    = phone.trim()    || null;
+    if (address  !== undefined) updates.address  = address.trim()  || null;
+    if (dateOfBirth !== undefined) updates.dateOfBirth = dateOfBirth || null;
+    if (username !== undefined) {
+      const u = username.trim().toLowerCase();
+      const USERNAME_RE = /^[a-zA-Z0-9_.]{3,20}$/;
+      if (u && !USERNAME_RE.test(u)) {
+        res.status(400).json({ error: "Username must be 3–20 chars: letters, numbers, _ or ." }); return;
+      }
+      updates.username = u || null;
+    }
+
+    if (Object.keys(updates).length === 0) {
+      res.status(400).json({ error: "Nothing to update." }); return;
+    }
+
+    const [user] = await db.update(usersTable).set(updates).where(eq(usersTable.id, id)).returning();
+    if (!user) { res.status(404).json({ error: "User not found" }); return; }
+    res.json({
+      firstName: user.firstName, lastName: user.lastName,
+      email: user.email, phone: user.phone,
+      address: user.address, dateOfBirth: user.dateOfBirth,
+      username: user.username,
+    });
+  },
+);
+
+router.patch(
   "/admin/users/:id/status",
   requireAdmin,
   requireAdminHeader,
