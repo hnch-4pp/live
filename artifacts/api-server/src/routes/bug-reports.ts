@@ -89,9 +89,9 @@ async function handleBugReport(req: Request, res: Response): Promise<void> {
 }
 
 // Current route
-router.post("/api/bug-reports", handleBugReport);
+router.post("/bug-reports", handleBugReport);
 
 // Legacy alias — production frontend may still call /api/log-reports
-router.post("/api/log-reports", handleBugReport);
+router.post("/log-reports", handleBugReport);
 
 export default router;
