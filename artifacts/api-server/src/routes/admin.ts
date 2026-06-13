@@ -1109,7 +1109,7 @@ router.get(
       referralCode: user.referralCode ?? null,
       referralCount,
       country: extractCountry(user.address),
-      lastAccessAt: (user as unknown as Record<string, unknown>)["last_access_at"] ?? null,
+      lastAccessAt: user.lastAccessAt,
       ticketStats: {
         currentBalance: user.tickets,
         totalReceived,

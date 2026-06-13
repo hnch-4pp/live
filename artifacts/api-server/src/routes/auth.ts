@@ -579,8 +579,7 @@ router.post("/auth/login/check-method", async (req, res): Promise<void> => {
     return;
   }
 
-  const loginMethod =
-    (user as unknown as Record<string, unknown>)["login_method"] as string ?? "password";
+  const loginMethod = user.loginMethod ?? "password";
 
   res.json({
     loginMethod,
@@ -762,7 +761,7 @@ router.get("/auth/me", async (req, res): Promise<void> => {
   void db.execute(
     sql`UPDATE users SET last_access_at = NOW() WHERE id = ${req.session.userId}`
   );
-  const loginMethod = (user as unknown as Record<string, unknown>)["login_method"] as string ?? "password";
+  const loginMethod = user.loginMethod ?? "password";
   res.json({ id: user.id, email: user.email, phone: user.phone, username: user.username, firstName: user.firstName, lastName: user.lastName, address: user.address, dateOfBirth: user.dateOfBirth, avatarUrl: user.avatarUrl, tickets: user.tickets, loginMethod, hasPassword: !!user.passwordHash });
 });
 
@@ -840,8 +839,7 @@ router.patch("/auth/me", async (req, res): Promise<void> => {
   }
 
   const [updated] = await db.select().from(usersTable).where(eq(usersTable.id, req.session.userId)).limit(1);
-  const updatedLoginMethod = (updated as unknown as Record<string, unknown>)["login_method"] as string ?? "password";
-  res.json({ id: updated.id, email: updated.email, phone: updated.phone, username: updated.username, firstName: updated.firstName, lastName: updated.lastName, address: updated.address, dateOfBirth: updated.dateOfBirth, avatarUrl: updated.avatarUrl, tickets: updated.tickets, loginMethod: updatedLoginMethod, hasPassword: !!updated.passwordHash });
+  res.json({ id: updated.id, email: updated.email, phone: updated.phone, username: updated.username, firstName: updated.firstName, lastName: updated.lastName, address: updated.address, dateOfBirth: updated.dateOfBirth, avatarUrl: updated.avatarUrl, tickets: updated.tickets, loginMethod: updated.loginMethod ?? "password", hasPassword: !!updated.passwordHash });
 });
 
 router.post("/auth/me/set-password", async (req, res): Promise<void> => {

@@ -16,6 +16,8 @@ export const usersTable = pgTable("users", {
   tickets: integer("tickets").notNull().default(5),
   stripeCustomerId: text("stripe_customer_id"),
   status: userStatusEnum("status").notNull().default("active"),
+  loginMethod: text("login_method").notNull().default("password"),
+  lastAccessAt: timestamp("last_access_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   referralCode: text("referral_code").unique(),
   referredByUserId: integer("referred_by_user_id"),
