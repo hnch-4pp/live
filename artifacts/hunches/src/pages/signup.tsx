@@ -1064,7 +1064,6 @@ export default function Signup() {
                 <Input
                   id="dob"
                   type="date"
-                  autoFocus
                   value={dob}
                   onChange={(e) => setDob(e.target.value)}
                   max={new Date(Date.now() - 18 * 365.25 * 24 * 60 * 60 * 1000).toISOString().split("T")[0]}
