@@ -251,6 +251,13 @@ async function runAppMigrations(): Promise<void> {
     )
   `);
 
+  // Account deletion scheduling
+  await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS pending_deletion BOOLEAN NOT NULL DEFAULT false`);
+  await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS deletion_scheduled_for TIMESTAMPTZ`);
+  // Process expired scheduled account deletions at startup
+  await db.execute(sql`DELETE FROM predictions WHERE user_id IN (SELECT id FROM users WHERE pending_deletion = true AND deletion_scheduled_for <= NOW())`);
+  await db.execute(sql`DELETE FROM users WHERE pending_deletion = true AND deletion_scheduled_for <= NOW()`);
+
   logger.info("App schema migrations applied");
 }
 

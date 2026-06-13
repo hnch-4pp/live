@@ -25,6 +25,8 @@ export const usersTable = pgTable("users", {
   referralDiscountUsed: boolean("referral_discount_used").notNull().default(false),
   referralDiscountAppliedAt: timestamp("referral_discount_applied_at", { withTimezone: true }),
   referralSource: text("referral_source"),
+  pendingDeletion: boolean("pending_deletion").notNull().default(false),
+  deletionScheduledFor: timestamp("deletion_scheduled_for", { withTimezone: true }),
 });
 
 export type User = typeof usersTable.$inferSelect;

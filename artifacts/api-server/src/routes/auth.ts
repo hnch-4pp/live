@@ -4,10 +4,12 @@ import { db } from "@workspace/db";
 import {
   usersTable, otpsTable, ticketCodesTable, ticketCodeRedemptionsTable,
   ticketTransactionsTable, predictionsTable, optionsTable, hunchesTable, categoriesTable,
+  subscriptionsTable,
 } from "@workspace/db";
 import bcrypt from "bcryptjs";
 import { sendAdminAlert } from "../adminAlerts";
 import { logger } from "../lib/logger";
+import { getUncachableStripeClient } from "../stripeClient";
 import { attributeUserToAffiliate } from "./affiliates";
 
 const router: IRouter = Router();
@@ -873,24 +875,87 @@ router.post("/auth/me/set-password", async (req, res): Promise<void> => {
   res.json({ ok: true });
 });
 
+// GET /auth/me/account-status — subscription + ticket info for the deletion flow
+router.get("/auth/me/account-status", async (req, res): Promise<void> => {
+  if (!req.session.userId) { res.status(401).json({ error: "Not authenticated" }); return; }
+  const [user] = await db
+    .select({ tickets: usersTable.tickets })
+    .from(usersTable)
+    .where(eq(usersTable.id, req.session.userId))
+    .limit(1);
+  if (!user) { res.status(401).json({ error: "Not authenticated" }); return; }
+  const [sub] = await db
+    .select({
+      tier: subscriptionsTable.tier,
+      status: subscriptionsTable.status,
+      currentPeriodEnd: subscriptionsTable.currentPeriodEnd,
+      cancelAtPeriodEnd: subscriptionsTable.cancelAtPeriodEnd,
+    })
+    .from(subscriptionsTable)
+    .where(and(eq(subscriptionsTable.userId, req.session.userId), eq(subscriptionsTable.status, "active")))
+    .limit(1);
+  res.json({ tickets: user.tickets, subscription: sub ?? null });
+});
+
 router.delete("/auth/me", async (req, res): Promise<void> => {
   if (!req.session.userId) { res.status(401).json({ error: "Not authenticated" }); return; }
   const { confirm } = req.body as { confirm?: boolean };
   if (!confirm) { res.status(400).json({ error: "Confirmation required." }); return; }
 
-  const [user] = await db.select({ email: usersTable.email }).from(usersTable).where(eq(usersTable.id, req.session.userId)).limit(1);
-  await db.delete(usersTable).where(eq(usersTable.id, req.session.userId));
+  const userId = req.session.userId;
+  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId)).limit(1);
+  if (!user) { res.status(401).json({ error: "Not authenticated" }); return; }
+
+  // Check for active paid subscription
+  const [sub] = await db
+    .select()
+    .from(subscriptionsTable)
+    .where(and(eq(subscriptionsTable.userId, userId), eq(subscriptionsTable.status, "active")))
+    .limit(1);
+
+  if (sub) {
+    // Paid plan: cancel at period end (if not already), schedule account deletion
+    if (!sub.cancelAtPeriodEnd) {
+      try {
+        const stripe = await getUncachableStripeClient();
+        await stripe.subscriptions.update(sub.stripeSubscriptionId, { cancel_at_period_end: true });
+        await db
+          .update(subscriptionsTable)
+          .set({ cancelAtPeriodEnd: true, updatedAt: new Date() })
+          .where(eq(subscriptionsTable.id, sub.id));
+      } catch (err: unknown) {
+        logger.error({ err }, "Failed to cancel Stripe subscription during account deletion");
+      }
+    }
+    const deletionDate = sub.currentPeriodEnd ?? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+    await db
+      .update(usersTable)
+      .set({ pendingDeletion: true, deletionScheduledFor: deletionDate })
+      .where(eq(usersTable.id, userId));
+    sendAdminAlert(
+      "account_delete",
+      "User scheduled account deletion",
+      `Email: ${user.email}\nUser ID: ${userId}\nDeletion date: ${deletionDate.toISOString()}`,
+      `Hunches: account deletion scheduled — ${user.email}`,
+    ).catch(() => {});
+    res.json({ ok: true, scheduled: true, deletionDate: deletionDate.toISOString() });
+    return;
+  }
+
+  // Free plan: delete immediately (FK-safe order)
+  await db.delete(predictionsTable).where(eq(predictionsTable.userId, userId));
+  await db.delete(usersTable).where(eq(usersTable.id, userId));
 
   req.session.destroy(() => {
     res.clearCookie("hunch.sid");
-    res.json({ ok: true });
+    res.json({ ok: true, deleted: true });
   });
 
   sendAdminAlert(
     "account_delete",
     "User deleted their account",
-    `Email: ${user?.email ?? "unknown"}\nUser ID: ${req.session.userId}`,
-    `Hunches: account deleted — ${user?.email ?? "unknown"}`,
+    `Email: ${user.email}\nUser ID: ${userId}`,
+    `Hunches: account deleted — ${user.email}`,
   ).catch(() => {});
 });
 

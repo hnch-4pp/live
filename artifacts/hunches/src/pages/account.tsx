@@ -672,6 +672,21 @@ function LoginMethodSection({
   );
 }
 
+interface AccountStatus {
+  tickets: number;
+  subscription: {
+    tier: string;
+    status: string;
+    currentPeriodEnd: string | null;
+    cancelAtPeriodEnd: boolean;
+  } | null;
+}
+
+function formatPeriodEnd(iso: string | null): string {
+  if (!iso) return "al final de tu periodo de suscripcion";
+  return new Date(iso).toLocaleDateString("es-MX", { year: "numeric", month: "long", day: "numeric" });
+}
+
 function DeleteDialog({
   email,
   onClose,
@@ -681,11 +696,26 @@ function DeleteDialog({
   onClose: () => void;
   onDeleted: () => void;
 }) {
-  const { t } = useTranslation();
+  const [accountStatus, setAccountStatus] = useState<AccountStatus | null>(null);
+  const [statusLoading, setStatusLoading] = useState(true);
   const [typed, setTyped] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [scheduledDate, setScheduledDate] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch(apiUrl("/api/auth/me/account-status"), { credentials: "include" })
+      .then((r) => r.json())
+      .then((d: AccountStatus) => setAccountStatus(d))
+      .catch(() => {})
+      .finally(() => setStatusLoading(false));
+  }, []);
+
   const confirmed = typed.trim().toLowerCase() === email.toLowerCase();
+  const hasSub = !!accountStatus?.subscription;
+  const hasTickets = (accountStatus?.tickets ?? 0) > 0;
+  const ticketCount = accountStatus?.tickets ?? 0;
+  const periodEnd = accountStatus?.subscription?.currentPeriodEnd ?? null;
 
   const handleDelete = async () => {
     setLoading(true);
@@ -697,14 +727,44 @@ function DeleteDialog({
         credentials: "include",
         body: JSON.stringify({ confirm: true }),
       });
-      const data = await res.json();
+      const data = await res.json() as { ok?: boolean; deleted?: boolean; scheduled?: boolean; deletionDate?: string; error?: string };
       if (!res.ok) throw new Error(data.error ?? "Failed to delete account");
-      onDeleted();
+      if (data.scheduled && data.deletionDate) {
+        setScheduledDate(data.deletionDate);
+      } else {
+        onDeleted();
+      }
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Failed to delete");
       setLoading(false);
     }
   };
+
+  // Scheduled confirmation screen (paid plan — account will be deleted at period end)
+  if (scheduledDate) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+        <div className="bg-card border border-border rounded-2xl w-full max-w-md shadow-2xl p-6 space-y-5">
+          <div className="flex items-start gap-4">
+            <div className="w-10 h-10 rounded-xl bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center shrink-0">
+              <Calendar className="w-5 h-5 text-amber-600" />
+            </div>
+            <div>
+              <h3 className="text-base font-semibold text-foreground">Cuenta programada para cierre</h3>
+              <p className="text-sm text-muted-foreground mt-1">
+                Tu suscripcion ha sido cancelada. Perdera tu acceso el{" "}
+                <span className="font-semibold text-foreground">{formatPeriodEnd(scheduledDate)}</span>,
+                cuando tu cuenta y todos tus datos seran eliminados definitivamente.
+              </p>
+            </div>
+          </div>
+          <Button onClick={onClose} className="w-full rounded-xl h-11 font-semibold">
+            Entendido
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
@@ -714,47 +774,92 @@ function DeleteDialog({
             <AlertTriangle className="w-5 h-5 text-destructive" />
           </div>
           <div>
-            <h3 className="text-base font-semibold text-foreground">{t("delete_confirm_title")}</h3>
-            <p className="text-sm text-muted-foreground mt-1">{t("delete_confirm_desc")}</p>
+            <h3 className="text-base font-semibold text-foreground">Eliminar cuenta</h3>
+            <p className="text-sm text-muted-foreground mt-1">
+              {hasSub
+                ? "Tu suscripcion sera cancelada y perdera tu acceso al terminar el periodo actual."
+                : "Esta accion es permanente e irreversible. Todos tus datos y predicciones seran eliminados."}
+            </p>
           </div>
         </div>
+
         <div className="px-6 pb-6 space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="confirm-email">
-              {t("delete_confirm_email_label")} <span className="font-mono text-foreground">{email}</span>
-            </Label>
-            <Input
-              id="confirm-email"
-              type="text"
-              autoFocus
-              value={typed}
-              onChange={(e) => setTyped(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && confirmed && !loading && handleDelete()}
-              placeholder={email}
-              className="rounded-xl h-11 bg-background border-border font-mono text-sm"
-            />
-          </div>
-          {error && (
-            <p className="text-sm text-destructive bg-destructive/10 rounded-lg px-3 py-2 border border-destructive/20">{error}</p>
+          {statusLoading ? (
+            <div className="flex justify-center py-4">
+              <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+            </div>
+          ) : (
+            <>
+              {/* Scenario warnings */}
+              {!hasSub && hasTickets && (
+                <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-xl px-4 py-3 flex gap-3">
+                  <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                  <p className="text-sm text-amber-800 dark:text-amber-200">
+                    Tienes <span className="font-semibold">{ticketCount} {ticketCount === 1 ? "ticket" : "tickets"}</span> disponibles que perderacc al eliminar tu cuenta.
+                  </p>
+                </div>
+              )}
+              {hasSub && hasTickets && (
+                <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-xl px-4 py-3 flex gap-3">
+                  <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                  <p className="text-sm text-amber-800 dark:text-amber-200">
+                    Tienes <span className="font-semibold">{ticketCount} {ticketCount === 1 ? "ticket" : "tickets"}</span> disponibles que perderacc.
+                    Tu acceso terminara el <span className="font-semibold">{formatPeriodEnd(periodEnd)}</span>.
+                  </p>
+                </div>
+              )}
+              {hasSub && !hasTickets && (
+                <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-xl px-4 py-3 flex gap-3">
+                  <AlertTriangle className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
+                  <p className="text-sm text-blue-800 dark:text-blue-200">
+                    Tu acceso terminara el <span className="font-semibold">{formatPeriodEnd(periodEnd)}</span>, al vencer tu periodo de suscripcion.
+                  </p>
+                </div>
+              )}
+
+              <div className="space-y-2">
+                <Label htmlFor="confirm-email">
+                  Escribe tu correo para confirmar:{" "}
+                  <span className="font-mono text-foreground">{email}</span>
+                </Label>
+                <Input
+                  id="confirm-email"
+                  type="text"
+                  autoFocus
+                  value={typed}
+                  onChange={(e) => setTyped(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && confirmed && !loading && handleDelete()}
+                  placeholder={email}
+                  className="rounded-xl h-11 bg-background border-border font-mono text-sm"
+                />
+              </div>
+
+              {error && (
+                <p className="text-sm text-destructive bg-destructive/10 rounded-lg px-3 py-2 border border-destructive/20">
+                  {error}
+                </p>
+              )}
+
+              <div className="flex gap-3">
+                <Button
+                  variant="outline"
+                  onClick={onClose}
+                  disabled={loading}
+                  className="flex-1 rounded-xl h-11 font-semibold"
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  onClick={handleDelete}
+                  disabled={!confirmed || loading}
+                  className="flex-1 rounded-xl h-11 bg-destructive text-white hover:bg-destructive/90 font-semibold"
+                >
+                  {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Trash2 className="w-4 h-4 mr-2" />}
+                  {hasSub ? "Confirmar cierre" : "Eliminar cuenta"}
+                </Button>
+              </div>
+            </>
           )}
-          <div className="flex gap-3">
-            <Button
-              variant="outline"
-              onClick={onClose}
-              disabled={loading}
-              className="flex-1 rounded-xl h-11 font-semibold"
-            >
-              {t("cancel_btn")}
-            </Button>
-            <Button
-              onClick={handleDelete}
-              disabled={!confirmed || loading}
-              className="flex-1 rounded-xl h-11 bg-destructive text-white hover:bg-destructive/90 font-semibold"
-            >
-              {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Trash2 className="w-4 h-4 mr-2" />}
-              {t("delete_btn")}
-            </Button>
-          </div>
         </div>
       </div>
     </div>
