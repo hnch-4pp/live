@@ -1218,11 +1218,13 @@ export default function Signup() {
               >
                 <ArrowLeft className="w-4 h-4" /> {t("back_btn")}
               </button>
-            ) : (
+            ) : step === "email" ? (
               <p className="text-sm text-muted-foreground">
                 {t("already_account")}{" "}
                 <Link href="/login" className="text-primary hover:underline font-semibold">{t("log_in")}</Link>
               </p>
+            ) : (
+              <span />
             )}
             {step === "email-otp" && (
               <button
