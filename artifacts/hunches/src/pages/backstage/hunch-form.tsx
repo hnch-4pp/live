@@ -562,7 +562,7 @@ export default function HunchForm() {
                 value={form.description}
                 onChange={(e) => setForm({ ...form, description: e.target.value })}
                 placeholder="Provide context that helps users make their prediction..."
-                className={`${inputCls} resize-none`}
+                className={`${inputCls} resize-y`}
               />
             </Field>
 
@@ -607,7 +607,7 @@ export default function HunchForm() {
                 value={form.rules}
                 onChange={(e) => setForm({ ...form, rules: e.target.value })}
                 placeholder="Explain how this hunch will be resolved, what counts as a valid answer, and any special conditions..."
-                className={`${inputCls} resize-none`}
+                className={`${inputCls} resize-y`}
               />
             </Field>
 
@@ -1095,7 +1095,7 @@ export default function HunchForm() {
                     onChange={(e) => setForm({ ...form, resultText: e.target.value })}
                     placeholder="e.g. The final score was 3–1. Manchester City won the Premier League..."
                     rows={3}
-                    className={`${inputCls} resize-none`}
+                    className={`${inputCls} resize-y`}
                   />
                 </Field>
 

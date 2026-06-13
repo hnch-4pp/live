@@ -153,7 +153,7 @@ function EditForm({ aff, onSaved, onCancel }: { aff: AffiliateRecord; onSaved: (
             value={bio}
             onChange={e => setBio(e.target.value)}
             rows={2}
-            className="w-full px-3 py-2 rounded-xl border border-input bg-background text-sm resize-none focus:outline-none focus:ring-2 focus:ring-ring"
+            className="w-full px-3 py-2 rounded-xl border border-input bg-background text-sm resize-y focus:outline-none focus:ring-2 focus:ring-ring"
           />
         </div>
       </div>

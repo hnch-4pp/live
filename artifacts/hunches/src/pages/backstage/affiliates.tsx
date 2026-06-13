@@ -123,7 +123,7 @@ function AffiliateForm({ initial, onClose, onSaved }: AffiliateFormProps) {
           </div>
           <div className="space-y-1 col-span-2">
             <Label>Bio</Label>
-            <textarea value={bio} onChange={e => setBio(e.target.value)} rows={2} className="w-full px-3 py-2 rounded-xl border border-input bg-background text-sm resize-none focus:outline-none focus:ring-2 focus:ring-ring" />
+            <textarea value={bio} onChange={e => setBio(e.target.value)} rows={2} className="w-full px-3 py-2 rounded-xl border border-input bg-background text-sm resize-y focus:outline-none focus:ring-2 focus:ring-ring" />
           </div>
         </div>
 
@@ -187,7 +187,7 @@ function InviteModal({ onClose }: { onClose: () => void }) {
               <div className="space-y-1"><Label>Suggested slug</Label><Input value={slug} onChange={e => setSlug(e.target.value.toLowerCase())} className="rounded-xl font-mono" /></div>
               <div className="space-y-1">
                 <Label>Personal message <span className="text-muted-foreground font-normal">(optional)</span></Label>
-                <textarea value={message} onChange={e => setMessage(e.target.value)} rows={2} className="w-full px-3 py-2 rounded-xl border border-input bg-background text-sm resize-none focus:outline-none focus:ring-2 focus:ring-ring" />
+                <textarea value={message} onChange={e => setMessage(e.target.value)} rows={2} className="w-full px-3 py-2 rounded-xl border border-input bg-background text-sm resize-y focus:outline-none focus:ring-2 focus:ring-ring" />
               </div>
             </div>
             {error && <p className="text-sm text-destructive bg-destructive/10 rounded-lg px-3 py-2">{error}</p>}

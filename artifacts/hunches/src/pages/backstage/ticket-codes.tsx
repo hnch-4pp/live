@@ -817,13 +817,13 @@ export default function AdminTicketCodes() {
               {/* Instructions */}
               <div className="space-y-1.5">
                 <Label>Instructions <span className="text-gray-400 font-normal">(shown to user)</span></Label>
-                <textarea value={form.instructions} onChange={(e) => setForm((f) => ({ ...f, instructions: e.target.value }))} rows={2} className="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary/30" />
+                <textarea value={form.instructions} onChange={(e) => setForm((f) => ({ ...f, instructions: e.target.value }))} rows={2} className="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm resize-y focus:outline-none focus:ring-2 focus:ring-primary/30" />
               </div>
 
               {/* T&C */}
               <div className="space-y-1.5">
                 <Label>Terms &amp; Conditions <span className="text-gray-400 font-normal">(optional)</span></Label>
-                <textarea value={form.termsAndConditions} onChange={(e) => setForm((f) => ({ ...f, termsAndConditions: e.target.value }))} rows={2} className="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary/30" />
+                <textarea value={form.termsAndConditions} onChange={(e) => setForm((f) => ({ ...f, termsAndConditions: e.target.value }))} rows={2} className="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm resize-y focus:outline-none focus:ring-2 focus:ring-primary/30" />
               </div>
 
               {/* Active */}
@@ -910,11 +910,11 @@ export default function AdminTicketCodes() {
                     </div>
                     <div className="space-y-1.5">
                       <Label>Instructions</Label>
-                      <textarea value={campForm.instructions} onChange={(e) => setCampForm((f) => ({ ...f, instructions: e.target.value }))} rows={2} className="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary/30" />
+                      <textarea value={campForm.instructions} onChange={(e) => setCampForm((f) => ({ ...f, instructions: e.target.value }))} rows={2} className="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm resize-y focus:outline-none focus:ring-2 focus:ring-primary/30" />
                     </div>
                     <div className="space-y-1.5">
                       <Label>Terms &amp; Conditions</Label>
-                      <textarea value={campForm.termsAndConditions} onChange={(e) => setCampForm((f) => ({ ...f, termsAndConditions: e.target.value }))} rows={2} className="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary/30" />
+                      <textarea value={campForm.termsAndConditions} onChange={(e) => setCampForm((f) => ({ ...f, termsAndConditions: e.target.value }))} rows={2} className="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm resize-y focus:outline-none focus:ring-2 focus:ring-primary/30" />
                     </div>
                   </div>
                 )}
