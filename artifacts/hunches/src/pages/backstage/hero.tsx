@@ -23,7 +23,7 @@ export default function AdminHero() {
   const load = useCallback(() => {
     adminFetch("/admin/featured")
       .then((r) => r.json() as Promise<FeaturedHunch[]>)
-      .then(setHunches)
+      .then((list) => setHunches(list.filter((h) => h.status === "open")))
       .catch(() => {});
   }, []);
 
