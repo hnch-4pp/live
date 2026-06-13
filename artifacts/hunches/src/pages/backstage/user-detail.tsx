@@ -45,6 +45,8 @@ interface UserDetail {
   email: string;
   phone: string | null;
   username: string | null;
+  firstName: string | null;
+  lastName: string | null;
   address: string | null;
   dateOfBirth: string | null;
   avatarUrl: string | null;
@@ -506,6 +508,7 @@ export default function AdminUserDetail() {
               <div className="-my-1">
                 <InfoRow icon={Mail}     label="Email"         value={detail.email} />
                 <InfoRow icon={Phone}    label="Phone"         value={detail.phone ?? "Not provided"} muted={!detail.phone} />
+                <InfoRow icon={User}     label="Name"          value={(detail.firstName || detail.lastName) ? [detail.firstName, detail.lastName].filter(Boolean).join(" ") : "Not provided"} muted={!detail.firstName && !detail.lastName} />
                 <InfoRow icon={MapPin}   label="Address"       value={detail.address ?? "Not provided"} muted={!detail.address} />
                 <InfoRow icon={Globe2}   label="Country"       value={detail.country ?? "Unknown"} muted={!detail.country} />
                 <InfoRow icon={Calendar} label="Date of birth" value={detail.dateOfBirth ? fmtDate(detail.dateOfBirth + "T00:00:00", { year: "numeric", month: "long", day: "numeric" }) : "Not provided"} muted={!detail.dateOfBirth} />

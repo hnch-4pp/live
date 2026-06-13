@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
-import { ArrowLeft, Mail, Phone, MapPin, Calendar, Search, ChevronDown, Eye, EyeOff, Lock, AtSign, Check, X, Loader2, Ticket, Users, Newspaper, Mic2, Globe, Instagram, Twitter, Youtube, Music2, Facebook, Bot, Twitch, Linkedin, MessageSquare, HelpCircle } from "lucide-react";
+import { ArrowLeft, Mail, Phone, MapPin, Calendar, Search, ChevronDown, Eye, EyeOff, Lock, AtSign, Check, X, Loader2, Ticket, Users, User, Newspaper, Mic2, Globe, Instagram, Twitter, Youtube, Music2, Facebook, Bot, Twitch, Linkedin, MessageSquare, HelpCircle } from "lucide-react";
 import { AddressAutocomplete, type ParsedAddress } from "@/components/address-autocomplete";
 
 // ── Country data ─────────────────────────────────────────────────────────────
@@ -325,9 +325,9 @@ function CountryPicker({
 
 // ── Step definitions ──────────────────────────────────────────────────────────
 
-type Step = "email" | "email-otp" | "phone" | "phone-otp" | "password" | "username" | "address" | "dob" | "ticket-code" | "referral-source";
+type Step = "email" | "email-otp" | "phone" | "phone-otp" | "name" | "password" | "username" | "address" | "dob" | "ticket-code" | "referral-source";
 
-const STEPS: Step[] = ["email", "email-otp", "phone", "phone-otp", "password", "username", "address", "dob", "ticket-code", "referral-source"];
+const STEPS: Step[] = ["email", "email-otp", "phone", "phone-otp", "name", "password", "username", "address", "dob", "ticket-code", "referral-source"];
 
 const REFERRAL_OPTIONS: { key: string; label: string; Icon: React.ComponentType<{ className?: string }> }[] = [
   { key: "noticias",  label: "Noticias",          Icon: Newspaper },
@@ -351,6 +351,7 @@ function StepDots({ current }: { current: Step }) {
   const groups = [
     ["email", "email-otp"],
     ["phone", "phone-otp"],
+    ["name"],
     ["password"],
     ["username"],
     ["address"],
@@ -464,6 +465,8 @@ export default function Signup() {
   const [country, setCountry] = useState<Country>(COUNTRIES.find(c => c.code === "US")!);
   const [localPhone, setLocalPhone] = useState("");
   const [phoneOtp, setPhoneOtp] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -588,6 +591,9 @@ export default function Signup() {
         setStep("phone-otp");
       } else if (step === "phone-otp") {
         await post("/auth/signup/verify-phone-otp", { code: phoneOtp });
+        setStep("name");
+      } else if (step === "name") {
+        await post("/auth/signup/set-name", { firstName: firstName.trim(), lastName: lastName.trim() });
         setStep("password");
       } else if (step === "password") {
         await post("/auth/signup/set-password", { password });
@@ -641,7 +647,8 @@ export default function Signup() {
       "email-otp": "email",
       phone: "email-otp",
       "phone-otp": "phone",
-      password: "phone-otp",
+      name: "phone-otp",
+      password: "name",
       username: "password",
       address: "username",
       dob: "address",
@@ -657,6 +664,7 @@ export default function Signup() {
     if (step === "email-otp") return emailOtp.length === 6;
     if (step === "phone") return localPhone.replace(/\D/g, "").length >= 6;
     if (step === "phone-otp") return phoneOtp.length === 6;
+    if (step === "name") return firstName.trim().length >= 2 && lastName.trim().length >= 2;
     if (step === "password") return password.length >= 8 && password === confirmPassword;
     if (step === "username") return usernameStatus === "available";
     if (step === "address") return addrStreet.trim().length >= 3 && addrCity.trim().length >= 1 && addrCountry.trim().length >= 1;
@@ -671,6 +679,7 @@ export default function Signup() {
     "email-otp": t("signup_step_email_otp"),
     phone: t("signup_step_phone"),
     "phone-otp": t("signup_step_phone_otp"),
+    name: "Tu nombre",
     password: t("signup_step_password"),
     username: t("signup_step_username"),
     address: t("signup_step_address"),
@@ -684,6 +693,7 @@ export default function Signup() {
     "email-otp": t("signup_sub_email_otp"),
     phone: t("signup_sub_phone"),
     "phone-otp": t("signup_sub_phone_otp"),
+    name: "¿Cómo te llamas?",
     password: t("signup_sub_password"),
     username: t("signup_sub_username"),
     address: t("signup_sub_address"),
@@ -697,6 +707,7 @@ export default function Signup() {
     "email-otp": t("signup_cta_email_otp"),
     phone: t("signup_cta_phone"),
     "phone-otp": t("signup_cta_phone_otp"),
+    name: t("continue_btn"),
     password: t("signup_cta_password"),
     username: t("continue_btn"),
     address: t("continue_btn"),
@@ -715,6 +726,7 @@ export default function Signup() {
             <div className="w-12 h-12 rounded-2xl bg-primary flex items-center justify-center mx-auto mb-4 shadow-sm">
               {step === "email" || step === "email-otp" ? <Mail className="w-5 h-5 text-white" /> :
                step === "phone" || step === "phone-otp" ? <Phone className="w-5 h-5 text-white" /> :
+               step === "name" ? <User className="w-5 h-5 text-white" /> :
                step === "password" ? <Lock className="w-5 h-5 text-white" /> :
                step === "username" ? <AtSign className="w-5 h-5 text-white" /> :
                step === "address" ? <MapPin className="w-5 h-5 text-white" /> :
@@ -796,6 +808,37 @@ export default function Signup() {
                     {devHint}
                   </p>
                 )}
+              </div>
+            )}
+
+            {/* Name */}
+            {step === "name" && (
+              <div className="space-y-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="first-name">Nombre(s)</Label>
+                  <Input
+                    id="first-name"
+                    type="text"
+                    autoFocus
+                    value={firstName}
+                    onChange={(e) => setFirstName(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && lastName.trim().length < 2 && (document.getElementById("last-name") as HTMLInputElement)?.focus()}
+                    placeholder="Tu nombre"
+                    className="rounded-xl h-11 bg-background border-border"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="last-name">Apellidos</Label>
+                  <Input
+                    id="last-name"
+                    type="text"
+                    value={lastName}
+                    onChange={(e) => setLastName(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && isValid() && handle()}
+                    placeholder="Tus apellidos"
+                    className="rounded-xl h-11 bg-background border-border"
+                  />
+                </div>
               </div>
             )}
 

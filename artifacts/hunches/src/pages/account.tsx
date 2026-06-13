@@ -264,6 +264,89 @@ function UsernameSection({
   );
 }
 
+function NameSection({
+  currentFirst,
+  currentLast,
+  onSaved,
+}: {
+  currentFirst: string | null;
+  currentLast: string | null;
+  onSaved: () => void;
+}) {
+  const [firstName, setFirstName] = useState(currentFirst ?? "");
+  const [lastName, setLastName] = useState(currentLast ?? "");
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [error, setError] = useState("");
+
+  const canSave =
+    firstName.trim().length >= 1 &&
+    lastName.trim().length >= 1 &&
+    (firstName.trim() !== (currentFirst ?? "") || lastName.trim() !== (currentLast ?? ""));
+
+  const save = async () => {
+    setSaving(true);
+    setError("");
+    try {
+      const res = await fetch(apiUrl("/api/auth/me"), {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ firstName: firstName.trim(), lastName: lastName.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Failed to save");
+      onSaved();
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2500);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Failed to save");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="space-y-3">
+      <div className="grid grid-cols-2 gap-2">
+        <div className="space-y-1.5">
+          <Label htmlFor="acc-first-name">Nombre(s)</Label>
+          <Input
+            id="acc-first-name"
+            type="text"
+            value={firstName}
+            onChange={(e) => { setFirstName(e.target.value); setSaved(false); }}
+            onKeyDown={(e) => e.key === "Enter" && canSave && !saving && save()}
+            placeholder="Tu nombre"
+            className="rounded-xl h-11 bg-background border-border"
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="acc-last-name">Apellidos</Label>
+          <Input
+            id="acc-last-name"
+            type="text"
+            value={lastName}
+            onChange={(e) => { setLastName(e.target.value); setSaved(false); }}
+            onKeyDown={(e) => e.key === "Enter" && canSave && !saving && save()}
+            placeholder="Tus apellidos"
+            className="rounded-xl h-11 bg-background border-border"
+          />
+        </div>
+      </div>
+      {error && <p className="text-xs text-destructive">{error}</p>}
+      <Button
+        onClick={save}
+        disabled={!canSave || saving || saved}
+        className="w-full rounded-xl h-11 bg-primary text-white hover:bg-primary/90 font-semibold"
+      >
+        {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+        {saved ? "Guardado" : "Guardar nombre"}
+      </Button>
+    </div>
+  );
+}
+
 function AddressSection({ current, onSaved }: { current: string | null; onSaved: (a: string) => void }) {
   const { t } = useTranslation();
   const [street, setStreet] = useState("");
@@ -738,17 +821,24 @@ export default function Account() {
           </SectionCard>
 
           <SectionCard title={t("acc_personal")}>
-            <ReadOnlyField
-              icon={Phone}
-              label={t("acc_phone")}
-              value={user.phone ?? "—"}
-              note={t("acc_phone_note")}
+            <NameSection
+              currentFirst={user.firstName}
+              currentLast={user.lastName}
+              onSaved={async () => { await refetch(); }}
             />
-            <ReadOnlyField
-              icon={Calendar}
-              label={t("acc_dob")}
-              value={formatDate(user.dateOfBirth)}
-            />
+            <div className="border-t border-border pt-4 space-y-4">
+              <ReadOnlyField
+                icon={Phone}
+                label={t("acc_phone")}
+                value={user.phone ?? "—"}
+                note={t("acc_phone_note")}
+              />
+              <ReadOnlyField
+                icon={Calendar}
+                label={t("acc_dob")}
+                value={formatDate(user.dateOfBirth)}
+              />
+            </div>
           </SectionCard>
 
           <SectionCard title={t("acc_security")}>

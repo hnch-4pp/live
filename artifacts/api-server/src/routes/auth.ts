@@ -369,12 +369,29 @@ router.post("/auth/signup/verify-phone-otp", async (req, res): Promise<void> => 
   res.json({ ok: true });
 });
 
+router.post("/auth/signup/set-name", async (req, res): Promise<void> => {
+  const { firstName, lastName } = req.body as { firstName?: string; lastName?: string };
+  const pending = req.session.pendingSignup;
+
+  if (!pending?.phoneVerified) {
+    res.status(400).json({ error: "Phone must be verified before setting your name." });
+    return;
+  }
+  const fn = firstName?.trim() ?? "";
+  const ln = lastName?.trim() ?? "";
+  if (fn.length < 1) { res.status(400).json({ error: "El nombre es requerido." }); return; }
+  if (ln.length < 1) { res.status(400).json({ error: "Los apellidos son requeridos." }); return; }
+
+  req.session.pendingSignup = { ...pending, firstName: fn, lastName: ln, nameSet: true };
+  res.json({ ok: true });
+});
+
 router.post("/auth/signup/set-password", async (req, res): Promise<void> => {
   const { password } = req.body as { password?: string };
   const pending = req.session.pendingSignup;
 
-  if (!pending?.phoneVerified) {
-    res.status(400).json({ error: "Phone must be verified before setting a password." });
+  if (!pending?.phoneVerified || !pending?.nameSet) {
+    res.status(400).json({ error: "Phone and name must be set before setting a password." });
     return;
   }
   if (!password || password.length < 8) {
@@ -452,6 +469,8 @@ router.post("/auth/signup/complete", async (req, res): Promise<void> => {
       email: pending.email!,
       phone: pending.phone!,
       username: username.toLowerCase(),
+      firstName: pending.firstName ?? null,
+      lastName: pending.lastName ?? null,
       address: address.trim(),
       dateOfBirth,
       passwordHash: pending.passwordHash,
@@ -744,12 +763,12 @@ router.get("/auth/me", async (req, res): Promise<void> => {
     sql`UPDATE users SET last_access_at = NOW() WHERE id = ${req.session.userId}`
   );
   const loginMethod = (user as unknown as Record<string, unknown>)["login_method"] as string ?? "password";
-  res.json({ id: user.id, email: user.email, phone: user.phone, username: user.username, address: user.address, dateOfBirth: user.dateOfBirth, avatarUrl: user.avatarUrl, tickets: user.tickets, loginMethod, hasPassword: !!user.passwordHash });
+  res.json({ id: user.id, email: user.email, phone: user.phone, username: user.username, firstName: user.firstName, lastName: user.lastName, address: user.address, dateOfBirth: user.dateOfBirth, avatarUrl: user.avatarUrl, tickets: user.tickets, loginMethod, hasPassword: !!user.passwordHash });
 });
 
 router.patch("/auth/me", async (req, res): Promise<void> => {
   if (!req.session.userId) { res.status(401).json({ error: "Not authenticated" }); return; }
-  const { username, address, avatarUrl, loginMethod, referralSource } = req.body as { username?: string; address?: string; avatarUrl?: string | null; loginMethod?: string; referralSource?: string };
+  const { username, address, avatarUrl, loginMethod, referralSource, firstName, lastName } = req.body as { username?: string; address?: string; avatarUrl?: string | null; loginMethod?: string; referralSource?: string; firstName?: string; lastName?: string };
 
   const updates: Partial<typeof usersTable.$inferInsert> = {};
 
@@ -782,6 +801,18 @@ router.patch("/auth/me", async (req, res): Promise<void> => {
     updates.avatarUrl = avatarUrl;
   }
 
+  if (firstName !== undefined) {
+    const fn = firstName.trim();
+    if (fn.length < 1) { res.status(400).json({ error: "El nombre no puede estar vacío." }); return; }
+    updates.firstName = fn;
+  }
+
+  if (lastName !== undefined) {
+    const ln = lastName.trim();
+    if (ln.length < 1) { res.status(400).json({ error: "Los apellidos no pueden estar vacíos." }); return; }
+    updates.lastName = ln;
+  }
+
   if (referralSource !== undefined) {
     updates.referralSource = referralSource.trim().slice(0, 100) || null;
   }
@@ -810,7 +841,7 @@ router.patch("/auth/me", async (req, res): Promise<void> => {
 
   const [updated] = await db.select().from(usersTable).where(eq(usersTable.id, req.session.userId)).limit(1);
   const updatedLoginMethod = (updated as unknown as Record<string, unknown>)["login_method"] as string ?? "password";
-  res.json({ id: updated.id, email: updated.email, phone: updated.phone, username: updated.username, address: updated.address, dateOfBirth: updated.dateOfBirth, avatarUrl: updated.avatarUrl, tickets: updated.tickets, loginMethod: updatedLoginMethod, hasPassword: !!updated.passwordHash });
+  res.json({ id: updated.id, email: updated.email, phone: updated.phone, username: updated.username, firstName: updated.firstName, lastName: updated.lastName, address: updated.address, dateOfBirth: updated.dateOfBirth, avatarUrl: updated.avatarUrl, tickets: updated.tickets, loginMethod: updatedLoginMethod, hasPassword: !!updated.passwordHash });
 });
 
 router.post("/auth/me/set-password", async (req, res): Promise<void> => {
