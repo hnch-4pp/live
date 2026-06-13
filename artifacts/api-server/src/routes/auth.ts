@@ -7,6 +7,7 @@ import {
 } from "@workspace/db";
 import bcrypt from "bcryptjs";
 import { sendAdminAlert } from "../adminAlerts";
+import { logger } from "../lib/logger";
 import { attributeUserToAffiliate } from "./affiliates";
 
 const router: IRouter = Router();
@@ -758,9 +759,10 @@ router.get("/auth/me", async (req, res): Promise<void> => {
     return;
   }
   // Track last access (fire and forget)
-  void db.execute(
-    sql`UPDATE users SET last_access_at = NOW() WHERE id = ${req.session.userId}`
-  );
+  void db.update(usersTable)
+    .set({ lastAccessAt: new Date() })
+    .where(eq(usersTable.id, req.session.userId))
+    .catch((err: unknown) => logger.error({ err }, "Failed to update lastAccessAt"));
   const loginMethod = user.loginMethod ?? "password";
   res.json({ id: user.id, email: user.email, phone: user.phone, username: user.username, firstName: user.firstName, lastName: user.lastName, address: user.address, dateOfBirth: user.dateOfBirth, avatarUrl: user.avatarUrl, tickets: user.tickets, loginMethod, hasPassword: !!user.passwordHash });
 });
