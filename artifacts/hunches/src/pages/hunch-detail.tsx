@@ -952,6 +952,41 @@ export default function HunchDetail() {
               );
             })()}
 
+            {/* ── Distribution charts — first for open/closed hunches ── */}
+            {!isResolved && !isMulti && hunch.options.length > 0 && (
+              <DistributionChart
+                options={hunch.options}
+                participantCount={hunch.participantCount}
+                answerType={(hunch as any).answerType}
+                title="Predictions distribution"
+              />
+            )}
+
+            {!isResolved && isMulti && questions.length > 0 && questions.some((q) => q.options.length > 0) && (
+              <div className="bg-card border border-border rounded-2xl p-6 card-shadow space-y-6">
+                <div>
+                  <h3 className="text-base font-display font-bold text-foreground mb-1">Predictions distribution</h3>
+                  <p className="text-xs text-muted-foreground">
+                    {hunch.participantCount.toLocaleString()} prediction{hunch.participantCount !== 1 ? "s" : ""} so far
+                  </p>
+                </div>
+                {questions.map((q, idx) => q.options.length > 0 && (
+                  <div key={q.id} className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold text-primary bg-primary/10 rounded-lg px-2 py-0.5">{idx + 1}</span>
+                      <span className="text-sm font-medium text-foreground">{q.prompt}</span>
+                    </div>
+                    <DistributionChart
+                      options={q.options}
+                      participantCount={hunch.participantCount}
+                      answerType={q.answerType}
+                      compact
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
+
             {/* Prize Pool — main content */}
             {(() => {
               const tiers = hunch.prizeTiers && hunch.prizeTiers.length > 0
@@ -1056,41 +1091,7 @@ export default function HunchDetail() {
               </div>
             )}
 
-            {/* ── Distribution charts — always last for resolved, first for open ── */}
-            {!isResolved && !isMulti && hunch.options.length > 0 && (
-              <DistributionChart
-                options={hunch.options}
-                participantCount={hunch.participantCount}
-                answerType={(hunch as any).answerType}
-                title="Predictions distribution"
-              />
-            )}
-
-            {!isResolved && isMulti && questions.length > 0 && questions.some((q) => q.options.length > 0) && (
-              <div className="bg-card border border-border rounded-2xl p-6 card-shadow space-y-6">
-                <div>
-                  <h3 className="text-base font-display font-bold text-foreground mb-1">Predictions distribution</h3>
-                  <p className="text-xs text-muted-foreground">
-                    {hunch.participantCount.toLocaleString()} prediction{hunch.participantCount !== 1 ? "s" : ""} so far
-                  </p>
-                </div>
-                {questions.map((q, idx) => q.options.length > 0 && (
-                  <div key={q.id} className="space-y-2">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-bold text-primary bg-primary/10 rounded-lg px-2 py-0.5">{idx + 1}</span>
-                      <span className="text-sm font-medium text-foreground">{q.prompt}</span>
-                    </div>
-                    <DistributionChart
-                      options={q.options}
-                      participantCount={hunch.participantCount}
-                      answerType={q.answerType}
-                      compact
-                    />
-                  </div>
-                ))}
-              </div>
-            )}
-
+            {/* ── Distribution charts — last for resolved (moved to top for open/closed above) ── */}
             {isResolved && !isMulti && hunch.options.length > 0 && (
               <DistributionChart
                 options={hunch.options}
