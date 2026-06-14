@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import { useLocation, useSearch } from "wouter";
 import { Layout } from "@/components/layout";
 import { HunchCard } from "@/components/hunch-card";
@@ -62,7 +62,14 @@ export default function Home() {
   const isFiltered = !!(categoryParam || statusParam || qParam || tagParam);
 
   type SortKey = "ending-soon" | "newest" | "oldest";
-  const [sortBy, setSortBy] = useState<SortKey>("ending-soon");
+  const defaultSort = useCallback((status: string | null): SortKey => {
+    return (status === "closed" || status === "resolved") ? "newest" : "ending-soon";
+  }, []);
+  const [sortBy, setSortBy] = useState<SortKey>(() => defaultSort(statusParam));
+
+  useEffect(() => {
+    setSortBy(defaultSort(statusParam));
+  }, [statusParam, defaultSort]);
 
   const sortedHunches = useMemo(() => {
     const arr = [...(hunchesData?.hunches ?? [])];
