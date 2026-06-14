@@ -258,6 +258,10 @@ async function runAppMigrations(): Promise<void> {
   await db.execute(sql`DELETE FROM predictions WHERE user_id IN (SELECT id FROM users WHERE pending_deletion = true AND deletion_scheduled_for <= NOW())`);
   await db.execute(sql`DELETE FROM users WHERE pending_deletion = true AND deletion_scheduled_for <= NOW()`);
 
+  // Cookie consent
+  await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS cookie_consent TEXT`);
+  await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS cookie_consent_at TIMESTAMPTZ`);
+
   logger.info("App schema migrations applied");
 }
 
