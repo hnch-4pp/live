@@ -421,7 +421,7 @@ const resources = {
       signed_in_as: "Conectado como",
       my_tickets: "Mis tickets",
       my_hunches: "Mis Hunches",
-      account_settings: "Configuración de cuenta",
+      account_settings: "Configuración",
       sign_out: "Cerrar sesión",
       // search
       search_placeholder: "Buscar hunches...",

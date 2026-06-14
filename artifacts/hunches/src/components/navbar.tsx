@@ -1,7 +1,7 @@
 import { Link, useLocation, useSearch } from "wouter";
 import { Button } from "@/components/ui/button";
 import { useEffect, useRef, useState } from "react";
-import { Globe, ChevronDown, Search, X, Trophy, Music, Film, Clapperboard, TrendingUp, Star, Zap as ZapIcon, Globe2, Heart as HeartIcon, LogOut, Settings, Ticket, Target, Users, Gift, Award } from "lucide-react";
+import { Globe, ChevronDown, Search, X, Trophy, Music, Film, Clapperboard, TrendingUp, Star, Zap as ZapIcon, Globe2, Heart as HeartIcon, LogOut, Settings, Ticket, Target, Users, Gift, Award, Lightbulb } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import i18n from "@/i18n";
 import { useListCategories } from "@workspace/api-client-react";
@@ -233,6 +233,13 @@ function AuthButtons() {
             >
               <Settings className="w-4 h-4" />
               {t("account_settings")}
+            </button>
+            <button
+              onClick={() => { setMenuOpen(false); setLocation("/suggest-hunch"); }}
+              className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+            >
+              <Lightbulb className="w-4 h-4" />
+              Sugiere un Hunch
             </button>
             <button
               onClick={async () => { setMenuOpen(false); await logout(); setLocation("/"); }}

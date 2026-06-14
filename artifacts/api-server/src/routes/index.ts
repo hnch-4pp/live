@@ -13,6 +13,7 @@ import affiliatesRouter from "./affiliates";
 import usersRouter from "./users";
 import commentsRouter from "./comments";
 import bugReportsRouter from "./bug-reports";
+import suggestHunchRouter from "./suggest-hunch";
 
 const router: IRouter = Router();
 
@@ -30,5 +31,6 @@ router.use(hunchesRouter);
 router.use(categoriesRouter);
 router.use(adminRouter);
 router.use(bugReportsRouter);
+router.use(suggestHunchRouter);
 
 export default router;

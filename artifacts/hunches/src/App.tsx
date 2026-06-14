@@ -44,6 +44,7 @@ import Referral from "@/pages/referral";
 import UserProfile from "@/pages/user-profile";
 import Ranking from "@/pages/ranking";
 import ReportBug from "@/pages/report-bug";
+import SuggestHunch from "@/pages/suggest-hunch";
 import { CookieBanner } from "@/components/cookie-banner";
 
 const queryClient = new QueryClient({
@@ -105,6 +106,7 @@ function Router() {
       <Route path="/affiliate/dashboard" component={AffiliateDashboard} />
       <Route path="/ranking" component={Ranking} />
       <Route path="/report-bug" component={ReportBug} />
+      <Route path="/suggest-hunch" component={SuggestHunch} />
       <Route path="/u/:username" component={UserProfile} />
       <Route path="/:affiliateSlug" component={AffiliateSlugPage} />
       <Route component={NotFound} />
