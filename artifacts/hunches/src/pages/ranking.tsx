@@ -93,24 +93,22 @@ function Podium({ top3 }: { top3: LeaderboardUser[] }) {
 function TableRow({ user, rank }: { user: LeaderboardUser; rank: number }) {
   return (
     <Link href={`/u/${user.username}`}>
-      <tr className="hover:bg-muted/40 transition-colors cursor-pointer group">
+      <tr className="hover:bg-muted/30 transition-colors cursor-pointer">
         {/* Col 1: Rank */}
-        <td className="pl-5 pr-3 py-3.5 w-12 shrink-0">
-          <span className="text-sm font-semibold text-muted-foreground tabular-nums">{rank}</span>
+        <td className="pl-5 pr-4 py-4 w-12">
+          <span className="text-sm text-muted-foreground tabular-nums">{rank}</span>
         </td>
-        {/* Col 2: Avatar + Username */}
-        <td className="px-3 py-3.5">
-          <div className="flex items-center gap-3 min-w-0">
-            <RankAvatar username={user.username} avatarUrl={user.avatarUrl} size={36} />
-            <span className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors truncate">
-              @{user.username}
-            </span>
-          </div>
+        {/* Col 2: Username */}
+        <td className="px-4 py-4">
+          <span className="text-sm font-medium text-primary hover:underline">
+            @{user.username}
+          </span>
         </td>
         {/* Col 3: Wins */}
-        <td className="pl-3 pr-5 py-3.5 text-right w-28 shrink-0">
-          <span className="text-sm font-bold tabular-nums text-foreground">{user.wins}</span>
-          <span className="text-xs text-muted-foreground ml-1">{user.wins === 1 ? "victoria" : "victorias"}</span>
+        <td className="pl-4 pr-5 py-4 text-right w-36">
+          <span className="text-sm text-muted-foreground tabular-nums">
+            {user.wins} {user.wins === 1 ? "victoria" : "victorias"}
+          </span>
         </td>
       </tr>
     </Link>
@@ -216,19 +214,19 @@ export default function RankingPage() {
                 {/* Tabla */}
                 <table className="w-full">
                   <thead>
-                    <tr className="border-b border-border bg-muted/30">
-                      <th className="pl-5 pr-3 py-2.5 w-12 text-left">
-                        <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">#</span>
+                    <tr className="border-b border-border">
+                      <th className="pl-5 pr-4 py-3 w-12 text-left">
+                        <span className="text-sm text-muted-foreground font-normal">#</span>
                       </th>
-                      <th className="px-3 py-2.5 text-left">
-                        <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Usuario</span>
+                      <th className="px-4 py-3 text-left">
+                        <span className="text-sm text-muted-foreground font-normal">Usuario</span>
                       </th>
-                      <th className="pl-3 pr-5 py-2.5 w-28 text-right">
-                        <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Victorias</span>
+                      <th className="pl-4 pr-5 py-3 w-36 text-right">
+                        <span className="text-sm text-muted-foreground font-normal">Victorias</span>
                       </th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-border/60">
+                  <tbody className="divide-y divide-border">
                     {rest.map((u, i) => (
                       <TableRow key={u.id} user={u} rank={top3.length + i + 1} />
                     ))}
