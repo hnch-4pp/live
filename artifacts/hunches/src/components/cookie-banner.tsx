@@ -65,32 +65,36 @@ export function CookieBanner() {
   if (!visible) return null;
 
   return (
-    <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 w-[calc(100%-2rem)] max-w-2xl">
-      <div className="bg-card border border-border rounded-2xl shadow-xl px-5 py-4 flex items-center gap-4">
-        <div className="shrink-0 w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center">
-          <Cookie className="w-5 h-5 text-primary" />
+    <div className="fixed bottom-0 left-0 right-0 z-50 sm:bottom-4 sm:left-1/2 sm:-translate-x-1/2 sm:w-[calc(100%-2rem)] sm:max-w-2xl">
+      <div className="bg-card border-t border-border sm:border sm:rounded-2xl shadow-2xl px-5 py-4">
+        {/* Top row: icon + text */}
+        <div className="flex items-start gap-3">
+          <div className="shrink-0 w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center mt-0.5">
+            <Cookie className="w-4 h-4 text-primary" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-foreground leading-snug">
+              Una mejor experiencia empieza con las cookies
+            </p>
+            <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+              Usamos cookies de sesión y Google Analytics para mejorar la plataforma.{" "}
+              <a href="/privacy" className="underline hover:text-foreground transition-colors">
+                Ver política de privacidad
+              </a>
+            </p>
+          </div>
         </div>
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold text-foreground leading-snug">
-            Una mejor experiencia empieza con las cookies
-          </p>
-          <p className="text-xs text-muted-foreground mt-0.5 leading-snug">
-            Usamos cookies de sesión y Google Analytics para mejorar la plataforma.{" "}
-            <a href="/privacy" className="underline hover:text-foreground transition-colors">
-              Ver política de privacidad
-            </a>
-          </p>
-        </div>
-        <div className="flex items-center gap-2 shrink-0">
+        {/* Buttons: stacked full-width on mobile, inline on sm+ */}
+        <div className="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end sm:mt-3">
           <button
             onClick={() => saveConsent("rejected")}
-            className="px-4 py-2 rounded-xl text-sm font-semibold border border-border text-foreground hover:bg-muted transition-colors"
+            className="w-full sm:w-auto px-5 py-2.5 rounded-xl text-sm font-semibold border border-border text-foreground hover:bg-muted transition-colors"
           >
             Rechazar
           </button>
           <button
             onClick={() => saveConsent("accepted")}
-            className="px-4 py-2 rounded-xl text-sm font-semibold bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+            className="w-full sm:w-auto px-5 py-2.5 rounded-xl text-sm font-semibold bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
           >
             Aceptar
           </button>
