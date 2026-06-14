@@ -1023,10 +1023,10 @@ export default function HunchDetail() {
                       <button
                         type="button"
                         onClick={() => setConditionsOpen((o) => !o)}
-                        className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground font-medium w-full text-left transition-colors"
+                        className="flex items-center gap-1 text-xs text-primary hover:underline font-medium text-left transition-colors"
                       >
-                        {conditionsOpen ? <ChevronUp className="w-3.5 h-3.5 shrink-0" /> : <ChevronDown className="w-3.5 h-3.5 shrink-0" />}
-                        Prize conditions
+                        {t("prize_conditions")}
+                        {conditionsOpen ? <ChevronUp className="w-3 h-3 shrink-0" /> : <ChevronDown className="w-3 h-3 shrink-0" />}
                       </button>
                       {conditionsOpen && (
                         <p className="mt-2 text-xs text-muted-foreground leading-relaxed whitespace-pre-line">
