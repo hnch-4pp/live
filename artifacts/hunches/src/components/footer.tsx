@@ -63,6 +63,16 @@ export function Footer() {
                 </a>
               ))}
             </div>
+            {/* Suggest a Hunch pill */}
+            <div>
+              <Link
+                href="/suggest-hunch"
+                className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-green-500 hover:bg-green-600 text-white text-xs font-semibold transition-colors shadow-sm"
+              >
+                <Lightbulb className="w-3.5 h-3.5" />
+                Sugiere un Hunch
+              </Link>
+            </div>
           </div>
 
           <div className="space-y-4">
@@ -88,16 +98,7 @@ export function Footer() {
 
         <div className="pt-8 border-t border-border text-sm text-muted-foreground flex flex-col sm:flex-row items-center justify-between gap-4">
           <p>{t("footer_rights", { year: new Date().getFullYear() })}</p>
-          <div className="flex items-center gap-4">
-            <Link
-              href="/suggest-hunch"
-              className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-green-500 hover:bg-green-600 text-white text-xs font-semibold transition-colors shadow-sm"
-            >
-              <Lightbulb className="w-3.5 h-3.5" />
-              Sugiere un Hunch
-            </Link>
-            <span className="text-xs uppercase tracking-wider font-semibold text-muted-foreground/60">{t("footer_type")}</span>
-          </div>
+          <span className="text-xs uppercase tracking-wider font-semibold text-muted-foreground/60">{t("footer_type")}</span>
         </div>
       </div>
     </footer>
