@@ -766,7 +766,7 @@ router.get("/auth/me", async (req, res): Promise<void> => {
     .where(eq(usersTable.id, req.session.userId))
     .catch((err: unknown) => logger.error({ err }, "Failed to update lastAccessAt"));
   const loginMethod = user.loginMethod ?? "password";
-  res.json({ id: user.id, email: user.email, phone: user.phone, username: user.username, firstName: user.firstName, lastName: user.lastName, address: user.address, dateOfBirth: user.dateOfBirth, avatarUrl: user.avatarUrl, tickets: user.tickets, loginMethod, hasPassword: !!user.passwordHash });
+  res.json({ id: user.id, email: user.email, phone: user.phone, username: user.username, firstName: user.firstName, lastName: user.lastName, address: user.address, dateOfBirth: user.dateOfBirth, avatarUrl: user.avatarUrl, tickets: user.tickets, loginMethod, hasPassword: !!user.passwordHash, cookieConsent: user.cookieConsent ?? null, cookieConsentAt: user.cookieConsentAt ?? null });
 });
 
 router.patch("/auth/me", async (req, res): Promise<void> => {
@@ -844,6 +844,19 @@ router.patch("/auth/me", async (req, res): Promise<void> => {
 
   const [updated] = await db.select().from(usersTable).where(eq(usersTable.id, req.session.userId)).limit(1);
   res.json({ id: updated.id, email: updated.email, phone: updated.phone, username: updated.username, firstName: updated.firstName, lastName: updated.lastName, address: updated.address, dateOfBirth: updated.dateOfBirth, avatarUrl: updated.avatarUrl, tickets: updated.tickets, loginMethod: updated.loginMethod ?? "password", hasPassword: !!updated.passwordHash });
+});
+
+router.post("/auth/me/cookie-consent", async (req, res): Promise<void> => {
+  if (!req.session.userId) { res.status(401).json({ error: "Not authenticated" }); return; }
+  const { consent } = req.body as { consent?: string };
+  if (consent !== "accepted" && consent !== "rejected") {
+    res.status(400).json({ error: "consent must be 'accepted' or 'rejected'" });
+    return;
+  }
+  await db.update(usersTable)
+    .set({ cookieConsent: consent, cookieConsentAt: new Date() })
+    .where(eq(usersTable.id, req.session.userId));
+  res.json({ ok: true });
 });
 
 router.post("/auth/me/set-password", async (req, res): Promise<void> => {

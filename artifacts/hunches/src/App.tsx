@@ -44,6 +44,7 @@ import Referral from "@/pages/referral";
 import UserProfile from "@/pages/user-profile";
 import Ranking from "@/pages/ranking";
 import ReportBug from "@/pages/report-bug";
+import { CookieBanner } from "@/components/cookie-banner";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -120,6 +121,7 @@ function App() {
           <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
             <Router />
           </WouterRouter>
+          <CookieBanner />
           <Toaster />
         </TooltipProvider>
       </AuthProvider>

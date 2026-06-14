@@ -27,6 +27,8 @@ export const usersTable = pgTable("users", {
   referralSource: text("referral_source"),
   pendingDeletion: boolean("pending_deletion").notNull().default(false),
   deletionScheduledFor: timestamp("deletion_scheduled_for", { withTimezone: true }),
+  cookieConsent: text("cookie_consent"),
+  cookieConsentAt: timestamp("cookie_consent_at", { withTimezone: true }),
 });
 
 export type User = typeof usersTable.$inferSelect;

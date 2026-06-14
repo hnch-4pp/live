@@ -65,6 +65,8 @@ interface UserDetail {
   paymentMethods: PaymentMethod[];
   referralCode: string | null;
   referralCount: number;
+  cookieConsent: string | null;
+  cookieConsentAt: string | null;
 }
 
 const STATUS_BADGE: Record<UserStatus, { label: string; cls: string }> = {
@@ -623,6 +625,28 @@ export default function AdminUserDetail() {
                 <EditableInfoRow icon={Calendar} label="Date of birth" value={detail.dateOfBirth ?? ""} displayValue={detail.dateOfBirth ? fmtDate(detail.dateOfBirth + "T00:00:00", { year: "numeric", month: "long", day: "numeric" }) : undefined} muted={!detail.dateOfBirth} onSave={(v) => saveField({ dateOfBirth: v })} type="date" />
                 <InfoRow        icon={Calendar} label="Joined"        value={fmtDate(detail.createdAt, { year: "numeric", month: "long", day: "numeric" })} />
                 <InfoRow        icon={Clock}    label="Last access"   value={fmtDateTime(detail.lastAccessAt)} muted={!detail.lastAccessAt} />
+                <div className="flex items-center gap-3 py-2.5 border-t border-gray-100 first:border-0">
+                  <div className="w-7 h-7 rounded-lg bg-gray-50 flex items-center justify-center shrink-0">
+                    <svg className="w-3.5 h-3.5 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 12a4 4 0 0 1 4-4 1 1 0 1 0 0-2 1 1 0 1 0-1 1"/><circle cx="12" cy="12" r="1"/><circle cx="8" cy="10" r="1"/><circle cx="17" cy="12" r="1"/></svg>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs text-gray-400 mb-0.5">Cookie consent</p>
+                    <div className="flex items-center gap-2">
+                      {detail.cookieConsent === "accepted" && (
+                        <span className="text-xs font-semibold bg-green-100 text-green-700 px-2 py-0.5 rounded-full">Accepted</span>
+                      )}
+                      {detail.cookieConsent === "rejected" && (
+                        <span className="text-xs font-semibold bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">Rejected</span>
+                      )}
+                      {!detail.cookieConsent && (
+                        <span className="text-xs text-gray-400">No response yet</span>
+                      )}
+                      {detail.cookieConsentAt && (
+                        <span className="text-xs text-gray-400">{fmtDateTime(detail.cookieConsentAt)}</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
 

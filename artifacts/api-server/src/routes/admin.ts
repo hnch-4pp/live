@@ -1116,6 +1116,8 @@ router.get(
       referralCount,
       country: extractCountry(user.address),
       lastAccessAt: user.lastAccessAt,
+      cookieConsent: user.cookieConsent ?? null,
+      cookieConsentAt: user.cookieConsentAt ?? null,
       ticketStats: {
         currentBalance: user.tickets,
         totalReceived,

@@ -14,6 +14,8 @@ export interface AuthUser {
   tickets: number;
   loginMethod: "password" | "otp";
   hasPassword: boolean;
+  cookieConsent: string | null;
+  cookieConsentAt: string | null;
 }
 
 interface AuthContextValue {
