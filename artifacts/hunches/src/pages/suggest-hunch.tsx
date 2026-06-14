@@ -65,7 +65,7 @@ export default function SuggestHunch() {
           </div>
           <h1 className="text-2xl font-display font-bold text-foreground mb-3">Sugerencia enviada</h1>
           <p className="text-muted-foreground mb-8">
-            Gracias por tu sugerencia. Nuestro equipo la revisara y si encaja con la plataforma, la publicaremos pronto.
+            Gracias por tu sugerencia. Nuestro equipo la revisara y si encaja con la plataforma, la publicaremos pronto y te daremos el credito por haberla propuesto.
           </p>
           <button
             onClick={() => setLocation("/")}
