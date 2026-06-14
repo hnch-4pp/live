@@ -286,6 +286,7 @@ async function buildHunch(hunch: typeof hunchesTable.$inferSelect) {
     resultText: hunch.resultText ?? null,
     resultSources: hunch.resultSources ?? null,
     rules: hunch.rules ?? null,
+    prizeConditions: hunch.prizeConditions ?? null,
     answerType: hunch.answerType,
     ticketCost: hunch.ticketCost,
     tags: hunch.tags ?? null,
