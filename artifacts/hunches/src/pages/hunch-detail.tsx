@@ -267,7 +267,7 @@ function ActivityAvatar({ username, avatarUrl }: { username: string | null; avat
 
 const ACTIVITY_PREVIEW = 7;
 
-function ActivityFeed({ hunchId, dateFnsLocale }: { hunchId: number | string; dateFnsLocale: Locale }) {
+function ActivityFeed({ hunchId, dateFnsLocale, refreshKey = 0 }: { hunchId: number | string; dateFnsLocale: Locale; refreshKey?: number }) {
   const [participants, setParticipants] = useState<ActivityParticipant[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -282,7 +282,7 @@ function ActivityFeed({ hunchId, dateFnsLocale }: { hunchId: number | string; da
       .finally(() => setLoading(false));
   }, [hunchId]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { load(); }, [load, refreshKey]);
 
   const initials = (name: string | null) => {
     if (!name) return "?";
@@ -537,6 +537,7 @@ export default function HunchDetail() {
   const [multiAnswers, setMultiAnswers] = useState<Record<number, string>>({});
 
   const [submitted, setSubmitted] = useState(false);
+  const [activityKey, setActivityKey] = useState(0);
   const [showShareModal, setShowShareModal] = useState(false);
   const [shareSummary, setShareSummary] = useState<string>("");
   const [linkCopied, setLinkCopied] = useState(false);
@@ -613,6 +614,7 @@ export default function HunchDetail() {
       submitPrediction.mutate({ id: hunch?.id ?? 0, data: { answers } as any }, {
         onSuccess: () => {
           setSubmitted(true);
+          setActivityKey((k) => k + 1);
           refetchUser();
           toast({ title: t("prediction_ok_title"), description: t("prediction_ok_desc") });
           queryClient.invalidateQueries({ queryKey: getGetHunchQueryKey(slug ?? "") });
@@ -629,6 +631,7 @@ export default function HunchDetail() {
       submitPrediction.mutate({ id: hunch?.id ?? 0, data: { freeText: trimmed } }, {
         onSuccess: () => {
           setSubmitted(true);
+          setActivityKey((k) => k + 1);
           refetchUser();
           toast({ title: t("prediction_ok_title"), description: t("prediction_ok_desc") });
           queryClient.invalidateQueries({ queryKey: getGetHunchQueryKey(slug ?? "") });
@@ -1410,7 +1413,7 @@ export default function HunchDetail() {
 
             {/* Activity feed */}
             <div className="mt-4">
-              <ActivityFeed hunchId={hunch.id} dateFnsLocale={dateFnsLocale} />
+              <ActivityFeed hunchId={hunch.id} dateFnsLocale={dateFnsLocale} refreshKey={activityKey} />
             </div>
           </div>
 
