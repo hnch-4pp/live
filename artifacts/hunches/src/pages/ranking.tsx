@@ -88,29 +88,18 @@ function Podium({ top3 }: { top3: LeaderboardUser[] }) {
   );
 }
 
-// ── Table row ─────────────────────────────────────────────────────────────────
+// ── List row ──────────────────────────────────────────────────────────────────
 
-function TableRow({ user, rank }: { user: LeaderboardUser; rank: number }) {
+function ListRow({ user, rank }: { user: LeaderboardUser; rank: number }) {
   return (
     <Link href={`/u/${user.username}`}>
-      <tr className="hover:bg-muted/30 transition-colors cursor-pointer">
-        {/* Col 1: Rank */}
-        <td className="pl-5 pr-4 py-4 w-12">
-          <span className="text-sm text-muted-foreground tabular-nums">{rank}</span>
-        </td>
-        {/* Col 2: Username */}
-        <td className="px-4 py-4">
-          <span className="text-sm font-medium text-primary hover:underline">
-            @{user.username}
-          </span>
-        </td>
-        {/* Col 3: Wins */}
-        <td className="pl-4 pr-5 py-4 text-right w-36">
-          <span className="text-sm text-muted-foreground tabular-nums">
-            {user.wins} {user.wins === 1 ? "victoria" : "victorias"}
-          </span>
-        </td>
-      </tr>
+      <div className="flex items-center gap-4 px-5 py-4 hover:bg-muted/30 transition-colors cursor-pointer">
+        <span className="w-6 text-sm text-muted-foreground tabular-nums shrink-0">{rank}</span>
+        <span className="flex-1 text-sm font-medium text-primary truncate">@{user.username}</span>
+        <span className="text-sm text-muted-foreground tabular-nums shrink-0">
+          {user.wins} {user.wins === 1 ? "victoria" : "victorias"}
+        </span>
+      </div>
     </Link>
   );
 }
@@ -211,27 +200,12 @@ export default function RankingPage() {
                   <p className="text-xs text-muted-foreground">{total} jugadores</p>
                 </div>
 
-                {/* Tabla */}
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-border">
-                      <th className="pl-5 pr-4 py-3 w-12 text-left">
-                        <span className="text-sm text-muted-foreground font-normal">#</span>
-                      </th>
-                      <th className="px-4 py-3 text-left">
-                        <span className="text-sm text-muted-foreground font-normal">Usuario</span>
-                      </th>
-                      <th className="pl-4 pr-5 py-3 w-36 text-right">
-                        <span className="text-sm text-muted-foreground font-normal">Victorias</span>
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border">
-                    {rest.map((u, i) => (
-                      <TableRow key={u.id} user={u} rank={top3.length + i + 1} />
-                    ))}
-                  </tbody>
-                </table>
+                {/* Listado */}
+                <div className="divide-y divide-border">
+                  {rest.map((u, i) => (
+                    <ListRow key={u.id} user={u} rank={top3.length + i + 1} />
+                  ))}
+                </div>
 
                 {/* Infinite scroll sentinel */}
                 <div ref={sentinelRef} className="h-1" />
