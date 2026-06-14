@@ -94,24 +94,23 @@ function TableRow({ user, rank }: { user: LeaderboardUser; rank: number }) {
   return (
     <Link href={`/u/${user.username}`}>
       <tr className="hover:bg-muted/40 transition-colors cursor-pointer group">
-        <td className="pl-5 pr-2 py-3.5 w-10">
+        {/* Col 1: Rank */}
+        <td className="pl-5 pr-3 py-3.5 w-12 shrink-0">
           <span className="text-sm font-semibold text-muted-foreground tabular-nums">{rank}</span>
         </td>
+        {/* Col 2: Avatar + Username */}
         <td className="px-3 py-3.5">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 min-w-0">
             <RankAvatar username={user.username} avatarUrl={user.avatarUrl} size={36} />
-            <div className="flex items-baseline gap-2 min-w-0">
-              <span className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors truncate">
-                @{user.username}
-              </span>
-              <span className="text-xs text-muted-foreground shrink-0">
-                {user.wins} {user.wins === 1 ? "victoria" : "victorias"}
-              </span>
-            </div>
+            <span className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors truncate">
+              @{user.username}
+            </span>
           </div>
         </td>
-        <td className="pl-3 pr-5 py-3.5 text-right">
+        {/* Col 3: Wins */}
+        <td className="pl-3 pr-5 py-3.5 text-right w-28 shrink-0">
           <span className="text-sm font-bold tabular-nums text-foreground">{user.wins}</span>
+          <span className="text-xs text-muted-foreground ml-1">{user.wins === 1 ? "victoria" : "victorias"}</span>
         </td>
       </tr>
     </Link>
@@ -218,13 +217,13 @@ export default function RankingPage() {
                 <table className="w-full">
                   <thead>
                     <tr className="border-b border-border bg-muted/30">
-                      <th className="pl-5 pr-2 py-2.5 w-10 text-left">
+                      <th className="pl-5 pr-3 py-2.5 w-12 text-left">
                         <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">#</span>
                       </th>
                       <th className="px-3 py-2.5 text-left">
                         <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Usuario</span>
                       </th>
-                      <th className="pl-3 pr-5 py-2.5 text-right">
+                      <th className="pl-3 pr-5 py-2.5 w-28 text-right">
                         <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Victorias</span>
                       </th>
                     </tr>
