@@ -50,59 +50,26 @@ function RankAvatar({ username, avatarUrl, size = 48 }: { username: string; avat
 // ── Podium for top 3 ─────────────────────────────────────────────────────────
 
 const PODIUM_CONFIG = {
-  1: {
-    order: 2,
-    barH: "h-36",
-    barBg: "bg-amber-400",
-    numColor: "text-amber-300",
-    avatarSize: 72,
-    crown: true,
-    label: "Oro",
-  },
-  2: {
-    order: 1,
-    barH: "h-24",
-    barBg: "bg-slate-300",
-    numColor: "text-slate-200",
-    avatarSize: 60,
-    crown: false,
-    label: "Plata",
-  },
-  3: {
-    order: 3,
-    barH: "h-16",
-    barBg: "bg-amber-600",
-    numColor: "text-amber-500",
-    avatarSize: 56,
-    crown: false,
-    label: "Bronce",
-  },
+  1: { order: 2, barH: "h-36", barBg: "bg-amber-400", numColor: "text-amber-200", avatarSize: 72, crown: true },
+  2: { order: 1, barH: "h-24", barBg: "bg-slate-300", numColor: "text-slate-200", avatarSize: 60, crown: false },
+  3: { order: 3, barH: "h-16", barBg: "bg-amber-600", numColor: "text-amber-400", avatarSize: 56, crown: false },
 } as const;
 
 function PodiumColumn({ user, rank }: { user: LeaderboardUser; rank: 1 | 2 | 3 }) {
   const cfg = PODIUM_CONFIG[rank];
   return (
     <Link href={`/u/${user.username}`}>
-      <div className="flex flex-col items-center gap-2 cursor-pointer group" style={{ order: cfg.order }}>
-        {/* Crown for 1st */}
-        {cfg.crown && (
-          <span className="text-3xl mb-1 drop-shadow">👑</span>
-        )}
-        {/* Avatar */}
-        <div className="relative">
-          <RankAvatar username={user.username} avatarUrl={user.avatarUrl} size={cfg.avatarSize} />
-        </div>
-        {/* Name */}
-        <p className="text-sm font-bold text-foreground group-hover:text-primary transition-colors truncate max-w-[90px] text-center">
+      <div className="flex flex-col items-center gap-1.5 cursor-pointer group" style={{ order: cfg.order }}>
+        {cfg.crown && <span className="text-3xl mb-0.5 drop-shadow">👑</span>}
+        <RankAvatar username={user.username} avatarUrl={user.avatarUrl} size={cfg.avatarSize} />
+        <p className="text-sm font-bold text-foreground group-hover:text-primary transition-colors truncate max-w-[90px] text-center mt-1">
           @{user.username}
         </p>
-        {/* Wins */}
-        <p className="text-xs font-semibold text-muted-foreground">
+        <p className="text-xs text-muted-foreground">
           {user.wins} {user.wins === 1 ? "victoria" : "victorias"}
         </p>
-        {/* Podium bar */}
         <div className={`w-28 sm:w-36 ${cfg.barH} ${cfg.barBg} rounded-t-2xl flex flex-col items-center justify-center gap-1 shadow-md`}>
-          <Trophy className="w-6 h-6 text-white/60" />
+          <Trophy className="w-5 h-5 text-white/50" />
           <span className={`text-4xl font-black ${cfg.numColor}`}>{rank}</span>
         </div>
       </div>
@@ -113,7 +80,7 @@ function PodiumColumn({ user, rank }: { user: LeaderboardUser; rank: 1 | 2 | 3 }
 function Podium({ top3 }: { top3: LeaderboardUser[] }) {
   const [first, second, third] = top3;
   return (
-    <div className="flex items-end justify-center gap-4 sm:gap-6 pb-0">
+    <div className="flex items-end justify-center gap-4 sm:gap-6">
       {second && <PodiumColumn user={second} rank={2} />}
       {first  && <PodiumColumn user={first}  rank={1} />}
       {third  && <PodiumColumn user={third}  rank={3} />}
@@ -121,24 +88,30 @@ function Podium({ top3 }: { top3: LeaderboardUser[] }) {
   );
 }
 
-// ── Table row (rank 4+) ───────────────────────────────────────────────────────
+// ── Table row ─────────────────────────────────────────────────────────────────
 
 function TableRow({ user, rank }: { user: LeaderboardUser; rank: number }) {
   return (
     <Link href={`/u/${user.username}`}>
-      <tr className="hover:bg-muted/30 transition-colors cursor-pointer">
-        <td className="px-4 py-3 text-center">
-          <span className="text-sm font-semibold text-muted-foreground tabular-nums w-8 inline-block">{rank}</span>
+      <tr className="hover:bg-muted/40 transition-colors cursor-pointer group">
+        <td className="pl-5 pr-2 py-3.5 w-10">
+          <span className="text-sm font-semibold text-muted-foreground tabular-nums">{rank}</span>
         </td>
-        <td className="px-4 py-3">
+        <td className="px-3 py-3.5">
           <div className="flex items-center gap-3">
             <RankAvatar username={user.username} avatarUrl={user.avatarUrl} size={36} />
-            <span className="text-sm font-semibold text-foreground">@{user.username}</span>
+            <div className="flex items-baseline gap-2 min-w-0">
+              <span className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors truncate">
+                @{user.username}
+              </span>
+              <span className="text-xs text-muted-foreground shrink-0">
+                {user.wins} {user.wins === 1 ? "victoria" : "victorias"}
+              </span>
+            </div>
           </div>
         </td>
-        <td className="px-4 py-3 text-right">
-          <span className="text-sm font-bold text-foreground tabular-nums">{user.wins}</span>
-          <span className="text-xs text-muted-foreground ml-1">{user.wins === 1 ? "victoria" : "victorias"}</span>
+        <td className="pl-3 pr-5 py-3.5 text-right">
+          <span className="text-sm font-bold tabular-nums text-foreground">{user.wins}</span>
         </td>
       </tr>
     </Link>
@@ -202,17 +175,15 @@ export default function RankingPage() {
     <Layout>
       <div className="max-w-4xl mx-auto px-4 py-8 sm:py-12">
 
-        {/* Header */}
-        <div className="flex items-center gap-3 mb-10">
-          <div className="w-10 h-10 rounded-2xl bg-amber-100 flex items-center justify-center">
-            <Trophy className="w-5 h-5 text-amber-500" />
+        {/* ── Header centrado ── */}
+        <div className="flex flex-col items-center gap-2 mb-10 text-center">
+          <div className="w-12 h-12 rounded-2xl bg-amber-100 flex items-center justify-center mb-1">
+            <Trophy className="w-6 h-6 text-amber-500" />
           </div>
-          <div>
-            <h1 className="text-2xl font-black text-foreground leading-tight">Ranking</h1>
-            {!loading && total > 0 && (
-              <p className="text-xs text-muted-foreground">{total} jugadores con victorias</p>
-            )}
-          </div>
+          <h1 className="text-3xl font-black text-foreground leading-tight">Ranking</h1>
+          {!loading && total > 0 && (
+            <p className="text-sm text-muted-foreground">{total} jugadores con victorias</p>
+          )}
         </div>
 
         {loading ? (
@@ -233,34 +204,39 @@ export default function RankingPage() {
               </div>
             )}
 
-            {/* ── Rest table ── */}
+            {/* ── Tabla general ── */}
             {rest.length > 0 && (
               <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm">
+
+                {/* Cabecera de la card */}
                 <div className="px-5 py-4 border-b border-border flex items-center justify-between">
                   <p className="text-sm font-bold text-foreground">Tabla general</p>
                   <p className="text-xs text-muted-foreground">{total} jugadores</p>
                 </div>
+
+                {/* Tabla */}
                 <table className="w-full">
                   <thead>
                     <tr className="border-b border-border bg-muted/30">
-                      <th className="px-4 py-2.5 text-center w-12">
-                        <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">#</span>
+                      <th className="pl-5 pr-2 py-2.5 w-10 text-left">
+                        <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">#</span>
                       </th>
-                      <th className="px-4 py-2.5 text-left">
-                        <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Usuario</span>
+                      <th className="px-3 py-2.5 text-left">
+                        <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Usuario</span>
                       </th>
-                      <th className="px-4 py-2.5 text-right">
-                        <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Victorias</span>
+                      <th className="pl-3 pr-5 py-2.5 text-right">
+                        <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Victorias</span>
                       </th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-border">
+                  <tbody className="divide-y divide-border/60">
                     {rest.map((u, i) => (
                       <TableRow key={u.id} user={u} rank={top3.length + i + 1} />
                     ))}
                   </tbody>
                 </table>
 
+                {/* Infinite scroll sentinel */}
                 <div ref={sentinelRef} className="h-1" />
                 {loadingMore && (
                   <div className="flex justify-center py-4 border-t border-border">
@@ -268,7 +244,7 @@ export default function RankingPage() {
                   </div>
                 )}
                 {!hasMore && rest.length > 0 && (
-                  <div className="px-4 py-3 border-t border-border text-center">
+                  <div className="px-4 py-4 border-t border-border text-center">
                     <p className="text-xs text-muted-foreground">Todos los jugadores cargados</p>
                   </div>
                 )}
