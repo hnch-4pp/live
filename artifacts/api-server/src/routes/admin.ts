@@ -19,6 +19,7 @@ import {
   hunchQuestionsTable,
   topNotificationsTable,
   trendingTopicsTable,
+  hunchTranslationsTable,
 } from "@workspace/db";
 import { eq, or, ilike, sql, desc, and, asc, isNull, isNotNull } from "drizzle-orm";
 import { getUncachableStripeClient } from "../stripeClient";
@@ -740,6 +741,11 @@ router.patch(
       if (opts.length > 0) {
         await db.insert(optionsTable).values(opts.map((label) => ({ hunchId: id, label, percentage: 0 })));
       }
+    }
+
+    // Invalidate translation cache when content fields change
+    if ("title" in req.body || "description" in req.body) {
+      await db.delete(hunchTranslationsTable).where(eq(hunchTranslationsTable.hunchId, id));
     }
 
     if (req.body.notifyWinners === true) {
