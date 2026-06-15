@@ -11,6 +11,15 @@ function ordinal(n: number): string {
   return n + (s[(v - 20) % 10] ?? s[v] ?? s[0]);
 }
 
+function fmtPred(val: string): string {
+  const stripped = val.replace(/,/g, "");
+  const n = parseFloat(stripped);
+  if (!isFinite(n) || stripped.trim() === "") return val;
+  const parts = stripped.split(".");
+  const intPart = Math.trunc(Number(parts[0])).toLocaleString("en-US");
+  return parts.length > 1 ? intPart + "." + parts[1] : intPart;
+}
+
 const RANK_CONFIG: Record<number, { label: string; bg: string; border: string; badge: string; btn: string }> = {
   1: { label: "1st", bg: "bg-amber-50/60",  border: "border-amber-300",  badge: "bg-amber-100 text-amber-800 border-amber-200",  btn: "border-amber-300 text-amber-700 hover:bg-amber-50"  },
   2: { label: "2nd", bg: "bg-slate-50/60",  border: "border-slate-300",  badge: "bg-slate-100 text-slate-700 border-slate-200",  btn: "border-slate-300 text-slate-600 hover:bg-slate-50"  },
@@ -1002,7 +1011,7 @@ export default function HunchForm() {
                           <span className="text-sm font-semibold text-gray-900">{displayName}</span>
                           <div className="flex items-center gap-1.5 mt-0.5">
                             <span className="text-xs text-gray-400">Predicted:</span>
-                            <span className="text-xs font-semibold text-gray-800">{p.optionLabel}</span>
+                            <span className="text-xs font-semibold text-gray-800">{fmtPred(p.optionLabel)}</span>
                           </div>
                         </div>
                         <span className="text-xs text-gray-400 shrink-0 tabular-nums hidden sm:block">

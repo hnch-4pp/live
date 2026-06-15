@@ -43,6 +43,15 @@ function numVal(s: string): number {
   return isNaN(n) ? 0 : n;
 }
 
+function fmtPred(val: string): string {
+  const stripped = val.replace(/,/g, "");
+  const n = parseFloat(stripped);
+  if (!isFinite(n) || stripped.trim() === "") return val;
+  const parts = stripped.split(".");
+  const intPart = Math.trunc(Number(parts[0])).toLocaleString("en-US");
+  return parts.length > 1 ? intPart + "." + parts[1] : intPart;
+}
+
 function formatTs(ts: string | Date): string {
   return new Date(ts).toLocaleString("es-MX", {
     day: "2-digit", month: "2-digit", year: "numeric",
@@ -464,7 +473,7 @@ export default function HunchParticipants() {
                       <span className="text-sm font-semibold text-gray-900">{displayName}</span>
                       <div className="flex items-center gap-1.5 mt-0.5">
                         <span className="text-xs text-gray-400">Predicted:</span>
-                        <span className="text-xs font-semibold text-gray-800">{p.optionLabel}</span>
+                        <span className="text-xs font-semibold text-gray-800">{fmtPred(p.optionLabel)}</span>
                       </div>
                     </div>
                     <span className="text-xs text-gray-400 shrink-0 tabular-nums hidden sm:block">
@@ -526,7 +535,7 @@ export default function HunchParticipants() {
                       <span className="text-sm font-semibold text-gray-900">{displayName}</span>
                       <div className="flex items-center gap-1.5 mt-0.5">
                         <span className="text-xs text-gray-400">Predicted:</span>
-                        <span className="text-xs font-semibold text-gray-800">{p.optionLabel}</span>
+                        <span className="text-xs font-semibold text-gray-800">{fmtPred(p.optionLabel)}</span>
                       </div>
                     </div>
                     <span className="text-xs text-gray-400 shrink-0 tabular-nums hidden sm:block">

@@ -852,7 +852,7 @@ export default function HunchDetail() {
                                 @{w.username}
                               </Link>
                               {w.prediction && (
-                                <span className="text-xs text-muted-foreground">Predicción: {w.prediction}</span>
+                                <span className="text-xs text-muted-foreground">Predicción: {fmtNumericLabel(w.prediction)}</span>
                               )}
                               <span className="text-xs text-muted-foreground">
                                 {w.prizeLabel}{w.prizeValue ? ` · ${w.prizeValue}` : ""}
@@ -937,7 +937,7 @@ export default function HunchDetail() {
                                     .map((p, i) => (
                                       <tr key={i} className="hover:bg-muted/20 transition-colors">
                                         <td className="px-3 py-2 text-xs font-semibold text-primary">@{p.username}</td>
-                                        <td className="px-3 py-2 text-xs text-foreground">{p.answer}</td>
+                                        <td className="px-3 py-2 text-xs text-foreground">{fmtNumericLabel(p.answer)}</td>
                                         <td className="px-3 py-2 text-xs text-muted-foreground whitespace-nowrap">
                                           {format(new Date(p.submittedAt), "dd/MM/yy HH:mm", { locale: dateFnsLocale })}
                                         </td>
