@@ -262,6 +262,22 @@ async function runAppMigrations(): Promise<void> {
   await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS cookie_consent TEXT`);
   await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS cookie_consent_at TIMESTAMPTZ`);
 
+  // Per-user notifications
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS user_notifications (
+      id         SERIAL PRIMARY KEY,
+      user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      title      TEXT NOT NULL,
+      body       TEXT NOT NULL,
+      link       TEXT,
+      read_at    TIMESTAMPTZ,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+  await db.execute(sql`
+    CREATE INDEX IF NOT EXISTS user_notifications_user_idx ON user_notifications(user_id)
+  `);
+
   logger.info("App schema migrations applied");
 }
 

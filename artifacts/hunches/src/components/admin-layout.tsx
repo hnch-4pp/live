@@ -13,6 +13,7 @@ const NAV = [
   { href: "/backstage/users",             label: "Users",            icon: Users },
   { href: "/backstage/ticket-codes",      label: "Ticket Codes",     icon: Ticket },
   { href: "/backstage/notifications",     label: "Notifications",    icon: Bell },
+  { href: "/backstage/send-notifications", label: "Send to Users",   icon: BellRing, sub: true },
   { href: "/backstage/admin-alerts",      label: "Admin Alerts",     icon: BellRing },
   { href: "/backstage/metrics",           label: "Metrics",          icon: BarChart2 },
   { href: "/backstage/affiliates",        label: "Affiliates",       icon: Link2 },

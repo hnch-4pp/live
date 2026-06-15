@@ -1,7 +1,7 @@
 import { Link, useLocation, useSearch } from "wouter";
 import { Button } from "@/components/ui/button";
 import { useEffect, useRef, useState } from "react";
-import { Globe, ChevronDown, Search, X, Trophy, Music, Film, Clapperboard, TrendingUp, Star, Zap as ZapIcon, Globe2, Heart as HeartIcon, LogOut, Settings, Ticket, Target, Users, Gift, Award, Lightbulb } from "lucide-react";
+import { Globe, ChevronDown, Search, X, Trophy, Music, Film, Clapperboard, TrendingUp, Star, Zap as ZapIcon, Globe2, Heart as HeartIcon, LogOut, Settings, Ticket, Target, Users, Gift, Award, Lightbulb, Bell } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import i18n from "@/i18n";
 import { useListCategories } from "@workspace/api-client-react";
@@ -161,6 +161,7 @@ function AuthButtons() {
   const [, setLocation] = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
   const [isAffiliate, setIsAffiliate] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -178,6 +179,20 @@ function AuthButtons() {
       .catch(() => setIsAffiliate(false));
   }, [user?.id]);
 
+  useEffect(() => {
+    if (!user) { setUnreadCount(0); return; }
+    let cancelled = false;
+    function fetchCount() {
+      fetch(apiUrl("/api/notifications/me/unread-count"), { credentials: "include" })
+        .then((r) => r.ok ? r.json() : null)
+        .then((d: { count: number } | null) => { if (!cancelled && d) setUnreadCount(d.count); })
+        .catch(() => {});
+    }
+    fetchCount();
+    const interval = setInterval(fetchCount, 60_000);
+    return () => { cancelled = true; clearInterval(interval); };
+  }, [user?.id]);
+
   if (isLoading) return <div className="w-20 h-8 bg-muted rounded-lg animate-pulse" />;
 
   if (user) {
@@ -188,22 +203,39 @@ function AuthButtons() {
           onClick={() => setMenuOpen((o) => !o)}
           className="flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-muted transition-colors text-sm font-medium text-foreground"
         >
-          <div className="w-7 h-7 rounded-full bg-primary/15 flex items-center justify-center shrink-0 overflow-hidden">
-            {user.avatarUrl ? (
-              <img src={user.avatarUrl.startsWith("http://") || user.avatarUrl.startsWith("https://") ? user.avatarUrl : `/api/storage${user.avatarUrl}`} alt="avatar" className="w-full h-full object-cover" />
-            ) : (
-              <span className="text-[10px] font-bold text-primary">{navInitials}</span>
+          <div className="relative w-7 h-7 shrink-0">
+            <div className="w-7 h-7 rounded-full bg-primary/15 flex items-center justify-center overflow-hidden">
+              {user.avatarUrl ? (
+                <img src={user.avatarUrl.startsWith("http://") || user.avatarUrl.startsWith("https://") ? user.avatarUrl : `/api/storage${user.avatarUrl}`} alt="avatar" className="w-full h-full object-cover" />
+              ) : (
+                <span className="text-[10px] font-bold text-primary">{navInitials}</span>
+              )}
+            </div>
+            {unreadCount > 0 && (
+              <span className="absolute -top-0.5 -right-0.5 w-3 h-3 bg-red-500 border-2 border-background rounded-full" />
             )}
           </div>
           <span className="hidden sm:block max-w-[120px] truncate">{user.username ?? user.email.split("@")[0]}</span>
           <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" style={{ transform: menuOpen ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 200ms" }} />
         </button>
         {menuOpen && (
-          <div className="absolute top-full mt-2 right-0 w-52 rounded-xl border border-border bg-card shadow-xl shadow-black/10 overflow-hidden z-50">
+          <div className="absolute top-full mt-2 right-0 w-56 rounded-xl border border-border bg-card shadow-xl shadow-black/10 overflow-hidden z-50">
             <div className="px-4 py-3 border-b border-border">
               <p className="text-xs text-muted-foreground">{t("signed_in_as")}</p>
               <p className="text-sm font-semibold text-foreground truncate">{user.username ? `@${user.username}` : user.email}</p>
             </div>
+            <button
+              onClick={() => { setMenuOpen(false); setLocation("/notifications"); }}
+              className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+            >
+              <Bell className="w-4 h-4" />
+              <span className="flex-1">Notificaciones</span>
+              {unreadCount > 0 && (
+                <span className="min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center">
+                  {unreadCount > 99 ? "99+" : unreadCount}
+                </span>
+              )}
+            </button>
             <button
               onClick={() => { setMenuOpen(false); setLocation("/tickets"); }}
               className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"

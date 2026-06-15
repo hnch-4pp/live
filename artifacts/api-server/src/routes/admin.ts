@@ -20,8 +20,9 @@ import {
   topNotificationsTable,
   trendingTopicsTable,
   hunchTranslationsTable,
+  userNotificationsTable,
 } from "@workspace/db";
-import { eq, or, ilike, sql, desc, and, asc, isNull, isNotNull } from "drizzle-orm";
+import { eq, or, ilike, sql, desc, and, asc, isNull, isNotNull, inArray, gte, lte } from "drizzle-orm";
 import { getUncachableStripeClient } from "../stripeClient";
 import { handleCheckoutSessionCompleted } from "../webhookHandlers";
 import { getAdminAlertPrefs, saveAdminAlertPrefs, DEFAULT_ALERT_PREFS } from "../adminAlerts";
@@ -2782,6 +2783,80 @@ router.post("/admin/recover-stripe-subscriptions", requireAdmin, requireAdminHea
     req.log.error({ err }, "recover-stripe-subscriptions failed");
     res.status(500).json({ ok: false, error: err instanceof Error ? err.message : String(err) });
   }
+});
+
+// ─── User Notifications — Admin Broadcast ────────────────────────────────────
+
+type Segment = "all" | "subscribers" | "free" | "active_30d" | "has_predictions" | "has_referrals";
+
+router.post("/admin/notifications/push", requireAdmin, requireAdminHeader, async (req, res): Promise<void> => {
+  const { title, body, link, segment } = req.body as { title?: string; body?: string; link?: string; segment?: Segment };
+  if (!title?.trim() || !body?.trim()) {
+    res.status(400).json({ error: "title and body are required" });
+    return;
+  }
+
+  const seg = (segment ?? "all") as Segment;
+
+  // Resolve target user IDs based on segment
+  let userIds: number[];
+
+  if (seg === "all") {
+    const rows = await db.select({ id: usersTable.id }).from(usersTable)
+      .where(and(eq(usersTable.status, "active"), eq(usersTable.pendingDeletion, false)));
+    userIds = rows.map((r) => r.id);
+  } else if (seg === "subscribers") {
+    const rows = await db.select({ userId: subscriptionsTable.userId }).from(subscriptionsTable)
+      .where(eq(subscriptionsTable.status, "active"));
+    userIds = rows.map((r) => r.userId);
+  } else if (seg === "free") {
+    const subUserIds = (await db.select({ userId: subscriptionsTable.userId }).from(subscriptionsTable)
+      .where(eq(subscriptionsTable.status, "active"))).map((r) => r.userId);
+    const all = await db.select({ id: usersTable.id }).from(usersTable)
+      .where(and(eq(usersTable.status, "active"), eq(usersTable.pendingDeletion, false)));
+    userIds = all.map((r) => r.id).filter((id) => !subUserIds.includes(id));
+  } else if (seg === "active_30d") {
+    const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const rows = await db.select({ id: usersTable.id }).from(usersTable)
+      .where(and(
+        eq(usersTable.status, "active"),
+        eq(usersTable.pendingDeletion, false),
+        gte(usersTable.lastAccessAt, cutoff),
+      ));
+    userIds = rows.map((r) => r.id);
+  } else if (seg === "has_predictions") {
+    const rows = await db.selectDistinct({ userId: predictionsTable.userId }).from(predictionsTable)
+      .where(isNotNull(predictionsTable.userId));
+    userIds = rows.map((r) => r.userId).filter((id): id is number => id !== null);
+  } else if (seg === "has_referrals") {
+    const rows = await db.select({ id: usersTable.id }).from(usersTable)
+      .where(and(
+        eq(usersTable.status, "active"),
+        eq(usersTable.pendingDeletion, false),
+        isNotNull(usersTable.referralCode),
+        sql`(SELECT COUNT(*) FROM users u2 WHERE u2.referred_by_user_id = users.id) > 0`,
+      ));
+    userIds = rows.map((r) => r.id);
+  } else {
+    res.status(400).json({ error: "Invalid segment" });
+    return;
+  }
+
+  if (userIds.length === 0) {
+    res.json({ ok: true, count: 0 });
+    return;
+  }
+
+  // Insert one notification per user in batches of 500
+  const batchSize = 500;
+  const payload = { title: title.trim(), body: body.trim(), link: link?.trim() || null };
+  for (let i = 0; i < userIds.length; i += batchSize) {
+    const batch = userIds.slice(i, i + batchSize);
+    await db.insert(userNotificationsTable).values(batch.map((userId) => ({ userId, ...payload })));
+  }
+
+  req.log.info({ count: userIds.length, segment: seg }, "Admin broadcast sent");
+  res.json({ ok: true, count: userIds.length });
 });
 
 // ─── Trending Topics CRUD ─────────────────────────────────────────────────────
