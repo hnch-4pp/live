@@ -16,6 +16,11 @@ const router: IRouter = Router();
 
 const isDev = process.env.NODE_ENV !== "production";
 
+// ── Member-Get-Member constants (shared across referral + delete routes) ──────
+const MGM_REFERRER_TICKETS = 10;
+const MGM_NEW_USER_TICKETS  = 5;
+const REFERRAL_REVERSAL_WINDOW_MS = 24 * 60 * 60 * 1000; // 24 h
+
 function generateOtp(): string {
   return String(Math.floor(100000 + Math.random() * 900000));
 }
@@ -945,6 +950,22 @@ router.delete("/auth/me", async (req, res): Promise<void> => {
       .update(usersTable)
       .set({ pendingDeletion: true, deletionScheduledFor: deletionDate })
       .where(eq(usersTable.id, userId));
+
+    // Referral reversal: revoke referrer's bonus if account cancelled within 24 h
+    const accountAgeMsSub = Date.now() - new Date(user.createdAt).getTime();
+    if (user.referredByUserId && accountAgeMsSub <= REFERRAL_REVERSAL_WINDOW_MS) {
+      await db.update(usersTable)
+        .set({ tickets: sql`GREATEST(0, tickets - ${MGM_REFERRER_TICKETS})` })
+        .where(eq(usersTable.id, user.referredByUserId));
+      await db.insert(ticketTransactionsTable).values({
+        userId: user.referredByUserId,
+        type: "referral",
+        amount: -MGM_REFERRER_TICKETS,
+        label: `Referido canceló su cuenta — -${MGM_REFERRER_TICKETS} tickets`,
+        reference: user.username ?? user.email,
+      });
+    }
+
     sendAdminAlert(
       "account_delete",
       "User scheduled account deletion",
@@ -953,6 +974,21 @@ router.delete("/auth/me", async (req, res): Promise<void> => {
     ).catch(() => {});
     res.json({ ok: true, scheduled: true, deletionDate: deletionDate.toISOString() });
     return;
+  }
+
+  // Referral reversal: revoke referrer's bonus if account cancelled within 24 h
+  const accountAgeMs = Date.now() - new Date(user.createdAt).getTime();
+  if (user.referredByUserId && accountAgeMs <= REFERRAL_REVERSAL_WINDOW_MS) {
+    await db.update(usersTable)
+      .set({ tickets: sql`GREATEST(0, tickets - ${MGM_REFERRER_TICKETS})` })
+      .where(eq(usersTable.id, user.referredByUserId));
+    await db.insert(ticketTransactionsTable).values({
+      userId: user.referredByUserId,
+      type: "referral",
+      amount: -MGM_REFERRER_TICKETS,
+      label: `Referido canceló su cuenta — -${MGM_REFERRER_TICKETS} tickets`,
+      reference: user.username ?? user.email,
+    });
   }
 
   // Free plan: delete immediately (FK-safe order)
@@ -1131,9 +1167,6 @@ router.get("/auth/tickets/activity", async (req, res): Promise<void> => {
 });
 
 // ── Member-Get-Member: referral code redemption ──────────────────────────────
-
-const MGM_NEW_USER_TICKETS = 5;
-const MGM_REFERRER_TICKETS = 10;
 
 router.post("/auth/referral-codes/redeem", async (req, res): Promise<void> => {
   if (!req.session.userId) { res.status(401).json({ error: "Not authenticated" }); return; }
