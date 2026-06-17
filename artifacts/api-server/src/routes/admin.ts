@@ -756,6 +756,11 @@ router.patch(
       ]).catch((err) => logger.error({ err, hunchId: hunch.id }, "Error sending result notification emails"));
     }
 
+    if (req.body.notifyParticipants === true) {
+      sendParticipantResultsEmails(hunch.id)
+        .catch((err) => logger.error({ err, hunchId: hunch.id }, "Error sending participant result emails"));
+    }
+
     res.json(hunch);
   },
 );

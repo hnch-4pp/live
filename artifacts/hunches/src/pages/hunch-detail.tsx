@@ -4,7 +4,7 @@ import { format, formatDistanceToNow, isPast, type Locale } from "date-fns";
 import {
   enUS, es, de, fr, pt, it, ja, ko, zhCN, id as idLocale, tr,
 } from "date-fns/locale";
-import { ArrowLeft, Users, Clock, Share2, AlertCircle, Trophy, CheckCircle2, Gift, Award, DollarSign, ChevronDown, ChevronUp, Check, Ticket, X, Info, Hash, Percent, Sigma, Calendar, Clock as ClockIcon, Layers, Link as LinkIcon, Image, Video, ExternalLink, Activity, UserCircle2, ChevronRight } from "lucide-react";
+import { ArrowLeft, Users, Clock, Share2, AlertCircle, Trophy, CheckCircle2, Gift, Award, DollarSign, ChevronDown, ChevronUp, Check, Ticket, X, Info, Hash, Percent, Sigma, Calendar, Clock as ClockIcon, Layers, Link as LinkIcon, Image, Video, ExternalLink, Activity, UserCircle2, ChevronRight, Ban } from "lucide-react";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, LabelList,
 } from "recharts";
@@ -826,7 +826,15 @@ export default function HunchDetail() {
                         ))}
                       </div>
                     ) : !hasWinners ? (
-                      <p className="text-sm text-muted-foreground">No winners have been recorded yet.</p>
+                      <div className="flex items-center gap-3 px-4 py-4 rounded-xl bg-slate-50 border border-slate-200">
+                        <div className="w-8 h-8 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center shrink-0">
+                          <Ban className="w-4 h-4 text-slate-400" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-semibold text-slate-700">Premio desierto</p>
+                          <p className="text-xs text-slate-500 mt-0.5">Todos los participantes superaron el resultado — ningun premio fue otorgado.</p>
+                        </div>
+                      </div>
                     ) : (
                       <div className="space-y-2">
                         {winnersData.winners.map((w, idx) => (
