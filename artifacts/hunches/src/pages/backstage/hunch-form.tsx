@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useLocation, useParams } from "wouter";
 import { AdminLayout } from "@/components/admin-layout";
 import { useAdminAuth, adminFetch } from "./dashboard";
+import { useToast } from "@/hooks/use-toast";
 import { apiUrl } from "@/lib/apiFetch";
 import { Check, ChevronLeft, Hash, Percent, Sigma, Calendar, Clock, Plus, Trash2, Gift, Layers, List, Users, Trophy, ChevronDown, Link as LinkIcon, Image, Video, X, Upload } from "lucide-react";
 
@@ -265,6 +266,7 @@ export default function HunchForm() {
 
   const params = useParams<{ id?: string }>();
   const [, setLocation] = useLocation();
+  const { toast } = useToast();
   const isEditing = !!params.id;
 
   const [form, setForm]           = useState({ ...EMPTY });
@@ -411,7 +413,16 @@ export default function HunchForm() {
       ? await adminFetch(`/admin/hunches/${params.id}`, { method: "PATCH", body: JSON.stringify(body) })
       : await adminFetch("/admin/hunches", { method: "POST", body: JSON.stringify(body) });
     if (res.ok) {
-      setLocation("/backstage/hunches");
+      if (isEditing) {
+        toast({ title: "Cambios guardados", description: "El hunch se actualizó correctamente." });
+      } else {
+        const created = await res.json() as { id?: number };
+        if (created.id) {
+          setLocation(`/backstage/hunches/${created.id}`);
+        } else {
+          setLocation("/backstage/hunches");
+        }
+      }
     } else {
       let errMsg = "Failed to save";
       try {
