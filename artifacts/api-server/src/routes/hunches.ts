@@ -239,6 +239,19 @@ async function buildHunch(hunch: typeof hunchesTable.$inferSelect) {
         .filter((o) => o.questionId === q.id)
         .map((o) => ({ id: o.id, label: o.label, percentage: o.percentage })),
     }));
+
+    // Legacy fallback: if questions exist but none have options linked by questionId,
+    // check for options stored with questionId = null and assign them to the first question.
+    const hasOptionsWithQid = allOptions.some((o) => o.questionId !== null);
+    const nullQidOptions = allOptions.filter((o) => o.questionId === null);
+    if (!hasOptionsWithQid && nullQidOptions.length > 0 && questions.length > 0) {
+      questions = questions.map((q, i) => ({
+        ...q,
+        options: i === 0
+          ? nullQidOptions.map((o) => ({ id: o.id, label: o.label, percentage: o.percentage }))
+          : q.options,
+      }));
+    }
   }
 
   // Parse winnerAnswers for multi hunches
@@ -272,7 +285,7 @@ async function buildHunch(hunch: typeof hunchesTable.$inferSelect) {
     },
     prizeTiers,
     prizePoolTotal,
-    options: isMulti
+    options: isMulti && questions.length > 0
       ? []
       : allOptions.map((o) => ({ id: o.id, label: o.label, percentage: o.percentage })),
     questions,

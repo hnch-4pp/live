@@ -85,10 +85,12 @@ export function HunchCard({ hunch, featured = false }: HunchCardProps) {
     return t("status_open");
   })();
 
-  const firstQuestion = (hunch as any)?.questions?.[0] as { prompt: string; options: Array<{ id: number; label: string; percentage: number }> } | undefined;
+  const allQuestions = ((hunch as any)?.questions ?? []) as Array<{ prompt: string; options: Array<{ id: number; label: string; percentage: number }> }>;
+  const firstQuestion = allQuestions[0];
+  const firstQuestionWithOptions = allQuestions.find((q) => q.options?.length > 0) ?? firstQuestion;
   const displayOptions: Array<{ id: number; label: string; percentage: number }> =
-    hunch.isMulti && hunch.options.length === 0 && firstQuestion?.options?.length
-      ? firstQuestion.options
+    hunch.isMulti && firstQuestionWithOptions?.options?.length
+      ? firstQuestionWithOptions.options
       : hunch.options;
 
   const topOption = displayOptions.length > 0
