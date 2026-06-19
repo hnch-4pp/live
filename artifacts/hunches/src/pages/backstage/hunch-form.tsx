@@ -13,11 +13,12 @@ function ordinal(n: number): string {
 
 function fmtPred(val: string): string {
   if (!val || val.toLowerCase() === "nan") return "—";
-  const stripped = val.replace(/,/g, "");
-  const n = parseFloat(stripped);
-  if (!isFinite(n) || stripped.trim() === "") return val;
+  const stripped = val.replace(/,/g, "").trim();
+  if (stripped === "") return val;
+  const n = Number(stripped);
+  if (!isFinite(n)) return val;
   const parts = stripped.split(".");
-  const intPart = Math.trunc(Number(parts[0])).toLocaleString("en-US");
+  const intPart = Math.trunc(n).toLocaleString("en-US");
   return parts.length > 1 ? intPart + "." + parts[1] : intPart;
 }
 

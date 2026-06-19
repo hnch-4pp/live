@@ -21,10 +21,11 @@ import { useTranslation } from "react-i18next";
 import { useAuth } from "@/hooks/use-auth";
 
 function fmtNumericLabel(label: string): string {
-  if (label.includes(" / ")) return label;
-  const stripped = label.replace(/,/g, "");
-  const n = parseFloat(stripped);
-  if (!isFinite(n) || stripped.trim() === "") return label;
+  if (!label) return label;
+  const stripped = label.replace(/,/g, "").trim();
+  if (stripped === "") return label;
+  const n = Number(stripped);
+  if (!isFinite(n)) return label;
   const parts = stripped.split(".");
   const intPart = Math.trunc(n).toLocaleString("en-US");
   return parts.length > 1 ? intPart + "." + parts[1] : intPart;
