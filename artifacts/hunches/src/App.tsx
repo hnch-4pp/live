@@ -18,6 +18,7 @@ import AdminDashboard from "@/pages/backstage/dashboard";
 import AdminHunches from "@/pages/backstage/hunches";
 import HunchForm from "@/pages/backstage/hunch-form";
 import HunchParticipants from "@/pages/backstage/hunch-participants";
+import AwardPrize from "@/pages/backstage/award-prize";
 import AdminCategories from "@/pages/backstage/categories";
 import AdminUsers from "@/pages/backstage/users";
 import AdminUserDetail from "@/pages/backstage/user-detail";
@@ -47,6 +48,7 @@ import UserProfile from "@/pages/user-profile";
 import Ranking from "@/pages/ranking";
 import ReportBug from "@/pages/report-bug";
 import SuggestHunch from "@/pages/suggest-hunch";
+import PrizesPage from "@/pages/prizes";
 import { CookieBanner } from "@/components/cookie-banner";
 
 const queryClient = new QueryClient({
@@ -90,6 +92,7 @@ function Router() {
       <Route path="/backstage/hunches/new" component={HunchForm} />
       <Route path="/backstage/hunches/:id/edit" component={HunchForm} />
       <Route path="/backstage/hunches/:id/participants" component={HunchParticipants} />
+      <Route path="/backstage/hunches/:id/participants/:userId/award" component={AwardPrize} />
       <Route path="/backstage/categories" component={AdminCategories} />
       <Route path="/backstage/users" component={AdminUsers} />
       <Route path="/backstage/users/:id" component={AdminUserDetail} />
@@ -111,6 +114,7 @@ function Router() {
       <Route path="/ranking" component={Ranking} />
       <Route path="/report-bug" component={ReportBug} />
       <Route path="/suggest-hunch" component={SuggestHunch} />
+      <Route path="/prizes" component={PrizesPage} />
       <Route path="/u/:username" component={UserProfile} />
       <Route path="/:affiliateSlug" component={AffiliateSlugPage} />
       <Route component={NotFound} />

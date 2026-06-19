@@ -250,6 +250,13 @@ function AuthButtons() {
               <Target className="w-4 h-4" />
               {t("my_hunches")}
             </button>
+            <button
+              onClick={() => { setMenuOpen(false); setLocation("/prizes"); }}
+              className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+            >
+              <Gift className="w-4 h-4" />
+              Premios
+            </button>
             {isAffiliate && (
               <button
                 onClick={() => { setMenuOpen(false); setLocation("/affiliate/dashboard"); }}

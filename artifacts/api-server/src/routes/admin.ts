@@ -21,6 +21,7 @@ import {
   trendingTopicsTable,
   hunchTranslationsTable,
   userNotificationsTable,
+  prizeAwards,
 } from "@workspace/db";
 import { eq, or, ilike, sql, desc, and, asc, isNull, isNotNull, inArray, gte, lte } from "drizzle-orm";
 import { getUncachableStripeClient } from "../stripeClient";
@@ -2907,6 +2908,112 @@ router.delete("/admin/trending-topics/:id", requireAdmin, requireAdminHeader, as
   if (!id) { res.status(400).json({ error: "Invalid ID" }); return; }
   await db.delete(trendingTopicsTable).where(eq(trendingTopicsTable.id, id));
   res.json({ ok: true });
+});
+
+// ── Prize Awards ─────────────────────────────────────────────────────────────
+
+async function sendPrizeAwardEmail(
+  recipientEmail: string,
+  username: string,
+  hunchTitle: string,
+  prizeLabel: string,
+  prizeValue: string,
+): Promise<void> {
+  const RESEND_API_KEY = process.env.RESEND_API_KEY;
+  if (!RESEND_API_KEY) {
+    logger.warn("RESEND_API_KEY not configured — prize award email not sent");
+    return;
+  }
+  const prizesUrl = "https://hunch.fan/prizes";
+  const html = `
+<!DOCTYPE html>
+<html lang="es">
+<body style="font-family:sans-serif;color:#111;max-width:520px;margin:0 auto;padding:24px">
+  <p style="font-size:18px;font-weight:700;margin-bottom:4px">Tienes un premio en camino</p>
+  <p style="color:#6d6d6d;margin-top:0">Tu premio de Hunch está listo</p>
+  <hr style="border:none;border-top:1px solid #eee;margin:16px 0"/>
+  <p>Hola <strong>${username}</strong>,</p>
+  <p>Resultaste ganador/a en el Hunch <strong>"${hunchTitle}"</strong> y tu premio ya está disponible.</p>
+  <table style="background:#f5f3ff;border-radius:12px;padding:16px 20px;margin:20px 0;width:100%">
+    <tr><td style="font-size:12px;color:#7c3aed;font-weight:600;text-transform:uppercase;letter-spacing:.05em">Tu premio</td></tr>
+    <tr><td style="font-size:20px;font-weight:700;color:#111;padding-top:4px">${prizeLabel}</td></tr>
+    ${prizeValue && prizeValue !== prizeLabel ? `<tr><td style="font-size:14px;color:#555;padding-top:2px">${prizeValue}</td></tr>` : ""}
+  </table>
+  <p>Entra a tu sección de Premios en Hunch para ver todos los detalles (código, instrucciones, número de guía, etc.):</p>
+  <a href="${prizesUrl}" style="display:inline-block;background:#7c3aed;color:#fff;text-decoration:none;padding:10px 20px;border-radius:8px;font-weight:600;font-size:14px">Ver mi premio</a>
+  <hr style="border:none;border-top:1px solid #eee;margin:24px 0"/>
+  <p style="font-size:12px;color:#aaa">El equipo de Hunch &mdash; <a href="https://hunch.fan" style="color:#7c3aed">hunch.fan</a></p>
+</body>
+</html>`;
+  await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      from: "Hunch <no-reply@hunch.fan>",
+      to: [recipientEmail],
+      subject: `Tu premio de Hunch está listo - ${prizeLabel}`,
+      html,
+    }),
+  });
+}
+
+router.post("/admin/hunches/:hunchId/award/:userId", requireAdmin, requireAdminHeader, async (req, res): Promise<void> => {
+  const hunchId = parseInt(String(req.params["hunchId"] ?? "0"), 10);
+  const userId  = parseInt(String(req.params["userId"]  ?? "0"), 10);
+  if (!hunchId || !userId) { res.status(400).json({ error: "Invalid IDs" }); return; }
+
+  const { rank, prizeLabel, prizeValue, awardType, codeType, code, codeFileUrl, pin, expiresAt,
+          usageInstructions, trackingNumber, courier, estimatedDelivery, terms } = req.body as Record<string, unknown>;
+
+  if (!prizeLabel || !awardType) {
+    res.status(400).json({ error: "prizeLabel and awardType are required" }); return;
+  }
+
+  const [user] = await db.select({ email: usersTable.email, username: usersTable.username })
+    .from(usersTable).where(eq(usersTable.id, userId));
+  if (!user) { res.status(404).json({ error: "User not found" }); return; }
+
+  const [hunch] = await db.select({ title: hunchesTable.title }).from(hunchesTable).where(eq(hunchesTable.id, hunchId));
+  if (!hunch) { res.status(404).json({ error: "Hunch not found" }); return; }
+
+  const [award] = await db.insert(prizeAwards).values({
+    hunchId,
+    userId,
+    rank: rank != null ? Number(rank) : null,
+    prizeLabel: String(prizeLabel),
+    prizeValue: String(prizeValue ?? ""),
+    awardType: String(awardType) as "digital" | "physical",
+    codeType: codeType ? String(codeType) : null,
+    code: code ? String(code) : null,
+    codeFileUrl: codeFileUrl ? String(codeFileUrl) : null,
+    pin: pin ? String(pin) : null,
+    expiresAt: expiresAt ? new Date(String(expiresAt)) : null,
+    usageInstructions: usageInstructions ? String(usageInstructions) : null,
+    trackingNumber: trackingNumber ? String(trackingNumber) : null,
+    courier: courier ? String(courier) : null,
+    estimatedDelivery: estimatedDelivery ? new Date(String(estimatedDelivery)) : null,
+    terms: terms ? String(terms) : null,
+  }).returning();
+
+  // Send email notification (fire-and-forget)
+  sendPrizeAwardEmail(
+    user.email,
+    user.username ?? "participante",
+    hunch.title,
+    String(prizeLabel),
+    String(prizeValue ?? ""),
+  ).then(async () => {
+    await db.update(prizeAwards).set({ emailSentAt: new Date() }).where(eq(prizeAwards.id, award.id));
+  }).catch((err: unknown) => logger.error({ err }, "Failed to send prize award email"));
+
+  res.status(201).json({ ok: true, id: award.id });
+});
+
+router.get("/admin/hunches/:hunchId/awards", requireAdmin, requireAdminHeader, async (req, res): Promise<void> => {
+  const hunchId = parseInt(String(req.params["hunchId"] ?? "0"), 10);
+  if (!hunchId) { res.status(400).json({ error: "Invalid ID" }); return; }
+  const awards = await db.select().from(prizeAwards).where(eq(prizeAwards.hunchId, hunchId)).orderBy(desc(prizeAwards.createdAt));
+  res.json(awards);
 });
 
 export default router;

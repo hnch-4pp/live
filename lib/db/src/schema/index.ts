@@ -18,3 +18,4 @@ export * from "./affiliates";
 export * from "./trendingTopics";
 export * from "./comments";
 export * from "./userNotifications";
+export * from "./prizeAwards";

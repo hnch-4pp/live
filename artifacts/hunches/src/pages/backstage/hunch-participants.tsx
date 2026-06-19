@@ -4,12 +4,12 @@ import { AdminLayout } from "@/components/admin-layout";
 import { useAdminAuth, adminFetch } from "./dashboard";
 import {
   ChevronLeft, Users, Trophy, X, Loader2, ArrowUpDown,
-  CheckCircle2, SlidersHorizontal, AlertTriangle, Ban,
+  CheckCircle2, SlidersHorizontal, AlertTriangle, Ban, Gift,
 } from "lucide-react";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
-interface PrizeTier { rank: number; prizeLabel: string; }
+interface PrizeTier { rank: number; prizeLabel: string; prizeValue: string; }
 interface HunchDetail {
   id: number; title: string; isMulti: boolean; status: string;
   winnerOption: string | null; winnerUserId: number | null;
@@ -515,6 +515,18 @@ export default function HunchParticipants() {
                             </span>
                             <button
                               type="button"
+                              onClick={() => {
+                                const tier = hunch!.prizeTiers.find((t) => t.rank === assignedRank);
+                                const qs = new URLSearchParams({ rank: String(assignedRank), prizeLabel: tier?.prizeLabel ?? "", prizeValue: tier?.prizeValue ?? "" });
+                                setLocation(`/backstage/hunches/${params.id}/participants/${u.userId}/award?${qs}`);
+                              }}
+                              title="Premiar"
+                              className="inline-flex items-center gap-1 text-xs font-semibold text-violet-600 border border-violet-200 bg-white px-2.5 py-1 rounded-lg hover:bg-violet-50 transition-colors"
+                            >
+                              <Gift className="w-3 h-3" /> Premiar
+                            </button>
+                            <button
+                              type="button"
                               onClick={() => clearRank(u.userId)}
                               title="Remove rank"
                               className="text-gray-300 hover:text-red-400 transition-colors"
@@ -536,9 +548,23 @@ export default function HunchParticipants() {
                         )
                       ) : (
                         isSingleWinner ? (
-                          <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg">
-                            <Trophy className="w-3 h-3" /> Winner
-                          </span>
+                          <>
+                            <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg">
+                              <Trophy className="w-3 h-3" /> Winner
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const tier = hunch!.prizeTiers[0];
+                                const qs = new URLSearchParams({ prizeLabel: tier?.prizeLabel ?? "", prizeValue: tier?.prizeValue ?? "" });
+                                setLocation(`/backstage/hunches/${params.id}/participants/${u.userId}/award?${qs}`);
+                              }}
+                              title="Premiar"
+                              className="inline-flex items-center gap-1 text-xs font-semibold text-violet-600 border border-violet-200 bg-white px-2.5 py-1 rounded-lg hover:bg-violet-50 transition-colors"
+                            >
+                              <Gift className="w-3 h-3" /> Premiar
+                            </button>
+                          </>
                         ) : (
                           <button
                             type="button"
@@ -599,14 +625,28 @@ export default function HunchParticipants() {
                             <Trophy className="w-3 h-3" /> {RANK_CONFIG[assignedRank].label} Place
                           </span>
                           {uid != null && (
-                            <button
-                              type="button"
-                              onClick={() => clearRank(uid, p.id)}
-                              title="Remove rank"
-                              className="text-gray-300 hover:text-red-400 transition-colors"
-                            >
-                              <X className="w-3.5 h-3.5" />
-                            </button>
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const tier = hunch!.prizeTiers.find((t) => t.rank === assignedRank);
+                                  const qs = new URLSearchParams({ rank: String(assignedRank), prizeLabel: tier?.prizeLabel ?? "", prizeValue: tier?.prizeValue ?? "" });
+                                  setLocation(`/backstage/hunches/${params.id}/participants/${uid}/award?${qs}`);
+                                }}
+                                title="Premiar"
+                                className="inline-flex items-center gap-1 text-xs font-semibold text-violet-600 border border-violet-200 bg-white px-2.5 py-1 rounded-lg hover:bg-violet-50 transition-colors"
+                              >
+                                <Gift className="w-3 h-3" /> Premiar
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => clearRank(uid, p.id)}
+                                title="Remove rank"
+                                className="text-gray-300 hover:text-red-400 transition-colors"
+                              >
+                                <X className="w-3.5 h-3.5" />
+                              </button>
+                            </>
                           )}
                         </>
                       ) : (
@@ -660,6 +700,20 @@ export default function HunchParticipants() {
                           <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg">
                             <Trophy className="w-3 h-3" /> Ganador
                           </span>
+                          {p.userId != null && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const tier = hunch!.prizeTiers[0];
+                                const qs = new URLSearchParams({ prizeLabel: tier?.prizeLabel ?? "", prizeValue: tier?.prizeValue ?? "" });
+                                setLocation(`/backstage/hunches/${params.id}/participants/${p.userId}/award?${qs}`);
+                              }}
+                              title="Premiar"
+                              className="inline-flex items-center gap-1 text-xs font-semibold text-violet-600 border border-violet-200 bg-white px-2.5 py-1 rounded-lg hover:bg-violet-50 transition-colors"
+                            >
+                              <Gift className="w-3 h-3" /> Premiar
+                            </button>
+                          )}
                           <button
                             type="button"
                             onClick={() => setWinnerOption("")}

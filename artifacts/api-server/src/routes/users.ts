@@ -6,6 +6,7 @@ import {
   predictionsTable,
   optionsTable,
   categoriesTable,
+  prizeAwards,
 } from "@workspace/db";
 import { eq, and, desc, count, sql, isNotNull } from "drizzle-orm";
 
@@ -196,6 +197,42 @@ router.get("/leaderboard", async (req, res): Promise<void> => {
     page,
     hasMore: offset + limit < total,
   });
+});
+
+// ── My prizes ────────────────────────────────────────────────────────────────
+
+router.get("/prizes/me", async (req, res): Promise<void> => {
+  if (!req.session?.userId) { res.status(401).json({ error: "Unauthorized" }); return; }
+  const userId = req.session.userId as number;
+
+  const rows = await db
+    .select({
+      id: prizeAwards.id,
+      hunchId: prizeAwards.hunchId,
+      hunchTitle: hunchesTable.title,
+      hunchSlug: hunchesTable.slug,
+      rank: prizeAwards.rank,
+      prizeLabel: prizeAwards.prizeLabel,
+      prizeValue: prizeAwards.prizeValue,
+      awardType: prizeAwards.awardType,
+      codeType: prizeAwards.codeType,
+      code: prizeAwards.code,
+      codeFileUrl: prizeAwards.codeFileUrl,
+      pin: prizeAwards.pin,
+      expiresAt: prizeAwards.expiresAt,
+      usageInstructions: prizeAwards.usageInstructions,
+      trackingNumber: prizeAwards.trackingNumber,
+      courier: prizeAwards.courier,
+      estimatedDelivery: prizeAwards.estimatedDelivery,
+      terms: prizeAwards.terms,
+      awardedAt: prizeAwards.awardedAt,
+    })
+    .from(prizeAwards)
+    .innerJoin(hunchesTable, eq(prizeAwards.hunchId, hunchesTable.id))
+    .where(eq(prizeAwards.userId, userId))
+    .orderBy(desc(prizeAwards.awardedAt));
+
+  res.json(rows);
 });
 
 export default router;
