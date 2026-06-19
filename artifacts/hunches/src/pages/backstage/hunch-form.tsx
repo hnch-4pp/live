@@ -12,6 +12,7 @@ function ordinal(n: number): string {
 }
 
 function fmtPred(val: string): string {
+  if (!val || val.toLowerCase() === "nan") return "—";
   const stripped = val.replace(/,/g, "");
   const n = parseFloat(stripped);
   if (!isFinite(n) || stripped.trim() === "") return val;

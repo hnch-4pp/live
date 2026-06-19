@@ -900,7 +900,7 @@ router.post("/hunches/:id/predict", async (req, res): Promise<void> => {
 
     for (const answer of answers) {
       const normalizedLabel = answer.freeText.trim();
-      if (!normalizedLabel) continue;
+      if (!normalizedLabel || normalizedLabel.toLowerCase() === "nan") continue;
 
       const existingOptions = await db
         .select()
@@ -978,6 +978,10 @@ router.post("/hunches/:id/predict", async (req, res): Promise<void> => {
   const normalizedLabel = (body.data.freeText ?? "").trim();
   if (!normalizedLabel) {
     res.status(400).json({ error: "Answer cannot be empty." });
+    return;
+  }
+  if (normalizedLabel.toLowerCase() === "nan") {
+    res.status(400).json({ error: "Invalid prediction value." });
     return;
   }
 
