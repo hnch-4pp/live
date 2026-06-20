@@ -3,7 +3,10 @@ import { Link, useLocation } from "wouter";
 import { Layout } from "@/components/layout";
 import { useAuth } from "@/hooks/use-auth";
 import { apiUrl } from "@/lib/apiFetch";
-import { Gift, ChevronDown, ChevronUp, Loader2, QrCode, BarChart2, Link as LinkIcon, Key, Calendar, Truck, Package } from "lucide-react";
+import {
+  Gift, ChevronDown, ChevronUp, Loader2, QrCode, BarChart2,
+  Link as LinkIcon, Key, Calendar, Truck, Package, ExternalLink, Copy, Check,
+} from "lucide-react";
 import { formatDistanceToNow, format } from "date-fns";
 import { es } from "date-fns/locale";
 
@@ -29,170 +32,223 @@ interface PrizeAward {
   awardedAt: string;
 }
 
-function RankLabel({ rank }: { rank: number | null }) {
-  if (!rank) return null;
-  const map: Record<number, string> = { 1: "1er lugar", 2: "2do lugar", 3: "3er lugar" };
+function CopyButton({ value }: { value: string }) {
+  const [copied, setCopied] = useState(false);
+  const copy = async () => {
+    await navigator.clipboard.writeText(value).catch(() => {});
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
   return (
-    <span className="text-xs font-semibold text-violet-700 bg-violet-100 px-2.5 py-0.5 rounded-full">
-      {map[rank] ?? `${rank}° lugar`}
-    </span>
+    <button
+      type="button"
+      onClick={copy}
+      className="shrink-0 p-1.5 rounded-lg hover:bg-muted transition-colors"
+      aria-label="Copiar"
+    >
+      {copied
+        ? <Check className="w-3.5 h-3.5 text-emerald-500" />
+        : <Copy className="w-3.5 h-3.5 text-muted-foreground" />}
+    </button>
   );
-}
-
-function CodeTypeIcon({ codeType }: { codeType: string | null }) {
-  if (codeType === "qr") return <QrCode className="w-3.5 h-3.5 text-muted-foreground" />;
-  if (codeType === "barcode") return <BarChart2 className="w-3.5 h-3.5 text-muted-foreground" />;
-  if (codeType === "link") return <LinkIcon className="w-3.5 h-3.5 text-muted-foreground" />;
-  return <Key className="w-3.5 h-3.5 text-muted-foreground" />;
 }
 
 function PrizeCard({ award }: { award: PrizeAward }) {
   const [open, setOpen] = useState(false);
 
+  const rankLabel = award.rank
+    ? ({ 1: "1er lugar", 2: "2do lugar", 3: "3er lugar" }[award.rank] ?? `${award.rank}° lugar`)
+    : null;
+
   return (
-    <div className="bg-card border border-border rounded-2xl overflow-hidden">
-      {/* Header row — always visible */}
+    <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm">
+
+      {/* ── Header — always visible ─────────────────────────────── */}
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="w-full flex items-center gap-4 p-4 text-left hover:bg-muted/30 transition-colors"
+        className="w-full text-left"
+        aria-expanded={open}
       >
-        <div className="w-10 h-10 rounded-2xl bg-primary/10 flex items-center justify-center shrink-0">
-          <Gift className="w-5 h-5 text-primary" />
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <p className="text-sm font-semibold text-foreground">{award.prizeLabel}</p>
-            {award.prizeValue && award.prizeValue !== award.prizeLabel && (
-              <span className="text-sm font-bold text-primary">{award.prizeValue}</span>
-            )}
-            <RankLabel rank={award.rank} />
+        <div className="flex items-start gap-3 p-4">
+          {/* Icon */}
+          <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
+            <Gift className="w-5 h-5 text-primary" />
           </div>
-          <p className="text-xs text-muted-foreground mt-0.5 truncate">{award.hunchTitle}</p>
-        </div>
-        <div className="flex items-center gap-2 shrink-0">
-          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${award.awardType === "digital" ? "bg-blue-100 text-blue-700" : "bg-orange-100 text-orange-700"}`}>
-            {award.awardType === "digital" ? "Digital" : "Físico"}
-          </span>
-          {open ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
+
+          {/* Text block */}
+          <div className="flex-1 min-w-0">
+            {/* Prize name + value */}
+            <p className="text-sm font-bold text-foreground leading-snug">
+              {award.prizeLabel}
+              {award.prizeValue && award.prizeValue !== award.prizeLabel && (
+                <span className="ml-1.5 text-primary">{award.prizeValue}</span>
+              )}
+            </p>
+
+            {/* Badges row */}
+            <div className="flex items-center gap-1.5 flex-wrap mt-1.5">
+              {rankLabel && (
+                <span className="text-[10px] font-bold tracking-wide text-violet-700 bg-violet-100 px-2 py-0.5 rounded-full uppercase">
+                  {rankLabel}
+                </span>
+              )}
+              <span className={`text-[10px] font-bold tracking-wide px-2 py-0.5 rounded-full uppercase ${
+                award.awardType === "digital"
+                  ? "bg-sky-100 text-sky-700"
+                  : "bg-orange-100 text-orange-700"
+              }`}>
+                {award.awardType === "digital" ? "Digital" : "Físico"}
+              </span>
+            </div>
+
+            {/* Hunch name — wraps instead of truncating */}
+            <p className="text-xs text-muted-foreground mt-1.5 leading-snug line-clamp-2">
+              {award.hunchTitle}
+            </p>
+          </div>
+
+          {/* Chevron */}
+          <div className="shrink-0 mt-1">
+            {open
+              ? <ChevronUp className="w-4 h-4 text-muted-foreground" />
+              : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
+          </div>
         </div>
       </button>
 
-      {/* Expanded details */}
+      {/* ── Expanded details ───────────────────────────────────── */}
       {open && (
-        <div className="px-4 pb-4 pt-0 border-t border-border space-y-4">
-          <div className="pt-4">
-            <Link href={`/hunch/${award.hunchSlug}`}>
-              <span className="text-xs text-primary hover:underline font-medium">Ver el hunch</span>
-            </Link>
-          </div>
+        <div className="border-t border-border">
 
           {award.awardType === "digital" ? (
-            <div className="space-y-3">
-              {/* Code */}
-              {award.codeType === "qr" || award.codeType === "barcode" ? (
-                award.codeFileUrl && (
-                  <div>
-                    <p className="text-xs font-semibold text-muted-foreground mb-2 flex items-center gap-1">
-                      <CodeTypeIcon codeType={award.codeType} />
-                      {award.codeType === "qr" ? "Código QR" : "Código de barras"}
-                    </p>
-                    <img
-                      src={award.codeFileUrl}
-                      alt="código"
-                      className="h-32 w-auto object-contain rounded-xl border border-border bg-white p-2"
-                    />
-                  </div>
-                )
-              ) : award.code ? (
-                <div>
-                  <p className="text-xs font-semibold text-muted-foreground mb-1 flex items-center gap-1">
-                    <CodeTypeIcon codeType={award.codeType} />
-                    {award.codeType === "link" ? "Link" : "Código"}
+            <div className="p-4 space-y-4">
+
+              {/* QR / Barcode image */}
+              {(award.codeType === "qr" || award.codeType === "barcode") && award.codeFileUrl && (
+                <div className="flex flex-col items-center gap-2 bg-muted/40 rounded-xl p-4">
+                  <img
+                    src={award.codeFileUrl}
+                    alt="código"
+                    className="h-36 w-auto object-contain"
+                  />
+                  <p className="text-xs text-muted-foreground font-medium">
+                    {award.codeType === "qr" ? "Código QR" : "Código de barras"}
                   </p>
-                  {award.codeType === "link" ? (
-                    <a
-                      href={award.code}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-sm text-primary hover:underline break-all font-mono"
-                    >
-                      {award.code}
-                    </a>
-                  ) : (
-                    <div className="bg-muted rounded-xl px-4 py-3 font-mono text-sm tracking-widest text-foreground select-all">
-                      {award.code}
-                    </div>
-                  )}
                 </div>
-              ) : null}
+              )}
+
+              {/* Link type */}
+              {award.codeType === "link" && award.code && (
+                <a
+                  href={award.code}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 bg-primary/5 border border-primary/20 rounded-xl px-4 py-3"
+                >
+                  <ExternalLink className="w-4 h-4 text-primary shrink-0" />
+                  <span className="text-sm text-primary font-medium break-all flex-1">{award.code}</span>
+                </a>
+              )}
+
+              {/* Text code */}
+              {award.code && award.codeType !== "qr" && award.codeType !== "barcode" && award.codeType !== "link" && (
+                <div>
+                  <p className="text-xs font-semibold text-muted-foreground mb-2 flex items-center gap-1.5">
+                    <Key className="w-3.5 h-3.5" /> Codigo
+                  </p>
+                  <div className="flex items-center gap-2 bg-muted rounded-xl px-4 py-3">
+                    <span className="font-mono text-base font-bold tracking-[0.2em] text-foreground flex-1 select-all">
+                      {award.code}
+                    </span>
+                    <CopyButton value={award.code} />
+                  </div>
+                </div>
+              )}
 
               {/* PIN */}
               {award.pin && (
                 <div>
-                  <p className="text-xs font-semibold text-muted-foreground mb-1">PIN</p>
-                  <div className="bg-muted rounded-xl px-4 py-2 font-mono text-sm tracking-widest text-foreground select-all inline-block">
-                    {award.pin}
+                  <p className="text-xs font-semibold text-muted-foreground mb-2">PIN</p>
+                  <div className="flex items-center gap-2 bg-muted rounded-xl px-4 py-3">
+                    <span className="font-mono text-base font-bold tracking-[0.2em] text-foreground flex-1 select-all">
+                      {award.pin}
+                    </span>
+                    <CopyButton value={award.pin} />
                   </div>
                 </div>
               )}
 
               {/* Expiry */}
               {award.expiresAt && (
-                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                  <Calendar className="w-3.5 h-3.5" />
-                  Vigencia: {format(new Date(award.expiresAt), "d 'de' MMMM, yyyy", { locale: es })}
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <Calendar className="w-3.5 h-3.5 shrink-0" />
+                  Vigencia hasta el {format(new Date(award.expiresAt), "d 'de' MMMM, yyyy", { locale: es })}
                 </div>
               )}
 
               {/* Usage instructions */}
               {award.usageInstructions && (
-                <div>
+                <div className="bg-muted/40 rounded-xl px-4 py-3">
                   <p className="text-xs font-semibold text-muted-foreground mb-1">Instrucciones de uso</p>
-                  <p className="text-sm text-foreground leading-relaxed whitespace-pre-line">{award.usageInstructions}</p>
+                  <p className="text-sm text-foreground leading-relaxed whitespace-pre-line">
+                    {award.usageInstructions}
+                  </p>
                 </div>
               )}
             </div>
+
           ) : (
-            <div className="space-y-3">
+            /* Physical */
+            <div className="p-4 space-y-3">
               {award.trackingNumber && (
-                <div className="flex items-center gap-2">
-                  <Truck className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-                  <div>
-                    <p className="text-xs text-muted-foreground">Número de guía</p>
-                    <p className="text-sm font-mono font-semibold text-foreground select-all">{award.trackingNumber}</p>
+                <div className="bg-muted rounded-xl px-4 py-3">
+                  <p className="text-xs text-muted-foreground mb-0.5 flex items-center gap-1.5">
+                    <Truck className="w-3.5 h-3.5" /> Número de guía
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono text-sm font-bold text-foreground flex-1 select-all">
+                      {award.trackingNumber}
+                    </span>
+                    <CopyButton value={award.trackingNumber} />
                   </div>
-                </div>
-              )}
-              {award.courier && (
-                <div className="flex items-center gap-2">
-                  <Package className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-                  <div>
-                    <p className="text-xs text-muted-foreground">Mensajería</p>
-                    <p className="text-sm font-semibold text-foreground">{award.courier}</p>
-                  </div>
+                  {award.courier && (
+                    <p className="text-xs text-muted-foreground mt-1">{award.courier}</p>
+                  )}
                 </div>
               )}
               {award.estimatedDelivery && (
-                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                  <Calendar className="w-3.5 h-3.5" />
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <Package className="w-3.5 h-3.5 shrink-0" />
                   Llegada estimada: {format(new Date(award.estimatedDelivery), "d 'de' MMMM, yyyy", { locale: es })}
                 </div>
+              )}
+              {!award.trackingNumber && !award.estimatedDelivery && (
+                <p className="text-xs text-muted-foreground">Sin datos de envío por el momento.</p>
               )}
             </div>
           )}
 
-          {/* Terms */}
-          {award.terms && (
-            <div className="border-t border-border pt-3">
-              <p className="text-xs font-semibold text-muted-foreground mb-1">Términos y condiciones</p>
-              <p className="text-xs text-muted-foreground leading-relaxed whitespace-pre-line">{award.terms}</p>
-            </div>
-          )}
+          {/* Footer: terms + link + date */}
+          <div className="px-4 pb-4 space-y-3">
+            {award.terms && (
+              <div className="border-t border-border pt-3">
+                <p className="text-xs font-semibold text-muted-foreground mb-1">Términos y condiciones</p>
+                <p className="text-xs text-muted-foreground leading-relaxed whitespace-pre-line">{award.terms}</p>
+              </div>
+            )}
 
-          <p className="text-xs text-muted-foreground/60">
-            Premiado {formatDistanceToNow(new Date(award.awardedAt), { addSuffix: true, locale: es })}
-          </p>
+            <div className="flex items-center justify-between pt-1">
+              <Link href={`/hunch/${award.hunchSlug}`}>
+                <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:underline">
+                  <LinkIcon className="w-3 h-3" /> Ver el hunch
+                </span>
+              </Link>
+              <span className="text-[11px] text-muted-foreground/60">
+                {formatDistanceToNow(new Date(award.awardedAt), { addSuffix: true, locale: es })}
+              </span>
+            </div>
+          </div>
         </div>
       )}
     </div>
@@ -220,15 +276,21 @@ export default function PrizesPage() {
 
   return (
     <Layout>
-      <div className="max-w-2xl mx-auto px-4 py-8 sm:py-12">
-        <div className="flex items-center gap-3 mb-8">
-          <div className="w-10 h-10 rounded-2xl bg-primary/10 flex items-center justify-center">
+      <div className="max-w-lg mx-auto px-4 py-6 sm:py-10">
+
+        {/* Page header */}
+        <div className="flex items-center gap-3 mb-6">
+          <div className="w-10 h-10 rounded-2xl bg-primary/10 flex items-center justify-center shrink-0">
             <Gift className="w-5 h-5 text-primary" />
           </div>
           <div>
-            <h1 className="text-2xl font-black text-foreground">Mis Premios</h1>
-            {!loading && awards.length > 0 && (
-              <p className="text-xs text-muted-foreground">{awards.length} {awards.length === 1 ? "premio" : "premios"} recibido{awards.length !== 1 ? "s" : ""}</p>
+            <h1 className="text-xl font-black text-foreground leading-tight">Mis Premios</h1>
+            {!loading && (
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {awards.length > 0
+                  ? `${awards.length} ${awards.length === 1 ? "premio recibido" : "premios recibidos"}`
+                  : "Aquí verás tus premios"}
+              </p>
             )}
           </div>
         </div>
@@ -238,10 +300,12 @@ export default function PrizesPage() {
             <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
           </div>
         ) : awards.length === 0 ? (
-          <div className="bg-card border border-border rounded-2xl p-12 text-center">
-            <Gift className="w-10 h-10 text-muted-foreground/30 mx-auto mb-3" />
-            <p className="text-sm font-medium text-foreground mb-1">Sin premios aún</p>
-            <p className="text-xs text-muted-foreground">Aquí aparecerán tus premios cuando resultes ganador de un Hunch.</p>
+          <div className="bg-card border border-border rounded-2xl p-10 text-center">
+            <Gift className="w-10 h-10 text-muted-foreground/20 mx-auto mb-3" />
+            <p className="text-sm font-semibold text-foreground mb-1">Sin premios aún</p>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Aquí aparecerán tus premios cuando resultes ganador de un Hunch.
+            </p>
           </div>
         ) : (
           <div className="space-y-3">
