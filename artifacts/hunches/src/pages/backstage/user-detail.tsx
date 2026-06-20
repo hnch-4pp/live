@@ -7,7 +7,8 @@ import {
   Ticket, TrendingUp, DollarSign, CreditCard, Trophy,
   ShieldAlert, Ban, Trash2, CheckCircle2, Clock,
   Target, Zap, RefreshCw, AlertCircle, Users, Gift,
-  Pencil, Check, X, Loader2, AtSign,
+  Pencil, Check, X, Loader2, AtSign, QrCode, BarChart2,
+  Link as LinkIcon, Key, Truck, Package, MailCheck,
 } from "lucide-react";
 
 type UserStatus = "active" | "suspended" | "banned";
@@ -22,6 +23,29 @@ interface HunchEntry {
   predictions: number;
   won: boolean;
   prizeLabel: string | null;
+}
+
+interface PrizeAwardRecord {
+  id: number;
+  hunchId: number;
+  hunchTitle: string;
+  hunchSlug: string;
+  rank: number | null;
+  prizeLabel: string;
+  prizeValue: string;
+  awardType: "digital" | "physical";
+  codeType: string | null;
+  code: string | null;
+  codeFileUrl: string | null;
+  pin: string | null;
+  expiresAt: string | null;
+  usageInstructions: string | null;
+  trackingNumber: string | null;
+  courier: string | null;
+  estimatedDelivery: string | null;
+  terms: string | null;
+  awardedAt: string;
+  emailSentAt: string | null;
 }
 
 interface PaymentMethod {
@@ -304,6 +328,8 @@ export default function AdminUserDetail() {
   const [modding, setModding] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [prizeAwards, setPrizeAwards] = useState<PrizeAwardRecord[]>([]);
+  const [prizeAwardsLoading, setPrizeAwardsLoading] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -323,7 +349,22 @@ export default function AdminUserDetail() {
     }
   };
 
-  useEffect(() => { if (userId) void load(); }, [userId]);
+  const loadPrizeAwards = async () => {
+    setPrizeAwardsLoading(true);
+    try {
+      const r = await adminFetch(`/admin/users/${userId}/prize-awards`);
+      if (r.ok) setPrizeAwards(await r.json() as PrizeAwardRecord[]);
+    } catch { /* ignore */ } finally {
+      setPrizeAwardsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (userId) {
+      void load();
+      void loadPrizeAwards();
+    }
+  }, [userId]);
 
   const handleMod = async () => {
     if (!modAction || !detail) return;
@@ -587,19 +628,109 @@ export default function AdminUserDetail() {
             {/* Prizes won */}
             <div className="bg-white border border-gray-200 rounded-xl p-5">
               <div className="flex items-center justify-between mb-4">
-                <SectionTitle>Prizes Won</SectionTitle>
-                <span className="text-xs text-gray-400">{detail.prizesWon.length} prizes</span>
+                <SectionTitle>Premios recibidos</SectionTitle>
+                <div className="flex items-center gap-2">
+                  {prizeAwardsLoading && <Loader2 className="w-3.5 h-3.5 animate-spin text-gray-400" />}
+                  <span className="text-xs text-gray-400">{prizeAwards.length} premio{prizeAwards.length !== 1 ? "s" : ""}</span>
+                </div>
               </div>
-              {detail.prizesWon.length === 0 ? (
-                <p className="text-sm text-gray-400 text-center py-4">No prizes won yet</p>
+
+              {prizeAwards.length === 0 ? (
+                <p className="text-sm text-gray-400 text-center py-4">No se han otorgado premios aún</p>
               ) : (
-                <div className="space-y-2">
-                  {detail.prizesWon.map((h) => (
-                    <div key={h.hunchId} className="flex items-center gap-3 p-3 rounded-lg bg-amber-50 border border-amber-200">
-                      <Trophy className="w-4 h-4 text-amber-600 shrink-0" />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-900 truncate">{h.title}</p>
-                        {h.prizeLabel && <p className="text-xs text-amber-700 font-semibold mt-0.5">{h.prizeLabel}</p>}
+                <div className="space-y-3">
+                  {prizeAwards.map((a) => (
+                    <div key={a.id} className="border border-violet-200 rounded-xl overflow-hidden">
+                      {/* Header */}
+                      <div className="bg-violet-50 px-4 py-3 flex items-start gap-3">
+                        <div className="w-8 h-8 rounded-lg bg-violet-100 flex items-center justify-center shrink-0 mt-0.5">
+                          <Gift className="w-4 h-4 text-violet-600" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-sm font-bold text-gray-900">{a.prizeLabel}</span>
+                            {a.prizeValue && a.prizeValue !== a.prizeLabel && (
+                              <span className="text-sm font-semibold text-violet-700">{a.prizeValue}</span>
+                            )}
+                            {a.rank && (
+                              <span className="text-xs font-semibold text-violet-700 bg-violet-100 border border-violet-200 px-2 py-0.5 rounded-full">
+                                {a.rank === 1 ? "1er" : a.rank === 2 ? "2do" : a.rank === 3 ? "3er" : `${a.rank}°`} lugar
+                              </span>
+                            )}
+                            <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${a.awardType === "digital" ? "bg-blue-100 text-blue-700" : "bg-orange-100 text-orange-700"}`}>
+                              {a.awardType === "digital" ? "Digital" : "Físico"}
+                            </span>
+                          </div>
+                          <p className="text-xs text-gray-500 mt-0.5 truncate">{a.hunchTitle}</p>
+                        </div>
+                        <div className="shrink-0 text-right">
+                          <p className="text-xs text-gray-400">{fmtDate(a.awardedAt)}</p>
+                          {a.emailSentAt ? (
+                            <span className="inline-flex items-center gap-1 text-xs text-emerald-600 mt-0.5">
+                              <MailCheck className="w-3 h-3" /> Email enviado
+                            </span>
+                          ) : (
+                            <span className="text-xs text-amber-500 mt-0.5">Sin email</span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Details */}
+                      <div className="px-4 py-3 space-y-2">
+                        {a.awardType === "digital" ? (
+                          <>
+                            {(a.codeType === "qr" || a.codeType === "barcode") && a.codeFileUrl ? (
+                              <div className="flex items-center gap-2">
+                                {a.codeType === "qr" ? <QrCode className="w-3.5 h-3.5 text-gray-400 shrink-0" /> : <BarChart2 className="w-3.5 h-3.5 text-gray-400 shrink-0" />}
+                                <img src={a.codeFileUrl} alt="code" className="h-12 w-12 object-contain rounded-lg border border-gray-200 bg-white" />
+                                <a href={a.codeFileUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-violet-600 hover:underline truncate max-w-[200px]">Ver imagen</a>
+                              </div>
+                            ) : a.codeType === "link" && a.code ? (
+                              <div className="flex items-center gap-2">
+                                <LinkIcon className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                                <a href={a.code} target="_blank" rel="noopener noreferrer" className="text-xs text-violet-600 hover:underline break-all">{a.code}</a>
+                              </div>
+                            ) : a.code ? (
+                              <div className="flex items-center gap-2">
+                                <Key className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                                <code className="text-xs font-mono bg-gray-100 px-2 py-1 rounded-lg tracking-widest text-gray-900 select-all">{a.code}</code>
+                                {a.pin && <span className="text-xs text-gray-500">PIN: <code className="font-mono bg-gray-100 px-1.5 py-0.5 rounded">{a.pin}</code></span>}
+                              </div>
+                            ) : null}
+                            {a.expiresAt && (
+                              <div className="flex items-center gap-1.5 text-xs text-gray-500">
+                                <Calendar className="w-3.5 h-3.5" />
+                                Vigencia: {fmtDate(a.expiresAt)}
+                              </div>
+                            )}
+                            {a.usageInstructions && (
+                              <p className="text-xs text-gray-500 bg-gray-50 rounded-lg px-3 py-2 whitespace-pre-line">{a.usageInstructions}</p>
+                            )}
+                          </>
+                        ) : (
+                          <>
+                            {a.trackingNumber && (
+                              <div className="flex items-center gap-2">
+                                <Truck className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                                <span className="text-xs text-gray-500">Guía:</span>
+                                <code className="text-xs font-mono bg-gray-100 px-2 py-1 rounded-lg text-gray-900 select-all">{a.trackingNumber}</code>
+                                {a.courier && <span className="text-xs text-gray-400">({a.courier})</span>}
+                              </div>
+                            )}
+                            {a.estimatedDelivery && (
+                              <div className="flex items-center gap-1.5 text-xs text-gray-500">
+                                <Package className="w-3.5 h-3.5" />
+                                Llegada estimada: {fmtDate(a.estimatedDelivery)}
+                              </div>
+                            )}
+                            {!a.trackingNumber && !a.estimatedDelivery && (
+                              <p className="text-xs text-gray-400 italic">Sin datos de envío</p>
+                            )}
+                          </>
+                        )}
+                        {a.terms && (
+                          <p className="text-xs text-gray-400 border-t border-gray-100 pt-2">{a.terms}</p>
+                        )}
                       </div>
                     </div>
                   ))}

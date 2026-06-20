@@ -3016,4 +3016,37 @@ router.get("/admin/hunches/:hunchId/awards", requireAdmin, requireAdminHeader, a
   res.json(awards);
 });
 
+router.get("/admin/users/:id/prize-awards", requireAdmin, requireAdminHeader, async (req, res): Promise<void> => {
+  const userId = parseInt(String(req.params["id"] ?? "0"), 10);
+  if (!userId) { res.status(400).json({ error: "Invalid ID" }); return; }
+  const rows = await db
+    .select({
+      id: prizeAwards.id,
+      hunchId: prizeAwards.hunchId,
+      hunchTitle: hunchesTable.title,
+      hunchSlug: hunchesTable.slug,
+      rank: prizeAwards.rank,
+      prizeLabel: prizeAwards.prizeLabel,
+      prizeValue: prizeAwards.prizeValue,
+      awardType: prizeAwards.awardType,
+      codeType: prizeAwards.codeType,
+      code: prizeAwards.code,
+      codeFileUrl: prizeAwards.codeFileUrl,
+      pin: prizeAwards.pin,
+      expiresAt: prizeAwards.expiresAt,
+      usageInstructions: prizeAwards.usageInstructions,
+      trackingNumber: prizeAwards.trackingNumber,
+      courier: prizeAwards.courier,
+      estimatedDelivery: prizeAwards.estimatedDelivery,
+      terms: prizeAwards.terms,
+      awardedAt: prizeAwards.awardedAt,
+      emailSentAt: prizeAwards.emailSentAt,
+    })
+    .from(prizeAwards)
+    .innerJoin(hunchesTable, eq(prizeAwards.hunchId, hunchesTable.id))
+    .where(eq(prizeAwards.userId, userId))
+    .orderBy(desc(prizeAwards.awardedAt));
+  res.json(rows);
+});
+
 export default router;
