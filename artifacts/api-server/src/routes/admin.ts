@@ -2949,7 +2949,7 @@ async function sendPrizeAwardEmail(
     method: "POST",
     headers: { Authorization: `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json" },
     body: JSON.stringify({
-      from: "Hunch <no-reply@hunch.fan>",
+      from: "Hunch <notifications@hunch.fan>",
       to: [recipientEmail],
       subject: `Tu premio de Hunch está listo - ${prizeLabel}`,
       html,
