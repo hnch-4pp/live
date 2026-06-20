@@ -278,6 +278,32 @@ async function runAppMigrations(): Promise<void> {
     CREATE INDEX IF NOT EXISTS user_notifications_user_idx ON user_notifications(user_id)
   `);
 
+  // Prize awards
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS prize_awards (
+      id                  SERIAL PRIMARY KEY,
+      hunch_id            INTEGER NOT NULL,
+      user_id             INTEGER NOT NULL,
+      rank                INTEGER,
+      prize_label         TEXT NOT NULL,
+      prize_value         TEXT NOT NULL DEFAULT '',
+      award_type          TEXT NOT NULL,
+      code_type           TEXT,
+      code                TEXT,
+      code_file_url       TEXT,
+      pin                 TEXT,
+      expires_at          TIMESTAMPTZ,
+      usage_instructions  TEXT,
+      tracking_number     TEXT,
+      courier             TEXT,
+      estimated_delivery  TIMESTAMPTZ,
+      terms               TEXT,
+      awarded_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      email_sent_at       TIMESTAMPTZ,
+      created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+
   logger.info("App schema migrations applied");
 }
 
