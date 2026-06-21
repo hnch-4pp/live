@@ -32,8 +32,21 @@ export async function ensureSubscriptionProductsExist(): Promise<void> {
       const existing = existingByTier.get(tier.id);
 
       if (existing) {
+        const existingProduct = existing.product as Stripe.Product;
+
+        // Always sync product name, description and metadata so Stripe checkout shows correct info
+        await stripe.products.update(existingProduct.id, {
+          name: tier.name,
+          description: tier.description,
+          metadata: {
+            type: "subscription",
+            tierId: tier.id,
+            ticketsPerMonth: String(tier.ticketsPerMonth),
+          },
+        });
+
         if (existing.unit_amount === tier.amountCents && existing.currency === "mxn") {
-          logger.info({ tierId: tier.id }, "Subscription product already exists — skipping");
+          logger.info({ tierId: tier.id }, "Subscription product already exists — skipping price update");
           continue;
         }
 
@@ -44,7 +57,7 @@ export async function ensureSubscriptionProductsExist(): Promise<void> {
         );
         await stripe.prices.update(existing.id, { active: false });
         await stripe.prices.create({
-          product: (existing.product as Stripe.Product).id,
+          product: existingProduct.id,
           unit_amount: tier.amountCents,
           currency: "mxn",
           recurring: { interval: "month" },
