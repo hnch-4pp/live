@@ -98,7 +98,7 @@ router.post("/stripe/subscribe", async (req, res): Promise<void> => {
 
   const matchedPrice = prices.data.find((p) => {
     const product = p.product as import("stripe").Stripe.Product;
-    return product.metadata?.tierId === tierId;
+    return product.metadata?.tierId === tierId && p.currency === "mxn";
   });
 
   if (!matchedPrice) {

@@ -6,6 +6,7 @@
   "scripts": {
     "hello": "tsx ./src/hello.ts",
     "seed-ticket-packs": "tsx ./src/seed-ticket-packs.ts",
+    "archive-usd-prices": "tsx ./src/archive-usd-prices.ts",
     "seed-stripe-plans": "tsx ./src/seed-stripe-plans.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
