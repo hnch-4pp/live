@@ -25,7 +25,7 @@ interface Category {
   name: string;
 }
 
-type SortKey = "newest" | "oldest" | "most_preds" | "least_preds";
+type SortKey = "newest" | "oldest" | "most_preds" | "least_preds" | "ends_soonest" | "ends_latest";
 
 const STATUS_FILTERS = [
   { key: "open",     label: "Abiertos"   },
@@ -35,10 +35,12 @@ const STATUS_FILTERS = [
 ] as const;
 
 const SORT_OPTIONS: { key: SortKey; label: string }[] = [
-  { key: "newest",     label: "Más recientes"       },
-  { key: "oldest",     label: "Más antiguos"        },
-  { key: "most_preds", label: "Más predicciones"    },
-  { key: "least_preds",label: "Menos predicciones"  },
+  { key: "newest",      label: "Más recientes"       },
+  { key: "oldest",      label: "Más antiguos"        },
+  { key: "ends_soonest",label: "Cierra pronto"       },
+  { key: "ends_latest", label: "Cierra tarde"        },
+  { key: "most_preds",  label: "Más predicciones"    },
+  { key: "least_preds", label: "Menos predicciones"  },
 ];
 
 const ANSWER_TYPE_LABEL: Record<string, string> = {
@@ -88,6 +90,8 @@ export default function AdminHunches() {
     list.sort((a, b) => {
       if (sortBy === "newest")     return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
       if (sortBy === "oldest")     return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+      if (sortBy === "ends_soonest") return new Date(a.endsAt).getTime() - new Date(b.endsAt).getTime();
+      if (sortBy === "ends_latest")  return new Date(b.endsAt).getTime() - new Date(a.endsAt).getTime();
       if (sortBy === "most_preds") return (b.participantCount ?? 0) - (a.participantCount ?? 0);
       return (a.participantCount ?? 0) - (b.participantCount ?? 0);
     });
@@ -242,7 +246,15 @@ export default function AdminHunches() {
                     <ArrowUpDown className="w-3 h-3" />
                   </button>
                 </th>
-                <th className="px-5 py-3 text-left font-semibold">Ends</th>
+                <th className="px-5 py-3 text-left font-semibold">
+                  <button
+                    onClick={() => setSortBy(sortBy === "ends_soonest" ? "ends_latest" : "ends_soonest")}
+                    className="inline-flex items-center gap-1 hover:text-gray-800 transition-colors"
+                  >
+                    Ends
+                    <ArrowUpDown className="w-3 h-3" />
+                  </button>
+                </th>
                 <th className="px-5 py-3" />
               </tr>
             </thead>
