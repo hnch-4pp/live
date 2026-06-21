@@ -88,35 +88,41 @@ router.post("/stripe/subscribe", async (req, res): Promise<void> => {
 
   const stripe = await getUncachableStripeClient();
 
-  // Find the Stripe price for this tier
-  const prices = await stripe.prices.list({
-    active: true,
-    type: "recurring",
-    expand: ["data.product"],
-    limit: 100,
+  // Find the Stripe product for this tier by metadata search, then get its MXN price
+  const products = await stripe.products.search({
+    query: `active:'true' AND metadata['tierId']:'${tierId}'`,
+    limit: 5,
   });
 
-  req.log.info(
-    { tierId, totalPrices: prices.data.length, mxnPrices: prices.data.filter(p => p.currency === "mxn").length },
-    "Searching for MXN price",
-  );
+  req.log.info({ tierId, productsFound: products.data.length }, "Stripe product search result");
 
-  const matchedPrice = prices.data.find((p) => {
-    const product = p.product as import("stripe").Stripe.Product;
-    const match = product.metadata?.tierId === tierId && p.currency === "mxn";
-    if (p.currency === "mxn") {
-      req.log.info({ priceId: p.id, productTierId: product.metadata?.tierId, tierId, match }, "MXN price candidate");
-    }
-    return match;
-  });
+  const product = products.data[0];
 
-  if (!matchedPrice) {
-    req.log.error({ tierId }, "No MXN price found for tier");
+  if (!product) {
+    req.log.error({ tierId }, "No Stripe product found for tier");
     res.status(404).json({ error: "Subscription product not found in Stripe" });
     return;
   }
 
-  req.log.info({ priceId: matchedPrice.id, tierId }, "Matched Stripe price");
+  const prices = await stripe.prices.list({
+    product: product.id,
+    active: true,
+    type: "recurring",
+    currency: "mxn",
+    limit: 10,
+  });
+
+  req.log.info({ tierId, productId: product.id, pricesFound: prices.data.length }, "Stripe MXN prices for product");
+
+  const matchedPrice = prices.data.find((p) => p.recurring?.interval === "month");
+
+  if (!matchedPrice) {
+    req.log.error({ tierId, productId: product.id }, "No active MXN monthly price found for tier");
+    res.status(404).json({ error: "Subscription product not found in Stripe" });
+    return;
+  }
+
+  req.log.info({ priceId: matchedPrice.id, tierId }, "Matched Stripe MXN price");
 
   // Create or reuse Stripe customer
   let customerId = user.stripeCustomerId;
