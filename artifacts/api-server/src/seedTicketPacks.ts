@@ -2,11 +2,16 @@ import type Stripe from "stripe";
 import { getUncachableStripeClient } from "./stripeClient";
 import { logger } from "./lib/logger";
 
-const PACKS = [
-  { name: "Single Ticket", description: "1 ticket to enter your next prediction.", amount: 99,  currency: "usd", ticketAmount: "1",  packId: "single" },
-  { name: "5-Ticket Pack",  description: "5 tickets — great for active players.",   amount: 449, currency: "usd", ticketAmount: "5",  packId: "five"   },
-  { name: "10-Ticket Pack", description: "10 tickets — best value one-time pack.",  amount: 799, currency: "usd", ticketAmount: "10", packId: "ten"    },
-];
+const PACK = {
+  name: "Pack 5 Tickets",
+  description: "5 tickets para hacer predicciones — pago único, sin suscripción.",
+  amount: 7900,
+  currency: "mxn",
+  ticketAmount: "5",
+  packId: "five_mxn",
+};
+
+const LEGACY_PACK_IDS = ["single", "five", "ten"];
 
 export async function ensureTicketPacksExist(): Promise<void> {
   let stripe: Stripe;
@@ -18,35 +23,43 @@ export async function ensureTicketPacksExist(): Promise<void> {
   }
 
   try {
-    // Use list (not search) to avoid indexing delays
     const existing = await stripe.prices.list({ active: true, expand: ["data.product"], limit: 100 });
-    const existingPackIds = new Set(
-      existing.data
-        .map((p) => (p.product as Stripe.Product).metadata?.packId)
-        .filter(Boolean),
-    );
 
-    for (const pack of PACKS) {
-      if (existingPackIds.has(pack.packId)) {
-        logger.info({ packId: pack.packId }, "Ticket pack already exists — skipping");
-        continue;
+    // Archive any legacy USD packs
+    for (const price of existing.data) {
+      const product = price.product as Stripe.Product;
+      if (product.metadata?.type === "ticket_pack" && LEGACY_PACK_IDS.includes(product.metadata?.packId ?? "")) {
+        logger.info({ packId: product.metadata?.packId, productId: product.id }, "Archiving legacy USD ticket pack");
+        await stripe.products.update(product.id, { active: false });
+        await stripe.prices.update(price.id, { active: false });
       }
-
-      const product = await stripe.products.create({
-        name: pack.name,
-        description: pack.description,
-        metadata: { type: "ticket_pack", ticketAmount: pack.ticketAmount, packId: pack.packId },
-      });
-
-      await stripe.prices.create({
-        product: product.id,
-        unit_amount: pack.amount,
-        currency: pack.currency,
-      });
-
-      logger.info({ packId: pack.packId, productId: product.id }, "Ticket pack created in Stripe");
     }
 
+    // Check if new MXN pack already exists
+    const allAfterArchive = await stripe.prices.list({ active: true, expand: ["data.product"], limit: 100 });
+    const alreadyExists = allAfterArchive.data.some((p) => {
+      const prod = p.product as Stripe.Product;
+      return prod.metadata?.packId === PACK.packId;
+    });
+
+    if (alreadyExists) {
+      logger.info({ packId: PACK.packId }, "MXN ticket pack already exists — skipping");
+      return;
+    }
+
+    const product = await stripe.products.create({
+      name: PACK.name,
+      description: PACK.description,
+      metadata: { type: "ticket_pack", ticketAmount: PACK.ticketAmount, packId: PACK.packId },
+    });
+
+    await stripe.prices.create({
+      product: product.id,
+      unit_amount: PACK.amount,
+      currency: PACK.currency,
+    });
+
+    logger.info({ packId: PACK.packId, productId: product.id }, "MXN ticket pack created in Stripe");
     logger.info("Ticket pack seed complete");
   } catch (err: unknown) {
     logger.error({ err }, "Failed to seed ticket packs — continuing without them");
