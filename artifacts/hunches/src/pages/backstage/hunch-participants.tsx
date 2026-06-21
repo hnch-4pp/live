@@ -5,6 +5,8 @@ import { useAdminAuth, adminFetch } from "./dashboard";
 import {
   ChevronLeft, Users, Trophy, X, Loader2, ArrowUpDown,
   CheckCircle2, SlidersHorizontal, AlertTriangle, Ban, Gift,
+  MailCheck, Key, Link as LinkIcon, QrCode, BarChart2, Calendar,
+  Truck, Package,
 } from "lucide-react";
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -21,6 +23,27 @@ interface UserAnswer { questionId: number; questionPrompt: string; answerLabel: 
 interface UserPredGroup { userId: number; username: string | null; phone: string | null; answers: UserAnswer[]; firstAt: string; }
 interface PredParticipant { id: number; userId: number | null; username: string | null; phone: string | null; createdAt: string; optionLabel: string; }
 interface PredData { total: number; byOption: Array<{ label: string; count: number; pct: number; participants: Array<Omit<PredParticipant, "optionLabel">>; }>; byUser: UserPredGroup[]; }
+
+interface AwardRecord {
+  id: number;
+  userId: number;
+  rank: number | null;
+  prizeLabel: string;
+  prizeValue: string;
+  awardType: "digital" | "physical";
+  codeType: string | null;
+  code: string | null;
+  codeFileUrl: string | null;
+  pin: string | null;
+  expiresAt: string | null;
+  usageInstructions: string | null;
+  trackingNumber: string | null;
+  courier: string | null;
+  estimatedDelivery: string | null;
+  terms: string | null;
+  awardedAt: string;
+  emailSentAt: string | null;
+}
 
 type SortKey = "recent" | "oldest" | "lowest" | "highest";
 const SORT_OPTIONS: { key: SortKey; label: string }[] = [
@@ -144,6 +167,136 @@ function NoWinnerModal({ onConfirm, onCancel, saving }: { onConfirm: () => void;
   );
 }
 
+// ── Award detail modal ────────────────────────────────────────────────────────
+
+function fmtDate(iso: string | null | undefined) {
+  if (!iso) return "—";
+  return new Date(iso).toLocaleDateString("es-MX", { year: "numeric", month: "short", day: "numeric" });
+}
+
+function AwardDetailModal({ award, onClose }: { award: AwardRecord; onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-y-auto max-h-[90vh]">
+        {/* Header */}
+        <div className="flex items-start gap-3 p-5 border-b border-gray-100">
+          <div className="w-9 h-9 rounded-xl bg-emerald-100 flex items-center justify-center shrink-0">
+            <CheckCircle2 className="w-4.5 h-4.5 text-emerald-600" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <h3 className="text-sm font-bold text-gray-900">Premio enviado</h3>
+            <p className="text-xs text-gray-500 mt-0.5">
+              {award.prizeLabel}{award.prizeValue && award.prizeValue !== award.prizeLabel ? ` · ${award.prizeValue}` : ""}
+            </p>
+          </div>
+          <button type="button" onClick={onClose} className="text-gray-300 hover:text-gray-500 transition-colors shrink-0">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="p-5 space-y-4">
+          {/* Meta */}
+          <div className="flex items-center gap-3 flex-wrap text-xs">
+            <span className={`font-semibold px-2.5 py-1 rounded-full ${award.awardType === "digital" ? "bg-sky-100 text-sky-700" : "bg-orange-100 text-orange-700"}`}>
+              {award.awardType === "digital" ? "Digital" : "Físico"}
+            </span>
+            {award.rank && (
+              <span className="font-semibold text-violet-700 bg-violet-100 px-2.5 py-1 rounded-full">
+                {award.rank === 1 ? "1er" : award.rank === 2 ? "2do" : award.rank === 3 ? "3er" : `${award.rank}°`} lugar
+              </span>
+            )}
+            <span className="text-gray-400">Otorgado {fmtDate(award.awardedAt)}</span>
+            {award.emailSentAt ? (
+              <span className="inline-flex items-center gap-1 text-emerald-600 font-medium">
+                <MailCheck className="w-3 h-3" /> Email enviado
+              </span>
+            ) : (
+              <span className="text-amber-500">Sin email</span>
+            )}
+          </div>
+
+          {award.awardType === "digital" ? (
+            <div className="space-y-3">
+              {(award.codeType === "qr" || award.codeType === "barcode") && award.codeFileUrl ? (
+                <div className="flex flex-col items-center gap-2 bg-gray-50 rounded-xl p-4">
+                  <img src={award.codeFileUrl} alt="code" className="h-28 w-auto object-contain" />
+                  <a href={award.codeFileUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-violet-600 hover:underline">
+                    {award.codeType === "qr" ? <QrCode className="w-3.5 h-3.5 inline mr-1" /> : <BarChart2 className="w-3.5 h-3.5 inline mr-1" />}
+                    Ver imagen
+                  </a>
+                </div>
+              ) : award.codeType === "link" && award.code ? (
+                <div>
+                  <p className="text-xs font-semibold text-gray-400 mb-1 flex items-center gap-1"><LinkIcon className="w-3 h-3" /> Link</p>
+                  <a href={award.code} target="_blank" rel="noopener noreferrer" className="text-sm text-violet-600 hover:underline break-all">{award.code}</a>
+                </div>
+              ) : award.code ? (
+                <div>
+                  <p className="text-xs font-semibold text-gray-400 mb-1 flex items-center gap-1"><Key className="w-3 h-3" /> Código</p>
+                  <div className="bg-gray-100 rounded-xl px-4 py-2.5 font-mono text-sm tracking-widest text-gray-900 select-all">{award.code}</div>
+                </div>
+              ) : null}
+              {award.pin && (
+                <div>
+                  <p className="text-xs font-semibold text-gray-400 mb-1">PIN</p>
+                  <div className="bg-gray-100 rounded-xl px-4 py-2 font-mono text-sm tracking-widest text-gray-900 select-all inline-block">{award.pin}</div>
+                </div>
+              )}
+              {award.expiresAt && (
+                <div className="flex items-center gap-1.5 text-xs text-gray-500">
+                  <Calendar className="w-3.5 h-3.5" /> Vigencia: {fmtDate(award.expiresAt)}
+                </div>
+              )}
+              {award.usageInstructions && (
+                <div className="bg-gray-50 rounded-xl px-4 py-3">
+                  <p className="text-xs font-semibold text-gray-400 mb-1">Instrucciones de uso</p>
+                  <p className="text-sm text-gray-700 whitespace-pre-line">{award.usageInstructions}</p>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {award.trackingNumber && (
+                <div>
+                  <p className="text-xs font-semibold text-gray-400 mb-1 flex items-center gap-1"><Truck className="w-3 h-3" /> Número de guía</p>
+                  <div className="bg-gray-100 rounded-xl px-4 py-2.5 font-mono text-sm font-bold text-gray-900 select-all">
+                    {award.trackingNumber}
+                    {award.courier && <span className="ml-2 font-normal text-gray-500 text-xs">({award.courier})</span>}
+                  </div>
+                </div>
+              )}
+              {award.estimatedDelivery && (
+                <div className="flex items-center gap-1.5 text-xs text-gray-500">
+                  <Package className="w-3.5 h-3.5" /> Llegada estimada: {fmtDate(award.estimatedDelivery)}
+                </div>
+              )}
+            </div>
+          )}
+
+          {award.terms && (
+            <div className="border-t border-gray-100 pt-3">
+              <p className="text-xs font-semibold text-gray-400 mb-1">Términos y condiciones</p>
+              <p className="text-xs text-gray-500 whitespace-pre-line">{award.terms}</p>
+            </div>
+          )}
+        </div>
+
+        <div className="px-5 pb-5">
+          <button
+            type="button"
+            onClick={onClose}
+            className="w-full text-sm font-semibold text-gray-700 border border-gray-200 rounded-xl py-2.5 hover:bg-gray-50 transition-colors"
+          >
+            Cerrar
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function HunchParticipants() {
@@ -167,15 +320,25 @@ export default function HunchParticipants() {
   const [winnerUserId, setWinnerUserId] = useState<number | null>(null);
   const [winnerRanks, setWinnerRanks] = useState<Array<{ rank: number; userId: number; predId?: number }>>([]);
 
+  // Award state
+  const [awardedMap, setAwardedMap] = useState<Map<number, AwardRecord>>(new Map());
+  const [viewAward, setViewAward] = useState<AwardRecord | null>(null);
+
   useEffect(() => {
     if (!params.id) return;
     setLoading(true);
     Promise.all([
       adminFetch(`/admin/hunches/${params.id}`).then((r) => r.json()),
       adminFetch(`/admin/hunches/${params.id}/predictions`).then((r) => r.json()),
-    ]).then(([h, preds]) => {
+      adminFetch(`/admin/hunches/${params.id}/awards`).then((r) => r.ok ? r.json() : []),
+    ]).then(([h, preds, awards]) => {
       setHunch(h);
       setPredData(preds);
+      const map = new Map<number, AwardRecord>();
+      for (const a of (awards as AwardRecord[])) {
+        if (!map.has(a.userId)) map.set(a.userId, a);
+      }
+      setAwardedMap(map);
       if (h.winnerOption) setWinnerOption(h.winnerOption as string);
       if (h.winnerUserId) setWinnerUserId(h.winnerUserId as number);
       if (h.winnerRanks) {
@@ -331,6 +494,7 @@ export default function HunchParticipants() {
   const currentSortLabel = SORT_OPTIONS.find((s) => s.key === sortBy)?.label ?? "Más recientes";
 
   return (
+    <>
     <AdminLayout>
       {confirmOpen && (
         <ConfirmModal
@@ -513,18 +677,28 @@ export default function HunchParticipants() {
                             <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-lg border ${rankCfg!.badge}`}>
                               <Trophy className="w-3 h-3" /> {RANK_CONFIG[assignedRank].label} Place
                             </span>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const tier = hunch!.prizeTiers.find((t) => t.rank === assignedRank);
-                                const qs = new URLSearchParams({ rank: String(assignedRank), prizeLabel: tier?.prizeLabel ?? "", prizeValue: tier?.prizeValue ?? "" });
-                                setLocation(`/backstage/hunches/${params.id}/participants/${u.userId}/award?${qs}`);
-                              }}
-                              title="Premiar"
-                              className="inline-flex items-center gap-1 text-xs font-semibold text-violet-600 border border-violet-200 bg-white px-2.5 py-1 rounded-lg hover:bg-violet-50 transition-colors"
-                            >
-                              <Gift className="w-3 h-3" /> Premiar
-                            </button>
+                            {awardedMap.has(u.userId) ? (
+                              <button
+                                type="button"
+                                onClick={() => setViewAward(awardedMap.get(u.userId)!)}
+                                className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 border border-emerald-200 bg-emerald-50 px-2.5 py-1 rounded-lg hover:bg-emerald-100 transition-colors"
+                              >
+                                <CheckCircle2 className="w-3 h-3" /> Premio enviado
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const tier = hunch!.prizeTiers.find((t) => t.rank === assignedRank);
+                                  const qs = new URLSearchParams({ rank: String(assignedRank), prizeLabel: tier?.prizeLabel ?? "", prizeValue: tier?.prizeValue ?? "" });
+                                  setLocation(`/backstage/hunches/${params.id}/participants/${u.userId}/award?${qs}`);
+                                }}
+                                title="Premiar"
+                                className="inline-flex items-center gap-1 text-xs font-semibold text-violet-600 border border-violet-200 bg-white px-2.5 py-1 rounded-lg hover:bg-violet-50 transition-colors"
+                              >
+                                <Gift className="w-3 h-3" /> Premiar
+                              </button>
+                            )}
                             <button
                               type="button"
                               onClick={() => clearRank(u.userId)}
@@ -552,18 +726,28 @@ export default function HunchParticipants() {
                             <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg">
                               <Trophy className="w-3 h-3" /> Winner
                             </span>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const tier = hunch!.prizeTiers[0];
-                                const qs = new URLSearchParams({ prizeLabel: tier?.prizeLabel ?? "", prizeValue: tier?.prizeValue ?? "" });
-                                setLocation(`/backstage/hunches/${params.id}/participants/${u.userId}/award?${qs}`);
-                              }}
-                              title="Premiar"
-                              className="inline-flex items-center gap-1 text-xs font-semibold text-violet-600 border border-violet-200 bg-white px-2.5 py-1 rounded-lg hover:bg-violet-50 transition-colors"
-                            >
-                              <Gift className="w-3 h-3" /> Premiar
-                            </button>
+                            {awardedMap.has(u.userId) ? (
+                              <button
+                                type="button"
+                                onClick={() => setViewAward(awardedMap.get(u.userId)!)}
+                                className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 border border-emerald-200 bg-emerald-50 px-2.5 py-1 rounded-lg hover:bg-emerald-100 transition-colors"
+                              >
+                                <CheckCircle2 className="w-3 h-3" /> Premio enviado
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const tier = hunch!.prizeTiers[0];
+                                  const qs = new URLSearchParams({ prizeLabel: tier?.prizeLabel ?? "", prizeValue: tier?.prizeValue ?? "" });
+                                  setLocation(`/backstage/hunches/${params.id}/participants/${u.userId}/award?${qs}`);
+                                }}
+                                title="Premiar"
+                                className="inline-flex items-center gap-1 text-xs font-semibold text-violet-600 border border-violet-200 bg-white px-2.5 py-1 rounded-lg hover:bg-violet-50 transition-colors"
+                              >
+                                <Gift className="w-3 h-3" /> Premiar
+                              </button>
+                            )}
                           </>
                         ) : (
                           <button
@@ -626,18 +810,28 @@ export default function HunchParticipants() {
                           </span>
                           {uid != null && (
                             <>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  const tier = hunch!.prizeTiers.find((t) => t.rank === assignedRank);
-                                  const qs = new URLSearchParams({ rank: String(assignedRank), prizeLabel: tier?.prizeLabel ?? "", prizeValue: tier?.prizeValue ?? "" });
-                                  setLocation(`/backstage/hunches/${params.id}/participants/${uid}/award?${qs}`);
-                                }}
-                                title="Premiar"
-                                className="inline-flex items-center gap-1 text-xs font-semibold text-violet-600 border border-violet-200 bg-white px-2.5 py-1 rounded-lg hover:bg-violet-50 transition-colors"
-                              >
-                                <Gift className="w-3 h-3" /> Premiar
-                              </button>
+                              {uid != null && awardedMap.has(uid) ? (
+                                <button
+                                  type="button"
+                                  onClick={() => setViewAward(awardedMap.get(uid)!)}
+                                  className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 border border-emerald-200 bg-emerald-50 px-2.5 py-1 rounded-lg hover:bg-emerald-100 transition-colors"
+                                >
+                                  <CheckCircle2 className="w-3 h-3" /> Premio enviado
+                                </button>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const tier = hunch!.prizeTiers.find((t) => t.rank === assignedRank);
+                                    const qs = new URLSearchParams({ rank: String(assignedRank), prizeLabel: tier?.prizeLabel ?? "", prizeValue: tier?.prizeValue ?? "" });
+                                    setLocation(`/backstage/hunches/${params.id}/participants/${uid}/award?${qs}`);
+                                  }}
+                                  title="Premiar"
+                                  className="inline-flex items-center gap-1 text-xs font-semibold text-violet-600 border border-violet-200 bg-white px-2.5 py-1 rounded-lg hover:bg-violet-50 transition-colors"
+                                >
+                                  <Gift className="w-3 h-3" /> Premiar
+                                </button>
+                              )}
                               <button
                                 type="button"
                                 onClick={() => clearRank(uid, p.id)}
@@ -701,18 +895,28 @@ export default function HunchParticipants() {
                             <Trophy className="w-3 h-3" /> Ganador
                           </span>
                           {p.userId != null && (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const tier = hunch!.prizeTiers[0];
-                                const qs = new URLSearchParams({ prizeLabel: tier?.prizeLabel ?? "", prizeValue: tier?.prizeValue ?? "" });
-                                setLocation(`/backstage/hunches/${params.id}/participants/${p.userId}/award?${qs}`);
-                              }}
-                              title="Premiar"
-                              className="inline-flex items-center gap-1 text-xs font-semibold text-violet-600 border border-violet-200 bg-white px-2.5 py-1 rounded-lg hover:bg-violet-50 transition-colors"
-                            >
-                              <Gift className="w-3 h-3" /> Premiar
-                            </button>
+                            awardedMap.has(p.userId) ? (
+                              <button
+                                type="button"
+                                onClick={() => setViewAward(awardedMap.get(p.userId!)!)}
+                                className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 border border-emerald-200 bg-emerald-50 px-2.5 py-1 rounded-lg hover:bg-emerald-100 transition-colors"
+                              >
+                                <CheckCircle2 className="w-3 h-3" /> Premio enviado
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const tier = hunch!.prizeTiers[0];
+                                  const qs = new URLSearchParams({ prizeLabel: tier?.prizeLabel ?? "", prizeValue: tier?.prizeValue ?? "" });
+                                  setLocation(`/backstage/hunches/${params.id}/participants/${p.userId}/award?${qs}`);
+                                }}
+                                title="Premiar"
+                                className="inline-flex items-center gap-1 text-xs font-semibold text-violet-600 border border-violet-200 bg-white px-2.5 py-1 rounded-lg hover:bg-violet-50 transition-colors"
+                              >
+                                <Gift className="w-3 h-3" /> Premiar
+                              </button>
+                            )
                           )}
                           <button
                             type="button"
@@ -741,5 +945,7 @@ export default function HunchParticipants() {
         )}
       </div>
     </AdminLayout>
+    {viewAward && <AwardDetailModal award={viewAward} onClose={() => setViewAward(null)} />}
+    </>
   );
 }
