@@ -319,47 +319,7 @@ export default function TicketsPage() {
                 <div className="mb-8">
                   <h2 className="text-sm font-semibold text-foreground uppercase tracking-wide mb-5">{t("tickets_get_more")}</h2>
 
-                  {/* Ticket Pack — single featured card, only shown when Stripe has an active pack */}
-                  {packsReady && packs[0] && (() => {
-                    const pack = packs[0];
-                    const ticketAmount = Number(pack.metadata?.ticketAmount ?? 1);
-                    const isChecking = checkingOut === pack.price_id;
-                    const anyLoading = !!checkingOut;
-                    return (
-                      <div className="mb-8">
-                        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-3">{t("ticket_packs_label")}</p>
-                        <button
-                          onClick={() => handleBuyPack(pack.price_id)}
-                          disabled={anyLoading}
-                          className={`w-full bg-card border rounded-xl p-5 flex items-center gap-5 text-left transition-all duration-150 group ${
-                            anyLoading
-                              ? "opacity-60 cursor-not-allowed"
-                              : "hover:border-primary/50 hover:shadow-sm cursor-pointer"
-                          } ${isChecking ? "border-primary/50 shadow-sm" : "border-border"}`}
-                        >
-                          <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 transition-colors ${
-                            isChecking ? "bg-primary/10 text-primary" : "bg-primary/5 text-muted-foreground group-hover:bg-primary/10 group-hover:text-primary"
-                          }`}>
-                            {isChecking
-                              ? <Loader2 className="w-6 h-6 animate-spin" />
-                              : <Package className="w-6 h-6" />
-                            }
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-base font-bold text-foreground">{pack.product_name}</p>
-                            <p className="text-sm text-muted-foreground">{ticketAmount} tickets — {t("one_time_purchase")}</p>
-                          </div>
-                          <div className="text-right flex-shrink-0">
-                            <p className="text-xl font-extrabold text-primary">${(pack.unit_amount / 100).toFixed(0)}</p>
-                            <p className="text-xs text-muted-foreground">MXN</p>
-                          </div>
-                          <ChevronRight className={`w-4 h-4 flex-shrink-0 transition-colors ${isChecking ? "text-primary" : "text-muted-foreground group-hover:text-primary"}`} />
-                        </button>
-                      </div>
-                    );
-                  })()}
-
-                  {/* Monthly Passes */}
+                  {/* Monthly Passes — shown first */}
                   <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-3">{t("monthly_passes_label")}</p>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     {MONTHLY_PASSES.map((pass) => {
@@ -441,6 +401,51 @@ export default function TicketsPage() {
                   <p className="text-xs text-muted-foreground text-center mt-4">
                     {t("tickets_free_note")}
                   </p>
+
+                  {/* Ticket Pack — single card, below subscriptions */}
+                  {packsReady && packs[0] && (() => {
+                    const pack = packs[0];
+                    const ticketAmount = Number(pack.metadata?.ticketAmount ?? 1);
+                    const isChecking = checkingOut === pack.price_id;
+                    const anyLoading = !!checkingOut;
+                    return (
+                      <div className="mt-6">
+                        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-3">{t("ticket_packs_label")}</p>
+                        <button
+                          onClick={() => handleBuyPack(pack.price_id)}
+                          disabled={anyLoading}
+                          className={`w-full bg-card border rounded-xl p-5 flex items-center gap-5 text-left transition-all duration-150 group ${
+                            anyLoading
+                              ? "opacity-60 cursor-not-allowed"
+                              : "hover:border-primary/50 hover:shadow-sm cursor-pointer"
+                          } ${isChecking ? "border-primary/50 shadow-sm" : "border-border"}`}
+                        >
+                          <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 transition-colors ${
+                            isChecking ? "bg-primary/10 text-primary" : "bg-primary/5 text-muted-foreground group-hover:bg-primary/10 group-hover:text-primary"
+                          }`}>
+                            {isChecking
+                              ? <Loader2 className="w-6 h-6 animate-spin" />
+                              : <Package className="w-6 h-6" />
+                            }
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <p className="text-base font-bold text-foreground">{pack.product_name}</p>
+                              <span className="text-[10px] font-bold uppercase tracking-widest bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full whitespace-nowrap">
+                                {t("one_time_purchase")}
+                              </span>
+                            </div>
+                            <p className="text-sm text-muted-foreground mt-0.5">{ticketAmount} tickets — {t("no_subscription_needed")}</p>
+                          </div>
+                          <div className="text-right flex-shrink-0">
+                            <p className="text-xl font-extrabold text-primary">${(pack.unit_amount / 100).toFixed(0)}</p>
+                            <p className="text-xs text-muted-foreground">MXN</p>
+                          </div>
+                          <ChevronRight className={`w-4 h-4 flex-shrink-0 transition-colors ${isChecking ? "text-primary" : "text-muted-foreground group-hover:text-primary"}`} />
+                        </button>
+                      </div>
+                    );
+                  })()}
                 </div>
 
                 {/* How tickets work */}
