@@ -48,7 +48,7 @@ async function getStripeKey(): Promise<string> {
     const url = new URL(`https://${hostname}/api/v2/connection`);
     url.searchParams.set("include_secrets", "true");
     url.searchParams.set("connector_names", "stripe");
-    url.searchParams.set("environment", "development");
+    url.searchParams.set("environment", process.env.STRIPE_ENV ?? "development");
 
     const resp = await fetch(url.toString(), {
       headers: { Accept: "application/json", "X-Replit-Token": xReplitToken },
