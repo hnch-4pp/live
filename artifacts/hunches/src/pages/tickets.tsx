@@ -73,7 +73,7 @@ function useMySubscription() {
 }
 
 function formatPrice(cents: number): string {
-  return `$${(cents / 100).toFixed(2)}`;
+  return `$${(cents / 100).toFixed(0)}`;
 }
 
 function formatPeriodEnd(iso: string | null): string {
@@ -88,18 +88,12 @@ const PACK_ICONS: Record<string, React.ReactNode> = {
   ten:    <Sparkles className="w-5 h-5" />,
 };
 
-const FALLBACK_PACKS = [
-  { label: "Single",  tickets: 1,  price: "$0.99" },
-  { label: "5-Pack",  tickets: 5,  price: "$4.49" },
-  { label: "10-Pack", tickets: 10, price: "$7.99", badge: true },
-];
+const FALLBACK_PACKS: { label: string; tickets: number; price: string; badge?: boolean }[] = [];
 
 const MONTHLY_PASSES = [
-  { id: "free",    icon: <Ticket className="w-4 h-4" />,   label: "Free",    tickets: 5,   amountCents: 0,    featured: false },
-  { id: "starter", icon: <Package className="w-4 h-4" />,  label: "Starter", tickets: 10,  amountCents: 699,  featured: false },
-  { id: "plus",    icon: <Star className="w-4 h-4" />,     label: "Plus",    tickets: 25,  amountCents: 1399, featured: false },
-  { id: "pro",     icon: <Zap className="w-4 h-4" />,      label: "Pro",     tickets: 100, amountCents: 2999, featured: true  },
-  { id: "elite",   icon: <Crown className="w-4 h-4" />,    label: "Elite",   tickets: 250, amountCents: 4999, featured: false },
+  { id: "pro",    icon: <Zap className="w-4 h-4" />,    label: "Pro",    tickets: 20,  amountCents: 19900, featured: false },
+  { id: "elite",  icon: <Star className="w-4 h-4" />,   label: "Elite",  tickets: 50,  amountCents: 29900, featured: true  },
+  { id: "legend", icon: <Crown className="w-4 h-4" />,  label: "Legend", tickets: 100, amountCents: 49900, featured: false },
 ];
 
 export default function TicketsPage() {
@@ -325,77 +319,53 @@ export default function TicketsPage() {
                 <div className="mb-8">
                   <h2 className="text-sm font-semibold text-foreground uppercase tracking-wide mb-5">{t("tickets_get_more")}</h2>
 
-                  {/* Ticket Packs */}
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-3">{t("ticket_packs_label")}</p>
-
-                  {packsLoading ? (
-                    <div className="grid grid-cols-3 gap-3 mb-8">
-                      {[0, 1, 2].map((i) => <div key={i} className="h-28 bg-muted rounded-xl animate-pulse" />)}
-                    </div>
-                  ) : packsReady ? (
-                    <div className="grid grid-cols-3 gap-3 mb-8">
-                      {packs.map((pack) => {
-                        const packId = pack.metadata?.packId ?? "single";
-                        const ticketAmount = Number(pack.metadata?.ticketAmount ?? 1);
-                        const isChecking = checkingOut === pack.price_id;
-                        const anyLoading = !!checkingOut;
-                        return (
-                          <button
-                            key={pack.price_id}
-                            onClick={() => handleBuyPack(pack.price_id)}
-                            disabled={anyLoading}
-                            className={`relative bg-card border rounded-xl p-4 flex flex-col gap-2 text-left transition-all duration-150 group ${
-                              anyLoading
-                                ? "opacity-60 cursor-not-allowed"
-                                : "hover:border-primary/50 hover:shadow-sm cursor-pointer"
-                            } ${isChecking ? "border-primary/50 shadow-sm" : "border-border"}`}
-                          >
-                            {pack.metadata?.packId === "ten" && (
-                              <span className="absolute -top-2 left-3 text-[10px] font-bold bg-primary text-white px-2 py-0.5 rounded-full">
-                                {t("best_value_badge")}
-                              </span>
-                            )}
-                            <div className={`transition-colors ${isChecking ? "text-primary" : "text-muted-foreground group-hover:text-primary"}`}>
-                              {isChecking
-                                ? <Loader2 className="w-5 h-5 animate-spin" />
-                                : (PACK_ICONS[packId] ?? <Ticket className="w-5 h-5" />)
-                              }
-                            </div>
-                            <div>
-                              <p className="text-sm font-bold text-foreground">{pack.product_name}</p>
-                              <p className="text-xs text-muted-foreground">{ticketAmount} ticket{ticketAmount !== 1 ? "s" : ""}</p>
-                            </div>
-                            <p className="text-base font-bold text-primary mt-auto">{formatPrice(pack.unit_amount)}</p>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-3 gap-3 mb-8">
-                      {FALLBACK_PACKS.map((pack) => (
-                        <div
-                          key={pack.label}
-                          className="relative bg-muted/50 border border-border rounded-xl p-4 opacity-50 select-none flex flex-col gap-2"
-                        >
-                          {pack.badge && (
-                            <span className="absolute -top-2 left-3 text-[10px] font-bold bg-primary text-white px-2 py-0.5 rounded-full">
-                              {t("best_value_badge")}
-                            </span>
-                          )}
-                          <div className="text-muted-foreground"><Ticket className="w-5 h-5" /></div>
-                          <div>
-                            <p className="text-sm font-bold text-foreground">{pack.label}</p>
-                            <p className="text-xs text-muted-foreground">{pack.tickets} ticket{pack.tickets !== 1 ? "s" : ""}</p>
-                          </div>
-                          <p className="text-base font-bold text-primary mt-auto">{pack.price}</p>
-                        </div>
-                      ))}
-                    </div>
+                  {/* Ticket Packs — only shown when Stripe has active packs */}
+                  {packsReady && (
+                    <>
+                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-3">{t("ticket_packs_label")}</p>
+                      <div className="grid grid-cols-3 gap-3 mb-8">
+                        {packs.map((pack) => {
+                          const packId = pack.metadata?.packId ?? "single";
+                          const ticketAmount = Number(pack.metadata?.ticketAmount ?? 1);
+                          const isChecking = checkingOut === pack.price_id;
+                          const anyLoading = !!checkingOut;
+                          return (
+                            <button
+                              key={pack.price_id}
+                              onClick={() => handleBuyPack(pack.price_id)}
+                              disabled={anyLoading}
+                              className={`relative bg-card border rounded-xl p-4 flex flex-col gap-2 text-left transition-all duration-150 group ${
+                                anyLoading
+                                  ? "opacity-60 cursor-not-allowed"
+                                  : "hover:border-primary/50 hover:shadow-sm cursor-pointer"
+                              } ${isChecking ? "border-primary/50 shadow-sm" : "border-border"}`}
+                            >
+                              {pack.metadata?.packId === "ten" && (
+                                <span className="absolute -top-2 left-3 text-[10px] font-bold bg-primary text-white px-2 py-0.5 rounded-full">
+                                  {t("best_value_badge")}
+                                </span>
+                              )}
+                              <div className={`transition-colors ${isChecking ? "text-primary" : "text-muted-foreground group-hover:text-primary"}`}>
+                                {isChecking
+                                  ? <Loader2 className="w-5 h-5 animate-spin" />
+                                  : (PACK_ICONS[packId] ?? <Ticket className="w-5 h-5" />)
+                                }
+                              </div>
+                              <div>
+                                <p className="text-sm font-bold text-foreground">{pack.product_name}</p>
+                                <p className="text-xs text-muted-foreground">{ticketAmount} ticket{ticketAmount !== 1 ? "s" : ""}</p>
+                              </div>
+                              <p className="text-base font-bold text-primary mt-auto">{formatPrice(pack.unit_amount)}</p>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </>
                   )}
 
                   {/* Monthly Passes */}
                   <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-3">{t("monthly_passes_label")}</p>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     {MONTHLY_PASSES.map((pass) => {
                       const isActive = activeTier === pass.id;
                       const isSubscribing = subscribing === pass.id;
@@ -434,7 +404,7 @@ export default function TicketsPage() {
                           <p className="text-base font-bold text-primary mt-auto">
                             {isFree
                               ? <span className="text-foreground font-bold">Free</span>
-                              : <>${(pass.amountCents / 100).toFixed(2)}<span className="text-xs font-medium text-muted-foreground">{t("per_month_suffix")}</span></>
+                              : <>${(pass.amountCents / 100).toFixed(0)} <span className="text-xs font-medium text-muted-foreground">MXN{t("per_month_suffix")}</span></>
                             }
                           </p>
 
