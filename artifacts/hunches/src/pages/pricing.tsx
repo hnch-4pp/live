@@ -21,8 +21,8 @@ export default function Pricing() {
       label: "Pro",
       tickets: 20,
       amountCents: 19900,
-      highlight: true,
-      badge: t("pricing_pro_badge"),
+      highlight: false,
+      badge: "",
       cta: t("pricing_pro_cta"),
       features: [
         t("pricing_pro_f1"),
@@ -37,8 +37,8 @@ export default function Pricing() {
       label: "Elite",
       tickets: 50,
       amountCents: 29900,
-      highlight: false,
-      badge: "",
+      highlight: true,
+      badge: t("pricing_elite_badge"),
       cta: t("pricing_elite_cta"),
       features: [
         t("pricing_elite_f1"),
@@ -110,7 +110,7 @@ export default function Pricing() {
                 key={plan.id}
                 className={`relative rounded-2xl border flex flex-col p-6 transition-shadow ${
                   plan.highlight
-                    ? "bg-violet-600 border-violet-600 text-white shadow-xl shadow-violet-200"
+                    ? "bg-violet-500 border-violet-500 text-white shadow-xl shadow-violet-100"
                     : "bg-white border-gray-200 text-gray-900"
                 }`}
               >
@@ -118,8 +118,8 @@ export default function Pricing() {
                   <div
                     className={`absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest whitespace-nowrap ${
                       plan.highlight
-                        ? "bg-white text-violet-600"
-                        : "bg-violet-600 text-white"
+                        ? "bg-white text-violet-500"
+                        : "bg-violet-500 text-white"
                     }`}
                   >
                     {plan.badge}
