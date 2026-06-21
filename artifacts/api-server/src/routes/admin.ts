@@ -2995,6 +2995,14 @@ router.post("/admin/hunches/:hunchId/award/:userId", requireAdmin, requireAdminH
     terms: terms ? String(terms) : null,
   }).returning();
 
+  // In-app notification
+  await db.insert(userNotificationsTable).values({
+    userId,
+    title: "Tienes un premio que reclamar",
+    body: `Ganaste ${String(prizeLabel)} en "${hunch.title}". Entra a ver los detalles de tu premio.`,
+    link: "/prizes",
+  });
+
   // Send email notification (fire-and-forget)
   sendPrizeAwardEmail(
     user.email,
