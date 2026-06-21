@@ -108,6 +108,7 @@ export default function TicketsPage() {
 
   const [checkingOut, setCheckingOut] = useState<string | null>(null);
   const [subscribing, setSubscribing] = useState<string | null>(null);
+  const [subscribeError, setSubscribeError] = useState<string | null>(null);
   const [openingPortal, setOpeningPortal] = useState(false);
   const [successBanner, setSuccessBanner] = useState(false);
   const [promoCode, setPromoCode] = useState("");
@@ -157,6 +158,7 @@ export default function TicketsPage() {
   async function handleSubscribe(tierId: string) {
     if (!user) { setLocation("/login"); return; }
     setSubscribing(tierId);
+    setSubscribeError(null);
     try {
       const res = await fetch(apiUrl("/api/stripe/subscribe"), {
         method: "POST",
@@ -165,8 +167,14 @@ export default function TicketsPage() {
         body: JSON.stringify({ tierId, returnUrl: window.location.origin }),
       });
       const data = await res.json() as { url?: string; error?: string };
-      if (data.url) window.location.href = data.url;
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        setSubscribeError(data.error ?? "No se pudo iniciar el proceso. Intenta de nuevo.");
+        setSubscribing(null);
+      }
     } catch {
+      setSubscribeError("Error de conexion. Intenta de nuevo.");
       setSubscribing(null);
     }
   }
@@ -252,6 +260,17 @@ export default function TicketsPage() {
                   <p className="text-xs text-emerald-700">{t("sub_active_desc")}</p>
                 </div>
                 <button onClick={() => setSuccessBanner(false)} className="ml-auto text-emerald-500 hover:text-emerald-700">
+                  <MinusCircle className="w-4 h-4" />
+                </button>
+              </div>
+            )}
+
+            {/* Subscribe error banner */}
+            {subscribeError && (
+              <div className="flex items-center gap-3 bg-red-50 border border-red-200 rounded-xl p-4 mb-6">
+                <MinusCircle className="w-5 h-5 text-red-500 flex-shrink-0" />
+                <p className="text-sm text-red-700 flex-1">{subscribeError}</p>
+                <button onClick={() => setSubscribeError(null)} className="ml-auto text-red-400 hover:text-red-600">
                   <MinusCircle className="w-4 h-4" />
                 </button>
               </div>

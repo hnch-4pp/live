@@ -96,15 +96,27 @@ router.post("/stripe/subscribe", async (req, res): Promise<void> => {
     limit: 100,
   });
 
+  req.log.info(
+    { tierId, totalPrices: prices.data.length, mxnPrices: prices.data.filter(p => p.currency === "mxn").length },
+    "Searching for MXN price",
+  );
+
   const matchedPrice = prices.data.find((p) => {
     const product = p.product as import("stripe").Stripe.Product;
-    return product.metadata?.tierId === tierId && p.currency === "mxn";
+    const match = product.metadata?.tierId === tierId && p.currency === "mxn";
+    if (p.currency === "mxn") {
+      req.log.info({ priceId: p.id, productTierId: product.metadata?.tierId, tierId, match }, "MXN price candidate");
+    }
+    return match;
   });
 
   if (!matchedPrice) {
+    req.log.error({ tierId }, "No MXN price found for tier");
     res.status(404).json({ error: "Subscription product not found in Stripe" });
     return;
   }
+
+  req.log.info({ priceId: matchedPrice.id, tierId }, "Matched Stripe price");
 
   // Create or reuse Stripe customer
   let customerId = user.stripeCustomerId;
