@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { useTranslation } from "react-i18next";
 import { apiUrl } from "@/lib/apiFetch";
-import { LayoutDashboard, ListChecks, Tag, Users, LogOut, ChevronRight, Ticket, Sparkles, Bell, BarChart2, BellRing, Link2, Award, TrendingUp, MessageSquare } from "lucide-react";
+import { LayoutDashboard, ListChecks, Tag, Users, LogOut, ChevronRight, Ticket, Sparkles, Bell, BarChart2, BellRing, Link2, Award, TrendingUp, MessageSquare, CreditCard } from "lucide-react";
 
 const NAV = [
   { href: "/backstage/dashboard",         label: "Dashboard",        icon: LayoutDashboard },
@@ -12,6 +12,7 @@ const NAV = [
   { href: "/backstage/trending",          label: "Trending",         icon: TrendingUp },
   { href: "/backstage/users",             label: "Users",            icon: Users },
   { href: "/backstage/ticket-codes",      label: "Ticket Codes",     icon: Ticket },
+  { href: "/backstage/pricing",           label: "Pricing",          icon: CreditCard },
   { href: "/backstage/notifications",     label: "Notifications",    icon: Bell },
   { href: "/backstage/send-notifications", label: "Send to Users",   icon: BellRing, sub: true },
   { href: "/backstage/admin-alerts",      label: "Admin Alerts",     icon: BellRing },

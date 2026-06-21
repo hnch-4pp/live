@@ -68,7 +68,7 @@ router.post("/stripe/subscribe", async (req, res): Promise<void> => {
   }
 
   const { tierId, returnUrl, referralDiscount } = req.body as { tierId?: TierId; returnUrl?: string; referralDiscount?: boolean };
-  if (!tierId || !SUBSCRIPTION_TIERS[tierId] || tierId === "free") {
+  if (!tierId || !SUBSCRIPTION_TIERS[tierId]) {
     res.status(400).json({ error: "Invalid tier" });
     return;
   }

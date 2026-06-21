@@ -42,6 +42,7 @@ import AdminAffiliateTiers from "@/pages/backstage/affiliate-tiers";
 import AdminTrending from "@/pages/backstage/trending";
 import AdminComments from "@/pages/backstage/comments";
 import AdminSendNotifications from "@/pages/backstage/send-notifications";
+import AdminPricing from "@/pages/backstage/pricing";
 import NotificationsPage from "@/pages/notifications";
 import Referral from "@/pages/referral";
 import UserProfile from "@/pages/user-profile";
@@ -107,6 +108,7 @@ function Router() {
       <Route path="/backstage/affiliate-tiers" component={AdminAffiliateTiers} />
       <Route path="/backstage/comments" component={AdminComments} />
       <Route path="/backstage/send-notifications" component={AdminSendNotifications} />
+      <Route path="/backstage/pricing" component={AdminPricing} />
       <Route path="/notifications" component={NotificationsPage} />
       <Route path="/referral" component={Referral} />
       <Route path="/affiliate" component={AffiliateLanding} />

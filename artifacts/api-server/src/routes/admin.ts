@@ -3057,4 +3057,112 @@ router.get("/admin/users/:id/prize-awards", requireAdmin, requireAdminHeader, as
   res.json(rows);
 });
 
+// ── Pricing plans management ────────────────────────────────────────────────
+
+const DEFAULT_PRICING_PLANS = [
+  {
+    id: "pro",
+    name: "Pro",
+    amountCents: 19900,
+    currency: "mxn",
+    ticketsPerMonth: 20,
+    badge: "Más popular",
+    features: [
+      "20 tickets cada mes",
+      "Acceso a todas las categorías",
+      "Clasificación comunitaria",
+      "Premios reales",
+    ],
+  },
+  {
+    id: "elite",
+    name: "Elite",
+    amountCents: 29900,
+    currency: "mxn",
+    ticketsPerMonth: 50,
+    badge: "",
+    features: [
+      "50 tickets cada mes",
+      "Todo lo de Pro",
+      "Posicionamiento prioritario de predicciones",
+      "Acceso anticipado a nuevos hunches",
+    ],
+  },
+  {
+    id: "legend",
+    name: "Legend",
+    amountCents: 49900,
+    currency: "mxn",
+    ticketsPerMonth: 100,
+    badge: "Mejor precio por ticket",
+    features: [
+      "100 tickets cada mes",
+      "Todo lo de Elite",
+      "Hunches exclusivos Legend",
+      "Acceso VIP a premios",
+    ],
+  },
+];
+
+type PricingPlan = {
+  id: string;
+  name: string;
+  amountCents: number;
+  currency: string;
+  ticketsPerMonth: number;
+  badge: string;
+  features: string[];
+};
+
+async function getPricingPlans(): Promise<PricingPlan[]> {
+  try {
+    const [row] = await db
+      .select()
+      .from(appSettingsTable)
+      .where(eq(appSettingsTable.key, "pricing_plans"))
+      .limit(1);
+    if (row) return JSON.parse(row.value) as PricingPlan[];
+  } catch {
+    // fallback to defaults
+  }
+  return DEFAULT_PRICING_PLANS;
+}
+
+router.get("/admin/pricing-plans", async (req, res): Promise<void> => {
+  const plans = await getPricingPlans();
+  res.json({ plans });
+});
+
+router.put("/admin/pricing-plans/:id", async (req, res): Promise<void> => {
+  const { id } = req.params;
+  const { name, badge, features, amountCents, ticketsPerMonth } = req.body as Partial<PricingPlan>;
+
+  const plans = await getPricingPlans();
+  const idx = plans.findIndex((p) => p.id === id);
+  if (idx === -1) {
+    res.status(404).json({ error: "Plan not found" });
+    return;
+  }
+
+  const updated: PricingPlan = {
+    ...plans[idx],
+    ...(name !== undefined ? { name } : {}),
+    ...(badge !== undefined ? { badge } : {}),
+    ...(features !== undefined ? { features } : {}),
+    ...(amountCents !== undefined ? { amountCents } : {}),
+    ...(ticketsPerMonth !== undefined ? { ticketsPerMonth } : {}),
+  };
+  plans[idx] = updated;
+
+  await db
+    .insert(appSettingsTable)
+    .values({ key: "pricing_plans", value: JSON.stringify(plans) })
+    .onConflictDoUpdate({
+      target: appSettingsTable.key,
+      set: { value: JSON.stringify(plans), updatedAt: new Date() },
+    });
+
+  res.json({ plan: updated });
+});
+
 export default router;

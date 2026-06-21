@@ -1,94 +1,45 @@
 import { Link } from "wouter";
 import { Layout } from "@/components/layout";
-import {
-  Ticket, Package, Sparkles, Star, Zap, Crown,
-  CheckCircle2, ArrowRight, Gift,
-} from "lucide-react";
+import { Zap, Crown, Star, CheckCircle2, ArrowRight, Gift } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
-function fmt$(cents: number) {
-  return `$${(cents / 100).toFixed(2)}`;
+function fmtMXN(cents: number) {
+  return `$${(cents / 100).toFixed(0)}`;
 }
 
-function costPerTicket(cents: number, tickets: number) {
-  if (cents === 0) return null;
-  return `$${(cents / 100 / tickets).toFixed(2)}/ticket`;
+function perTicketMXN(cents: number, tickets: number) {
+  return `$${(cents / 100 / tickets).toFixed(1)} MXN/ticket`;
 }
 
 export default function Pricing() {
   const { t } = useTranslation();
 
-  const PASSES = [
-    {
-      id: "free",
-      icon: <Ticket className="w-5 h-5" />,
-      label: "Free",
-      tickets: 5,
-      amountCents: 0,
-      highlight: true,
-      badgeKey: "pricing_free_badge" as const,
-      ctaKey: "pricing_free_cta" as const,
-      features: [
-        t("pricing_free_f1"),
-        t("pricing_free_f2"),
-        t("pricing_free_f3"),
-        t("pricing_free_f4"),
-      ],
-    },
-    {
-      id: "starter",
-      icon: <Package className="w-5 h-5" />,
-      label: "Starter",
-      tickets: 10,
-      amountCents: 699,
-      highlight: false,
-      badgeKey: null,
-      ctaKey: "pricing_starter_cta" as const,
-      features: [
-        t("pricing_starter_f1"),
-        t("pricing_starter_f2"),
-        t("pricing_starter_f3"),
-      ],
-    },
-    {
-      id: "plus",
-      icon: <Star className="w-5 h-5" />,
-      label: "Plus",
-      tickets: 25,
-      amountCents: 1399,
-      highlight: false,
-      badgeKey: null,
-      ctaKey: "pricing_plus_cta" as const,
-      features: [
-        t("pricing_plus_f1"),
-        t("pricing_plus_f2"),
-        t("pricing_plus_f3"),
-      ],
-    },
+  const PLANS = [
     {
       id: "pro",
       icon: <Zap className="w-5 h-5" />,
       label: "Pro",
-      tickets: 100,
-      amountCents: 2999,
-      highlight: false,
-      badgeKey: "pricing_pro_badge" as const,
-      ctaKey: "pricing_pro_cta" as const,
+      tickets: 20,
+      amountCents: 19900,
+      highlight: true,
+      badge: t("pricing_pro_badge"),
+      cta: t("pricing_pro_cta"),
       features: [
         t("pricing_pro_f1"),
         t("pricing_pro_f2"),
         t("pricing_pro_f3"),
+        t("pricing_pro_f4"),
       ],
     },
     {
       id: "elite",
-      icon: <Crown className="w-5 h-5" />,
+      icon: <Star className="w-5 h-5" />,
       label: "Elite",
-      tickets: 250,
-      amountCents: 4999,
+      tickets: 50,
+      amountCents: 29900,
       highlight: false,
-      badgeKey: null,
-      ctaKey: "pricing_elite_cta" as const,
+      badge: "",
+      cta: t("pricing_elite_cta"),
       features: [
         t("pricing_elite_f1"),
         t("pricing_elite_f2"),
@@ -96,12 +47,22 @@ export default function Pricing() {
         t("pricing_elite_f4"),
       ],
     },
-  ];
-
-  const PACKS = [
-    { icon: <Ticket className="w-4 h-4" />,   label: "Single",  tickets: 1,  price: "$0.99", badgeKey: null },
-    { icon: <Package className="w-4 h-4" />,  label: "5-Pack",  tickets: 5,  price: "$4.49", badgeKey: null },
-    { icon: <Sparkles className="w-4 h-4" />, label: "10-Pack", tickets: 10, price: "$7.99", badgeKey: "best_value_badge" as const },
+    {
+      id: "legend",
+      icon: <Crown className="w-5 h-5" />,
+      label: "Legend",
+      tickets: 100,
+      amountCents: 49900,
+      highlight: false,
+      badge: t("pricing_legend_badge"),
+      cta: t("pricing_legend_cta"),
+      features: [
+        t("pricing_legend_f1"),
+        t("pricing_legend_f2"),
+        t("pricing_legend_f3"),
+        t("pricing_legend_f4"),
+      ],
+    },
   ];
 
   return (
@@ -123,8 +84,10 @@ export default function Pricing() {
             <p className="text-lg text-gray-500 max-w-xl mx-auto mb-8">
               {t("pricing_hero_sub")}
             </p>
-            <Link href="/signup"
-              className="inline-flex items-center gap-2 bg-violet-600 hover:bg-violet-700 text-white font-bold px-7 py-3.5 rounded-xl transition-colors shadow-sm">
+            <Link
+              href="/signup"
+              className="inline-flex items-center gap-2 bg-violet-600 hover:bg-violet-700 text-white font-bold px-7 py-3.5 rounded-xl transition-colors shadow-sm"
+            >
               {t("pricing_start_free")}
               <ArrowRight className="w-4 h-4" />
             </Link>
@@ -132,128 +95,130 @@ export default function Pricing() {
           </div>
         </section>
 
-        {/* ── Monthly passes ── */}
-        <section className="max-w-6xl mx-auto px-4 py-16">
+        {/* ── Plans ── */}
+        <section className="max-w-5xl mx-auto px-4 py-16">
           <div className="text-center mb-10">
-            <h2 className="text-2xl font-display font-bold text-gray-900 mb-2">{t("pricing_passes_title")}</h2>
+            <h2 className="text-2xl font-display font-bold text-gray-900 mb-2">
+              {t("pricing_passes_title")}
+            </h2>
             <p className="text-gray-500 text-sm">{t("pricing_passes_sub")}</p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-            {PASSES.map((pass) => {
-              const isFree = pass.amountCents === 0;
-              const perTicket = costPerTicket(pass.amountCents, pass.tickets);
-              return (
-                <div key={pass.id} className={`relative rounded-2xl border flex flex-col p-5 transition-shadow ${
-                  pass.highlight
-                    ? "bg-violet-600 border-violet-600 text-white shadow-lg shadow-violet-200"
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+            {PLANS.map((plan) => (
+              <div
+                key={plan.id}
+                className={`relative rounded-2xl border flex flex-col p-6 transition-shadow ${
+                  plan.highlight
+                    ? "bg-violet-600 border-violet-600 text-white shadow-xl shadow-violet-200"
                     : "bg-white border-gray-200 text-gray-900"
-                }`}>
-
-                  {pass.badgeKey && (
-                    <div className={`absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest whitespace-nowrap ${
-                      pass.highlight
+                }`}
+              >
+                {plan.badge ? (
+                  <div
+                    className={`absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest whitespace-nowrap ${
+                      plan.highlight
                         ? "bg-white text-violet-600"
                         : "bg-violet-600 text-white"
-                    }`}>
-                      {t(pass.badgeKey)}
-                    </div>
-                  )}
-
-                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center mb-4 ${
-                    pass.highlight ? "bg-white/20" : "bg-violet-50 text-violet-600"
-                  }`}>
-                    {pass.icon}
+                    }`}
+                  >
+                    {plan.badge}
                   </div>
+                ) : null}
 
-                  <p className={`text-xs font-bold uppercase tracking-widest mb-1 ${pass.highlight ? "text-white/70" : "text-gray-400"}`}>
-                    {pass.label}
-                  </p>
-
-                  <div className="mb-1">
-                    <span className="text-3xl font-extrabold">
-                      {isFree ? "Free" : fmt$(pass.amountCents)}
-                    </span>
-                    {!isFree && (
-                      <span className={`text-xs font-medium ml-1 ${pass.highlight ? "text-white/60" : "text-gray-400"}`}>/mo</span>
-                    )}
-                  </div>
-
-                  <p className={`text-sm font-semibold mb-1 ${pass.highlight ? "text-white/90" : "text-gray-700"}`}>
-                    {t("pricing_tickets_month", { n: pass.tickets })}
-                  </p>
-
-                  {perTicket && (
-                    <p className={`text-xs mb-4 ${pass.highlight ? "text-white/60" : "text-gray-400"}`}>
-                      {perTicket}
-                    </p>
-                  )}
-                  {!perTicket && <div className="mb-4" />}
-
-                  <ul className={`space-y-2 mb-5 flex-1 ${pass.highlight ? "text-white/80" : "text-gray-500"}`}>
-                    {pass.features.map((f) => (
-                      <li key={f} className="flex items-start gap-2 text-xs">
-                        <CheckCircle2 className={`w-3.5 h-3.5 mt-0.5 shrink-0 ${pass.highlight ? "text-white" : "text-violet-500"}`} />
-                        {f}
-                      </li>
-                    ))}
-                  </ul>
-
-                  <Link href={isFree ? "/signup" : "/tickets"}
-                    className={`block text-center text-sm font-bold py-2.5 rounded-xl transition-colors ${
-                      pass.highlight
-                        ? "bg-white text-violet-600 hover:bg-violet-50"
-                        : "bg-violet-50 text-violet-700 hover:bg-violet-100 border border-violet-200"
-                    }`}>
-                    {t(pass.ctaKey)}
-                  </Link>
+                <div
+                  className={`w-10 h-10 rounded-xl flex items-center justify-center mb-5 ${
+                    plan.highlight
+                      ? "bg-white/20"
+                      : "bg-violet-50 text-violet-600"
+                  }`}
+                >
+                  {plan.icon}
                 </div>
-              );
-            })}
-          </div>
-        </section>
 
-        {/* ── Ticket packs ── */}
-        <section className="max-w-3xl mx-auto px-4 pb-16">
-          <div className="text-center mb-10">
-            <h2 className="text-2xl font-display font-bold text-gray-900 mb-2">{t("pricing_packs_title")}</h2>
-            <p className="text-gray-500 text-sm">{t("pricing_packs_sub")}</p>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            {PACKS.map((pack) => (
-              <div key={pack.label} className="relative bg-white border border-gray-200 rounded-2xl p-6 text-center hover:border-violet-300 hover:shadow-sm transition-all">
-                {pack.badgeKey && (
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-violet-600 text-white text-[10px] font-bold uppercase tracking-widest px-3 py-1 rounded-full">
-                    {t(pack.badgeKey)}
-                  </div>
-                )}
-                <div className="w-10 h-10 rounded-xl bg-violet-50 text-violet-600 flex items-center justify-center mx-auto mb-3">
-                  {pack.icon}
-                </div>
-                <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">{pack.label}</p>
-                <p className="text-3xl font-extrabold text-gray-900 mb-1">{pack.price}</p>
-                <p className="text-sm text-gray-500 mb-4">
-                  {pack.tickets} ticket{pack.tickets > 1 ? "s" : ""}
-                  <span className="text-gray-400 text-xs block">${(parseFloat(pack.price.slice(1)) / pack.tickets).toFixed(2)}/ticket</span>
+                <p
+                  className={`text-xs font-bold uppercase tracking-widest mb-1 ${
+                    plan.highlight ? "text-white/70" : "text-gray-400"
+                  }`}
+                >
+                  {plan.label}
                 </p>
-                <Link href="/tickets"
-                  className="block text-sm font-bold text-violet-700 bg-violet-50 hover:bg-violet-100 border border-violet-200 py-2.5 rounded-xl transition-colors">
-                  {t("pricing_buy_pack")}
+
+                <div className="mb-1 flex items-end gap-1">
+                  <span className="text-4xl font-extrabold">
+                    {fmtMXN(plan.amountCents)}
+                  </span>
+                  <span
+                    className={`text-sm font-medium mb-1 ${
+                      plan.highlight ? "text-white/60" : "text-gray-400"
+                    }`}
+                  >
+                    MXN/mes
+                  </span>
+                </div>
+
+                <p
+                  className={`text-sm font-semibold mb-1 ${
+                    plan.highlight ? "text-white/90" : "text-gray-700"
+                  }`}
+                >
+                  {t("pricing_tickets_month", { n: plan.tickets })}
+                </p>
+
+                <p
+                  className={`text-xs mb-5 ${
+                    plan.highlight ? "text-white/60" : "text-gray-400"
+                  }`}
+                >
+                  {perTicketMXN(plan.amountCents, plan.tickets)}
+                </p>
+
+                <ul
+                  className={`space-y-2.5 mb-6 flex-1 ${
+                    plan.highlight ? "text-white/80" : "text-gray-500"
+                  }`}
+                >
+                  {plan.features.map((f) => (
+                    <li key={f} className="flex items-start gap-2 text-sm">
+                      <CheckCircle2
+                        className={`w-4 h-4 mt-0.5 shrink-0 ${
+                          plan.highlight ? "text-white" : "text-violet-500"
+                        }`}
+                      />
+                      {f}
+                    </li>
+                  ))}
+                </ul>
+
+                <Link
+                  href="/tickets"
+                  className={`block text-center text-sm font-bold py-3 rounded-xl transition-colors ${
+                    plan.highlight
+                      ? "bg-white text-violet-600 hover:bg-violet-50"
+                      : "bg-violet-50 text-violet-700 hover:bg-violet-100 border border-violet-200"
+                  }`}
+                >
+                  {plan.cta}
                 </Link>
               </div>
             ))}
           </div>
+        </section>
 
-          {/* Free play callout */}
-          <div className="mt-10 bg-gradient-to-r from-violet-600 to-violet-500 rounded-2xl p-6 text-white text-center">
+        {/* ── Welcome callout ── */}
+        <section className="max-w-3xl mx-auto px-4 pb-16">
+          <div className="bg-gradient-to-r from-violet-600 to-violet-500 rounded-2xl p-8 text-white text-center">
             <Gift className="w-8 h-8 mx-auto mb-3 opacity-90" />
-            <h3 className="text-lg font-bold mb-1">{t("pricing_free_callout_title")}</h3>
-            <p className="text-sm text-white/80 mb-4 max-w-md mx-auto">
-              {t("pricing_free_callout_sub")}
+            <h3 className="text-xl font-bold mb-2">
+              {t("pricing_welcome_callout_title")}
+            </h3>
+            <p className="text-sm text-white/80 mb-5 max-w-md mx-auto">
+              {t("pricing_welcome_callout_sub")}
             </p>
-            <Link href="/signup"
-              className="inline-flex items-center gap-2 bg-white text-violet-700 font-bold text-sm px-6 py-2.5 rounded-xl hover:bg-violet-50 transition-colors">
+            <Link
+              href="/signup"
+              className="inline-flex items-center gap-2 bg-white text-violet-700 font-bold text-sm px-6 py-2.5 rounded-xl hover:bg-violet-50 transition-colors"
+            >
               {t("pricing_create_free")}
               <ArrowRight className="w-4 h-4" />
             </Link>
