@@ -160,6 +160,24 @@ router.post("/stripe/subscribe", async (req, res): Promise<void> => {
     return;
   }
 
+  // Expire any open non-MXN checkout sessions for this customer so Stripe
+  // doesn't reject the new MXN session with "cannot combine currencies".
+  try {
+    const openSessions = await stripe.checkout.sessions.list({
+      customer: customerId,
+      status: "open",
+      limit: 10,
+    });
+    for (const s of openSessions.data) {
+      if (s.currency !== "mxn") {
+        await stripe.checkout.sessions.expire(s.id);
+        req.log.info({ sessionId: s.id, currency: s.currency }, "Expired stale non-MXN checkout session");
+      }
+    }
+  } catch (expireErr) {
+    req.log.warn({ err: expireErr }, "Could not expire old checkout sessions — proceeding anyway");
+  }
+
   // Apply 50% affiliate referral discount on first month if requested
   const discounts: { coupon: string }[] = [];
   if (referralDiscount && user.referredByAffiliateId) {
