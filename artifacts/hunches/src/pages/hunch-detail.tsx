@@ -4,7 +4,7 @@ import { format, formatDistanceToNow, isPast, type Locale } from "date-fns";
 import {
   enUS, es, de, fr, pt, it, ja, ko, zhCN, id as idLocale, tr,
 } from "date-fns/locale";
-import { ArrowLeft, Users, Clock, Share2, AlertCircle, Trophy, CheckCircle2, Gift, Award, DollarSign, ChevronDown, ChevronUp, Check, Ticket, X, Info, Hash, Percent, Sigma, Calendar, Clock as ClockIcon, Layers, Link as LinkIcon, Image, Video, ExternalLink, Activity, UserCircle2, ChevronRight, Ban } from "lucide-react";
+import { ArrowLeft, Users, Clock, Share2, AlertCircle, Trophy, CheckCircle2, Gift, Award, DollarSign, ChevronDown, ChevronUp, Check, Ticket, X, Info, Hash, Percent, Sigma, Calendar, Clock as ClockIcon, Layers, Link as LinkIcon, Image, Video, ExternalLink, Activity, UserCircle2, ChevronRight, Ban, Timer } from "lucide-react";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, LabelList,
 } from "recharts";
@@ -70,6 +70,7 @@ const getAnswerTypeIcon = (answerType: string) => {
     case "number":  return <Sigma className="w-3 h-3" />;
     case "date": return <Calendar className="w-3 h-3" />;
     case "time": return <ClockIcon className="w-3 h-3" />;
+    case "laptime": return <Timer className="w-3 h-3" />;
     default: return <Hash className="w-3 h-3" />;
   }
 };
@@ -82,6 +83,7 @@ const getAnswerTypePlaceholder = (answerType: string, placeholder?: string | nul
     case "number":  return "Ej. 2.346";
     case "date": return "Enter a date (e.g. 15/08/2025)";
     case "time": return "Enter a time (e.g. 01:23:45)";
+    case "laptime": return "m : ss . mmm";
     default: return "Your answer...";
   }
 };
@@ -164,6 +166,31 @@ function TimeInput({ value, onChange }: { value: string; onChange: (v: string) =
   );
 }
 
+function LapTimeInput({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const parse = (v: string) => {
+    const m = v.match(/^(\d{1,2}):(\d{2})\.(\d{1,3})$/);
+    return m ? [m[1] ?? "", m[2] ?? "", m[3] ?? ""] : ["", "", ""];
+  };
+  const init = parse(value);
+  const [mins, setMins] = useState(init[0]);
+  const [secs, setSecs] = useState(init[1]);
+  const [ms,   setMs]   = useState(init[2]);
+  const minRef = useRef<HTMLInputElement | null>(null);
+  const secRef = useRef<HTMLInputElement | null>(null);
+  const msRef  = useRef<HTMLInputElement | null>(null);
+  useEffect(() => { if (!value) { setMins(""); setSecs(""); setMs(""); } }, [value]);
+  const emit = (m: string, s: string, x: string) => onChange(m || s || x ? `${m}:${s}.${x}` : "");
+  return (
+    <div className="flex items-center gap-0.5 w-full rounded-xl border border-border bg-white px-4 py-3 focus-within:ring-2 focus-within:ring-primary/30 focus-within:border-primary transition-all">
+      <SegmentBox segRef={minRef} value={mins} onChange={(v) => { setMins(v); emit(v, secs, ms); }} placeholder="m"  maxLen={2} widthCls="w-6" onFull={() => secRef.current?.focus()} />
+      <span className="text-muted-foreground text-sm select-none font-medium">:</span>
+      <SegmentBox segRef={secRef} value={secs} onChange={(v) => { setSecs(v); emit(mins, v, ms); }} placeholder="ss" maxLen={2} widthCls="w-8" onFull={() => msRef.current?.focus()} onBackspace={() => minRef.current?.focus()} />
+      <span className="text-muted-foreground text-sm select-none font-medium">.</span>
+      <SegmentBox segRef={msRef}  value={ms}   onChange={(v) => { setMs(v);   emit(mins, secs, v); }} placeholder="mmm" maxLen={3} widthCls="w-10" onBackspace={() => secRef.current?.focus()} />
+    </div>
+  );
+}
+
 function AnswerInput({
   answerType, value, onChange, onEnter, compact = false, options,
 }: {
@@ -195,8 +222,9 @@ function AnswerInput({
       </div>
     );
   }
-  if (answerType === "date") return <DateInput value={value} onChange={onChange} />;
-  if (answerType === "time") return <TimeInput value={value} onChange={onChange} />;
+  if (answerType === "date")    return <DateInput value={value} onChange={onChange} />;
+  if (answerType === "time")    return <TimeInput value={value} onChange={onChange} />;
+  if (answerType === "laptime") return <LapTimeInput value={value} onChange={onChange} />;
   if (answerType === "decimal") {
     return (
       <div className="flex items-center gap-2">

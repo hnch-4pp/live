@@ -4,7 +4,7 @@ import { AdminLayout } from "@/components/admin-layout";
 import { useAdminAuth, adminFetch } from "./dashboard";
 import { useToast } from "@/hooks/use-toast";
 import { apiUrl } from "@/lib/apiFetch";
-import { Check, ChevronLeft, Hash, Percent, Sigma, Calendar, Clock, Plus, Trash2, Gift, Layers, List, Users, Trophy, ChevronDown, Link as LinkIcon, Image, Video, X, Upload, ListOrdered, Bold, Italic, Minus } from "lucide-react";
+import { Check, ChevronLeft, Hash, Percent, Sigma, Calendar, Clock, Plus, Trash2, Gift, Layers, List, Users, Trophy, ChevronDown, Link as LinkIcon, Image, Video, X, Upload, ListOrdered, Bold, Italic, Minus, Timer } from "lucide-react";
 
 function ToolbarBtn({ label, onClick, children }: {
   label: string; onClick: () => void; children: React.ReactNode;
@@ -112,6 +112,7 @@ const ANSWER_TYPES = [
   { value: "number",  label: "Número",   description: "Decimal sin % (ej. 2.346)",          Icon: Sigma },
   { value: "date",    label: "Date",     description: "Date in dd/mm/yyyy",                 Icon: Calendar },
   { value: "time",    label: "Time",     description: "Duration in hh:mm:ss",               Icon: Clock },
+  { value: "laptime", label: "Lap time", description: "Racing lap time in m:ss.mmm",        Icon: Timer },
   { value: "option",  label: "Opcion",   description: "Seleccion de una lista de opciones", Icon: List },
 ];
 
