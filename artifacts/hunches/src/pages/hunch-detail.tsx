@@ -1114,7 +1114,19 @@ export default function HunchDetail() {
                 <Info className="w-4 h-4 text-primary shrink-0 mt-0.5" />
                 <div className="text-sm">
                   <strong className="text-foreground block mb-1">{t("how_resolution")}</strong>
-                  <span className="text-muted-foreground whitespace-pre-line">{hunch.rules}</span>
+                  <ReactMarkdown
+                    components={{
+                      p: ({ children }) => <p className="mb-2 last:mb-0 leading-relaxed">{children}</p>,
+                      strong: ({ children }) => <strong className="font-semibold text-foreground">{children}</strong>,
+                      em: ({ children }) => <em className="italic">{children}</em>,
+                      ul: ({ children }) => <ul className="list-disc list-inside space-y-1 mb-2 last:mb-0">{children}</ul>,
+                      ol: ({ children }) => <ol className="list-decimal list-inside space-y-1 mb-2 last:mb-0">{children}</ol>,
+                      li: ({ children }) => <li className="leading-relaxed">{children}</li>,
+                      hr: () => <hr className="border-primary/20 my-3" />,
+                    }}
+                  >
+                    {hunch.rules}
+                  </ReactMarkdown>
                 </div>
               </div>
             )}

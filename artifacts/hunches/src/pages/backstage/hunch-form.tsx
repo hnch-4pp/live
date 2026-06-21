@@ -359,6 +359,7 @@ export default function HunchForm() {
   const [loading, setLoading]     = useState(isEditing);
   const [error, setError]         = useState("");
   const descriptionRef = useRef<HTMLTextAreaElement>(null);
+  const rulesRef = useRef<HTMLTextAreaElement>(null);
   const [predData, setPredData]   = useState<PredData | null>(null);
   const [predLoading, setPredLoading] = useState(false);
 
@@ -706,13 +707,21 @@ export default function HunchForm() {
             )}
 
             <Field label="Rules" hint="How will this hunch be resolved?">
-              <textarea
-                rows={5}
-                value={form.rules}
-                onChange={(e) => setForm({ ...form, rules: e.target.value })}
-                placeholder="Explain how this hunch will be resolved, what counts as a valid answer, and any special conditions..."
-                className={`${inputCls} resize-y`}
-              />
+              <div>
+                <MarkdownToolbar
+                  textareaRef={rulesRef}
+                  value={form.rules}
+                  onChange={(v) => setForm({ ...form, rules: v })}
+                />
+                <textarea
+                  ref={rulesRef}
+                  rows={5}
+                  value={form.rules}
+                  onChange={(e) => setForm({ ...form, rules: e.target.value })}
+                  placeholder="Explain how this hunch will be resolved, what counts as a valid answer, and any special conditions..."
+                  className={`${inputCls} resize-y rounded-t-none border-t-0`}
+                />
+              </div>
             </Field>
 
             <Field label="Tags" hint="Comma-separated slugs (e.g. world-cup,tennis). Used by Trending Topics to filter hunches.">
