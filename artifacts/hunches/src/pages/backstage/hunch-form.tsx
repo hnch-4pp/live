@@ -418,7 +418,7 @@ export default function HunchForm() {
       } else {
         const created = await res.json() as { id?: number };
         if (created.id) {
-          setLocation(`/backstage/hunches/${created.id}`);
+          setLocation(`/backstage/hunches/${created.id}/edit`);
         } else {
           setLocation("/backstage/hunches");
         }
