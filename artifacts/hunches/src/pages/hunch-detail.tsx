@@ -18,6 +18,7 @@ import { useToast } from "@/hooks/use-toast";
 import { HunchComments } from "@/components/hunch-comments";
 import { useGetHunch, useSubmitPrediction, getGetHunchQueryKey, useGetHunchWinners, getGetHunchWinnersQueryKey } from "@workspace/api-client-react";
 import { useTranslation } from "react-i18next";
+import ReactMarkdown from "react-markdown";
 import { useAuth } from "@/hooks/use-auth";
 
 function fmtNumericLabel(label: string): string {
@@ -1090,7 +1091,21 @@ export default function HunchDetail() {
             {/* Context */}
             <div className="bg-card border border-border rounded-2xl p-6 card-shadow">
               <h3 className="text-base font-display font-bold text-foreground mb-3">{t("the_context")}</h3>
-              <p className="text-muted-foreground leading-relaxed">{hunch.description}</p>
+              <div className="text-muted-foreground leading-relaxed markdown-content">
+                <ReactMarkdown
+                  components={{
+                    p: ({ children }) => <p className="mb-3 last:mb-0 leading-relaxed">{children}</p>,
+                    strong: ({ children }) => <strong className="font-semibold text-foreground">{children}</strong>,
+                    em: ({ children }) => <em className="italic">{children}</em>,
+                    ul: ({ children }) => <ul className="list-disc list-inside space-y-1 mb-3 last:mb-0">{children}</ul>,
+                    ol: ({ children }) => <ol className="list-decimal list-inside space-y-1 mb-3 last:mb-0">{children}</ol>,
+                    li: ({ children }) => <li className="leading-relaxed">{children}</li>,
+                    hr: () => <hr className="border-border my-4" />,
+                  }}
+                >
+                  {hunch.description}
+                </ReactMarkdown>
+              </div>
             </div>
 
             {/* Rules */}

@@ -4,7 +4,80 @@ import { AdminLayout } from "@/components/admin-layout";
 import { useAdminAuth, adminFetch } from "./dashboard";
 import { useToast } from "@/hooks/use-toast";
 import { apiUrl } from "@/lib/apiFetch";
-import { Check, ChevronLeft, Hash, Percent, Sigma, Calendar, Clock, Plus, Trash2, Gift, Layers, List, Users, Trophy, ChevronDown, Link as LinkIcon, Image, Video, X, Upload } from "lucide-react";
+import { Check, ChevronLeft, Hash, Percent, Sigma, Calendar, Clock, Plus, Trash2, Gift, Layers, List, Users, Trophy, ChevronDown, Link as LinkIcon, Image, Video, X, Upload, ListOrdered, Bold, Italic, Minus } from "lucide-react";
+
+function ToolbarBtn({ label, onClick, children }: {
+  label: string; onClick: () => void; children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      title={label}
+      onMouseDown={(e) => { e.preventDefault(); onClick(); }}
+      className="w-7 h-7 flex items-center justify-center rounded hover:bg-gray-200 text-gray-600 transition-colors"
+    >
+      {children}
+    </button>
+  );
+}
+
+function MarkdownToolbar({ textareaRef, value, onChange }: {
+  textareaRef: React.RefObject<HTMLTextAreaElement | null>;
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  const apply = (type: string) => {
+    const el = textareaRef.current;
+    if (!el) return;
+    const start = el.selectionStart;
+    const end = el.selectionEnd;
+    const selected = value.slice(start, end);
+    let replacement = "";
+
+    if (type === "bold") {
+      replacement = `**${selected || "texto"}**`;
+    } else if (type === "italic") {
+      replacement = `*${selected || "texto"}*`;
+    } else if (type === "bullet") {
+      const lines = (selected || "elemento").split("\n").map((l) => `- ${l}`).join("\n");
+      replacement = lines;
+    } else if (type === "numbered") {
+      const lines = (selected || "elemento").split("\n").map((l, i) => `${i + 1}. ${l}`).join("\n");
+      replacement = lines;
+    } else if (type === "divider") {
+      replacement = `\n---\n`;
+    }
+
+    const next = value.slice(0, start) + replacement + value.slice(end);
+    onChange(next);
+    requestAnimationFrame(() => {
+      el.focus();
+      el.setSelectionRange(start + replacement.length, start + replacement.length);
+    });
+  };
+
+  return (
+    <div className="flex items-center gap-0.5 px-2 py-1.5 border border-b-0 border-gray-200 rounded-t-lg bg-gray-50">
+      <ToolbarBtn label="Negrita" onClick={() => apply("bold")}>
+        <Bold className="w-3.5 h-3.5" />
+      </ToolbarBtn>
+      <ToolbarBtn label="Itálica" onClick={() => apply("italic")}>
+        <Italic className="w-3.5 h-3.5" />
+      </ToolbarBtn>
+      <div className="w-px h-4 bg-gray-200 mx-1" />
+      <ToolbarBtn label="Lista con viñetas" onClick={() => apply("bullet")}>
+        <List className="w-3.5 h-3.5" />
+      </ToolbarBtn>
+      <ToolbarBtn label="Lista numerada" onClick={() => apply("numbered")}>
+        <ListOrdered className="w-3.5 h-3.5" />
+      </ToolbarBtn>
+      <div className="w-px h-4 bg-gray-200 mx-1" />
+      <ToolbarBtn label="Línea divisoria" onClick={() => apply("divider")}>
+        <Minus className="w-3.5 h-3.5" />
+      </ToolbarBtn>
+    </div>
+  );
+}
 
 function ordinal(n: number): string {
   const s = ["th", "st", "nd", "rd"];
@@ -285,6 +358,7 @@ export default function HunchForm() {
   const [saving, setSaving]       = useState(false);
   const [loading, setLoading]     = useState(isEditing);
   const [error, setError]         = useState("");
+  const descriptionRef = useRef<HTMLTextAreaElement>(null);
   const [predData, setPredData]   = useState<PredData | null>(null);
   const [predLoading, setPredLoading] = useState(false);
 
@@ -578,14 +652,22 @@ export default function HunchForm() {
             </Field>
 
             <Field label="Description" required>
-              <textarea
-                required
-                rows={4}
-                value={form.description}
-                onChange={(e) => setForm({ ...form, description: e.target.value })}
-                placeholder="Provide context that helps users make their prediction..."
-                className={`${inputCls} resize-y`}
-              />
+              <div>
+                <MarkdownToolbar
+                  textareaRef={descriptionRef}
+                  value={form.description}
+                  onChange={(v) => setForm({ ...form, description: v })}
+                />
+                <textarea
+                  ref={descriptionRef}
+                  required
+                  rows={6}
+                  value={form.description}
+                  onChange={(e) => setForm({ ...form, description: e.target.value })}
+                  placeholder="Provide context that helps users make their prediction..."
+                  className={`${inputCls} resize-y rounded-t-none border-t-0`}
+                />
+              </div>
             </Field>
 
             <Field label="Cover image" hint="Optional — shown as the hunch's cover photo">
