@@ -81,10 +81,10 @@ const getAnswerTypePlaceholder = (answerType: string, placeholder?: string | nul
     case "integer": return "Enter a whole number (e.g. 3)";
     case "decimal": return "Enter a number (e.g. 1.5)";
     case "number":  return "Ej. 2.346";
-    case "date": return "Enter a date (e.g. 15/08/2025)";
-    case "time": return "Enter a time (e.g. 01:23:45)";
+    case "date": return "Ingresa una fecha (ej. 15/08/2025)";
+    case "time": return "Ingresa una hora (ej. 01:23:45)";
     case "laptime": return "m : ss . mmm";
-    default: return "Your answer...";
+    default: return "Tu respuesta...";
   }
 };
 
@@ -1282,8 +1282,8 @@ export default function HunchDetail() {
                 <div className="flex items-center gap-2 mb-4 px-3 py-2 bg-primary/5 border border-primary/15 rounded-xl">
                   <Ticket className="w-4 h-4 text-primary flex-shrink-0" />
                   <span className="text-sm text-primary font-medium">
-                    Costs {hunch.ticketCost} ticket{hunch.ticketCost !== 1 ? "s" : ""}
-                    {user ? <span className="text-muted-foreground ml-1">({user.tickets} remaining)</span> : null}
+                    Cuesta {hunch.ticketCost} ticket{hunch.ticketCost !== 1 ? "s" : ""}
+                    {user ? <span className="text-muted-foreground ml-1">(te quedan {user.tickets})</span> : null}
                   </span>
                 </div>
               )}
@@ -1384,7 +1384,7 @@ export default function HunchDetail() {
                         <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center">
                           <Ticket className="w-5 h-5 text-primary" />
                         </div>
-                        <h3 className="font-display font-bold text-lg text-foreground">Confirm prediction</h3>
+                        <h3 className="font-display font-bold text-lg text-foreground">Confirmar prediccion</h3>
                       </div>
                       <button onClick={() => setShowConfirm(false)} className="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
                         <X className="w-4 h-4" />
@@ -1394,7 +1394,7 @@ export default function HunchDetail() {
                     {/* Single answer */}
                     {!isMulti && (
                       <>
-                        <p className="text-sm text-muted-foreground mb-1">Your answer</p>
+                        <p className="text-sm text-muted-foreground mb-1">Tu respuesta</p>
                         <div className="bg-muted rounded-xl px-4 py-2.5 mb-4">
                           <span className="text-sm font-semibold text-foreground">{isNumericType((hunch as any)?.answerType) ? fmtNumericLabel(freeText) : freeText}</span>
                         </div>
@@ -1418,25 +1418,25 @@ export default function HunchDetail() {
                     )}
 
                     <p className="text-sm text-muted-foreground mb-4">
-                      This will use{" "}
+                      Esto usara{" "}
                       <span className="font-semibold text-foreground">{hunch.ticketCost} ticket{hunch.ticketCost !== 1 ? "s" : ""}</span>.
-                      {user ? <> You have <span className="font-semibold text-foreground">{user.tickets}</span> remaining.</> : null}
+                      {user ? <> Te quedan <span className="font-semibold text-foreground">{user.tickets}</span>.</> : null}
                     </p>
 
                     {isMulti && (
                       <p className="text-xs text-muted-foreground mb-4 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
-                        You need to get all {questions.length} criteria right to win.
+                        Necesitas acertar los {questions.length} criterios para ganar.
                       </p>
                     )}
 
                     <div className="flex gap-2">
-                      <Button variant="outline" className="flex-1 rounded-xl" onClick={() => setShowConfirm(false)}>Cancel</Button>
+                      <Button variant="outline" className="flex-1 rounded-xl" onClick={() => setShowConfirm(false)}>Cancelar</Button>
                       <Button
                         className="flex-1 bg-primary text-white hover:bg-primary/90 rounded-xl font-bold"
                         onClick={confirmPredict}
                         disabled={submitPrediction.isPending}
                       >
-                        {submitPrediction.isPending ? "Submitting..." : "Lock it in"}
+                        {submitPrediction.isPending ? "Enviando..." : "Confirmar"}
                       </Button>
                     </div>
                   </div>
