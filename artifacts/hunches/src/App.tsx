@@ -1,6 +1,6 @@
 import { Switch, Route, Router as WouterRouter, useLocation } from "wouter";
 import { useEffect } from "react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/hooks/use-auth";
@@ -43,6 +43,7 @@ import AdminTrending from "@/pages/backstage/trending";
 import AdminComments from "@/pages/backstage/comments";
 import AdminSendNotifications from "@/pages/backstage/send-notifications";
 import AdminPricing from "@/pages/backstage/pricing";
+import AdminSiteSettings from "@/pages/backstage/site-settings";
 import NotificationsPage from "@/pages/notifications";
 import Referral from "@/pages/referral";
 import UserProfile from "@/pages/user-profile";
@@ -51,6 +52,7 @@ import ReportBug from "@/pages/report-bug";
 import SuggestHunch from "@/pages/suggest-hunch";
 import PrizesPage from "@/pages/prizes";
 import { CookieBanner } from "@/components/cookie-banner";
+import { apiUrl } from "@/lib/apiFetch";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -69,10 +71,39 @@ function ScrollToTop() {
   return null;
 }
 
+interface SiteStatus { maintenanceEnabled: boolean; maintenanceMessage: string; }
+
+function MaintenanceGate({ children }: { children: React.ReactNode }) {
+  const [location] = useLocation();
+  const { data } = useQuery<SiteStatus>({
+    queryKey: ["site-status"],
+    queryFn: () => fetch(apiUrl("/api/site-status")).then((r) => r.json()),
+    staleTime: 30_000,
+    refetchInterval: 60_000,
+  });
+
+  const isBackstage = location.startsWith("/backstage");
+
+  if (data?.maintenanceEnabled && !isBackstage) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 px-6 py-16">
+        <img src="/hunch-logo.png" alt="Hunch" className="h-10 w-auto mb-8 opacity-80" />
+        <div
+          className="prose prose-sm max-w-md text-center text-gray-600"
+          dangerouslySetInnerHTML={{ __html: data.maintenanceMessage }}
+        />
+      </div>
+    );
+  }
+
+  return <>{children}</>;
+}
+
 function Router() {
   return (
     <>
       <ScrollToTop />
+      <MaintenanceGate>
       <Switch>
       <Route path="/" component={Home} />
       <Route path="/hunch/:slug" component={HunchDetail} />
@@ -109,6 +140,7 @@ function Router() {
       <Route path="/backstage/comments" component={AdminComments} />
       <Route path="/backstage/send-notifications" component={AdminSendNotifications} />
       <Route path="/backstage/pricing" component={AdminPricing} />
+      <Route path="/backstage/site-settings" component={AdminSiteSettings} />
       <Route path="/notifications" component={NotificationsPage} />
       <Route path="/referral" component={Referral} />
       <Route path="/affiliate" component={AffiliateLanding} />
@@ -121,6 +153,7 @@ function Router() {
       <Route path="/:affiliateSlug" component={AffiliateSlugPage} />
       <Route component={NotFound} />
     </Switch>
+    </MaintenanceGate>
     </>
   );
 }

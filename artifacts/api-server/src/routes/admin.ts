@@ -3165,4 +3165,55 @@ router.put("/admin/pricing-plans/:id", async (req, res): Promise<void> => {
   res.json({ plan: updated });
 });
 
+// ─── Site settings (maintenance mode) ────────────────────────────────────────
+
+const SITE_SETTINGS_KEY = "site_settings";
+
+interface SiteSettings {
+  maintenanceEnabled: boolean;
+  maintenanceMessage: string;
+}
+
+const DEFAULT_SITE_SETTINGS: SiteSettings = {
+  maintenanceEnabled: false,
+  maintenanceMessage: "<p>Estamos realizando mantenimiento. Volvemos pronto.</p>",
+};
+
+async function getSiteSettings(): Promise<SiteSettings> {
+  const [row] = await db
+    .select({ value: appSettingsTable.value })
+    .from(appSettingsTable)
+    .where(eq(appSettingsTable.key, SITE_SETTINGS_KEY));
+  if (!row) return { ...DEFAULT_SITE_SETTINGS };
+  try {
+    return { ...DEFAULT_SITE_SETTINGS, ...JSON.parse(row.value) };
+  } catch {
+    return { ...DEFAULT_SITE_SETTINGS };
+  }
+}
+
+// Public — no auth required
+router.get("/site-status", async (_req, res): Promise<void> => {
+  const settings = await getSiteSettings();
+  res.json({ maintenanceEnabled: settings.maintenanceEnabled, maintenanceMessage: settings.maintenanceMessage });
+});
+
+router.get("/admin/site-settings", requireAdmin, requireAdminHeader, async (_req, res): Promise<void> => {
+  res.json(await getSiteSettings());
+});
+
+router.put("/admin/site-settings", requireAdmin, requireAdminHeader, async (req, res): Promise<void> => {
+  const body = req.body as Partial<SiteSettings>;
+  const current = await getSiteSettings();
+  const updated: SiteSettings = {
+    maintenanceEnabled: typeof body.maintenanceEnabled === "boolean" ? body.maintenanceEnabled : current.maintenanceEnabled,
+    maintenanceMessage: typeof body.maintenanceMessage === "string" ? body.maintenanceMessage : current.maintenanceMessage,
+  };
+  await db
+    .insert(appSettingsTable)
+    .values({ key: SITE_SETTINGS_KEY, value: JSON.stringify(updated) })
+    .onConflictDoUpdate({ target: appSettingsTable.key, set: { value: JSON.stringify(updated), updatedAt: new Date() } });
+  res.json(updated);
+});
+
 export default router;

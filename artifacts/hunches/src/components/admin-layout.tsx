@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { useTranslation } from "react-i18next";
 import { apiUrl } from "@/lib/apiFetch";
-import { LayoutDashboard, ListChecks, Tag, Users, LogOut, ChevronRight, Ticket, Sparkles, Bell, BarChart2, BellRing, Link2, Award, TrendingUp, MessageSquare, CreditCard } from "lucide-react";
+import { LayoutDashboard, ListChecks, Tag, Users, LogOut, ChevronRight, Ticket, Sparkles, Bell, BarChart2, BellRing, Link2, Award, TrendingUp, MessageSquare, CreditCard, ShieldOff } from "lucide-react";
 
 const NAV = [
   { href: "/backstage/dashboard",         label: "Dashboard",        icon: LayoutDashboard },
@@ -20,6 +20,7 @@ const NAV = [
   { href: "/backstage/affiliates",        label: "Affiliates",       icon: Link2 },
   { href: "/backstage/affiliate-tiers",   label: "Comm. Tiers",      icon: Award, sub: true },
   { href: "/backstage/comments",          label: "Comments",         icon: MessageSquare },
+  { href: "/backstage/site-settings",     label: "Acceso al sitio",  icon: ShieldOff },
 ];
 
 async function logout() {
